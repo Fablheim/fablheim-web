@@ -152,27 +152,9 @@ export function QuickContent({ campaignId }: QuickContentProps) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Sub-tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {tabDefs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => { setTab(t.key); setResult(null); }}
-            className={`border-b-2 px-3 py-1.5 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
-              tab === t.key
-                ? 'border-brass text-brass'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* NPC tab */}
-      {tab === 'names' && (
+  function renderTabContent() {
+    if (tab === 'names') {
+      return (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -202,10 +184,10 @@ export function QuickContent({ campaignId }: QuickContentProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Location tab */}
-      {tab === 'locations' && (
+      );
+    }
+    if (tab === 'locations') {
+      return (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -235,147 +217,170 @@ export function QuickContent({ campaignId }: QuickContentProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Shops & Taverns tab */}
-      {tab === 'items' && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Generate</label>
-              <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setGenType('tavern')}
-                  className={`flex-1 rounded-sm border px-3 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
-                    genType === 'tavern'
-                      ? 'border-brass/40 bg-brass/10 text-brass'
-                      : 'border-input bg-input text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Tavern
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGenType('shop')}
-                  className={`flex-1 rounded-sm border px-3 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
-                    genType === 'shop'
-                      ? 'border-brass/40 bg-brass/10 text-brass'
-                      : 'border-input bg-input text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Shop
-                </button>
-              </div>
-            </div>
-            <div>
-              {genType === 'tavern' ? (
-                <>
-                  <label htmlFor="qc-tavern-tone" className={labelClass}>Tone</label>
-                  <select
-                    id="qc-tavern-tone"
-                    value={tavernTone}
-                    onChange={(e) => setTavernTone(e.target.value as TavernTone)}
-                    className={inputClass}
-                  >
-                    {TAVERN_TONES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </>
-              ) : (
-                <>
-                  <label htmlFor="qc-shop-type" className={labelClass}>Shop Type</label>
-                  <select
-                    id="qc-shop-type"
-                    value={shopType}
-                    onChange={(e) => setShopType(e.target.value as ShopType)}
-                    className={inputClass}
-                  >
-                    {SHOP_TYPES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                </>
-              )}
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Generate</label>
+            <div className="mt-1 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setGenType('tavern')}
+                className={`flex-1 rounded-sm border px-3 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                  genType === 'tavern'
+                    ? 'border-brass/40 bg-brass/10 text-brass'
+                    : 'border-input bg-input text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Tavern
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenType('shop')}
+                className={`flex-1 rounded-sm border px-3 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                  genType === 'shop'
+                    ? 'border-brass/40 bg-brass/10 text-brass'
+                    : 'border-input bg-input text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Shop
+              </button>
             </div>
           </div>
+          <div>
+            {genType === 'tavern' ? (
+              <>
+                <label htmlFor="qc-tavern-tone" className={labelClass}>Tone</label>
+                <select
+                  id="qc-tavern-tone"
+                  value={tavernTone}
+                  onChange={(e) => setTavernTone(e.target.value as TavernTone)}
+                  className={inputClass}
+                >
+                  {TAVERN_TONES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <label htmlFor="qc-shop-type" className={labelClass}>Shop Type</label>
+                <select
+                  id="qc-shop-type"
+                  value={shopType}
+                  onChange={(e) => setShopType(e.target.value as ShopType)}
+                  className={inputClass}
+                >
+                  {SHOP_TYPES.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* Generate button */}
-      <Button
-        onClick={handleGenerate}
-        disabled={isPending}
-        className="shadow-glow"
-      >
-        {isPending ? (
-          <>
-            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            Generating...
-          </>
-        ) : (
-          `Generate ${tab === 'names' ? 'NPC' : tab === 'locations' ? 'Location' : genType === 'tavern' ? 'Tavern' : 'Shop'}`
+  function renderResult() {
+    return (
+      <>
+        <Button
+          onClick={handleGenerate}
+          disabled={isPending}
+          className="shadow-glow"
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            `Generate ${tab === 'names' ? 'NPC' : tab === 'locations' ? 'Location' : genType === 'tavern' ? 'Tavern' : 'Shop'}`
+          )}
+        </Button>
+
+        {error && (
+          <p className="text-sm text-destructive">
+            {(error as Error).message || 'Generation failed'}
+          </p>
         )}
-      </Button>
 
-      {error && (
-        <p className="text-sm text-destructive">
-          {(error as Error).message || 'Generation failed'}
-        </p>
-      )}
-
-      {/* Result */}
-      {result && (
-        <div className="space-y-3 rounded-md border border-border bg-background/40 p-4 texture-leather">
-          <div className="flex items-start justify-between">
-            <h4 className="font-['IM_Fell_English'] text-lg text-card-foreground">{result.name}</h4>
-            <span className="rounded-md bg-forest/20 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-[hsl(150,50%,55%)]">
-              {result.type.replace('_', ' ')}
-            </span>
-          </div>
-
-          {result.description && (
-            <p className="text-sm leading-relaxed text-foreground">{result.description}</p>
-          )}
-
-          {/* Type-specific data */}
-          {result.typeData && Object.keys(result.typeData).length > 0 && (
-            <div className="space-y-2">
-              {Object.entries(result.typeData).map(([key, value]) => {
-                if (!value) return null;
-                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
-                return (
-                  <div key={key}>
-                    <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-                    <p className="mt-0.5 text-sm text-foreground">{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</p>
-                  </div>
-                );
-              })}
+        {result && (
+          <div className="space-y-3 rounded-md border border-border bg-background/40 p-4 texture-leather">
+            <div className="flex items-start justify-between">
+              <h4 className="font-['IM_Fell_English'] text-lg text-card-foreground">{result.name}</h4>
+              <span className="rounded-md bg-forest/20 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-[hsl(150,50%,55%)]">
+                {result.type.replace('_', ' ')}
+              </span>
             </div>
-          )}
 
-          <div className="flex gap-2 pt-1">
-            <Button size="sm" variant="secondary" onClick={handleCopy}>
-              {copied ? (
-                <>
-                  <Check className="mr-1.5 h-3.5 w-3.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-1.5 h-3.5 w-3.5" />
-                  Copy
-                </>
-              )}
-            </Button>
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-forest/15 px-2.5 py-1 text-xs text-[hsl(150,50%,55%)]">
-              <BookmarkPlus className="h-3.5 w-3.5" />
-              Auto-saved to World
-            </span>
+            {result.description && (
+              <p className="text-sm leading-relaxed text-foreground">{result.description}</p>
+            )}
+
+            {result.typeData && Object.keys(result.typeData).length > 0 && (
+              <div className="space-y-2">
+                {Object.entries(result.typeData).map(([key, value]) => {
+                  if (!value) return null;
+                  const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+                  return (
+                    <div key={key}>
+                      <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+                      <p className="mt-0.5 text-sm text-foreground">{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" variant="secondary" onClick={handleCopy}>
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copy
+                  </>
+                )}
+              </Button>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-forest/15 px-2.5 py-1 text-xs text-[hsl(150,50%,55%)]">
+                <BookmarkPlus className="h-3.5 w-3.5" />
+                Auto-saved to World
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-border">
+        {tabDefs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => { setTab(t.key); setResult(null); }}
+            className={`border-b-2 px-3 py-1.5 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+              tab === t.key
+                ? 'border-brass text-brass'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {renderTabContent()}
+      {renderResult()}
     </div>
   );
 }
