@@ -242,11 +242,7 @@ export default function HowItWorksPage() {
               onClick={() => navigate('/')}
               className="flex items-center gap-2 transition-opacity hover:opacity-80"
             >
-              <div className="animate-candle flex h-9 w-9 items-center justify-center rounded-md bg-amber-600 shadow-glow-sm">
-                <span className="font-['Cinzel_Decorative'] text-lg font-bold text-[hsl(35,25%,92%)]">
-                  F
-                </span>
-              </div>
+              <img src="/fablheim-logo.png" alt="Fablheim" className="h-9 w-9 rounded-md shadow-glow-sm animate-candle" />
               <span className="font-['Cinzel_Decorative'] text-glow-gold text-xl font-bold text-[hsl(35,25%,92%)]">
                 Fablheim
               </span>
@@ -591,11 +587,7 @@ export default function HowItWorksPage() {
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-600 shadow-glow-sm">
-                <span className="font-['Cinzel_Decorative'] text-lg font-bold text-[hsl(35,25%,92%)]">
-                  F
-                </span>
-              </div>
+              <img src="/fablheim-logo.png" alt="Fablheim" className="h-8 w-8 rounded-md shadow-glow-sm" />
               <span className="font-['Cinzel_Decorative'] text-glow-gold font-semibold text-[hsl(35,25%,92%)]">
                 Fablheim
               </span>

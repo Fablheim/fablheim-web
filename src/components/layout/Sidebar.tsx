@@ -98,9 +98,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between border-b border-[hsla(38,40%,30%,0.12)] p-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary shadow-glow-sm animate-candle">
-              <span className="text-sm font-bold text-primary-foreground">F</span>
-            </div>
+            <img src="/fablheim-logo.png" alt="Fablheim" className="h-8 w-8 rounded-md shadow-glow-sm animate-candle" />
             <span className="font-bold text-foreground font-['Cinzel_Decorative'] text-glow-gold">Fablheim</span>
           </div>
         )}
