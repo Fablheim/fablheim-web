@@ -14,10 +14,12 @@ import {
   ChevronRight,
   LayoutGrid,
   HelpCircle,
+  Coins,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTabs } from '@/context/TabContext';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { useCreditBalance } from '@/hooks/useCredits';
 import { ItemContextMenu } from '@/components/ui/ItemContextMenu';
 import { LayoutManager } from '@/components/layouts/LayoutManager';
 import { resolveRouteContent } from '@/routes';
@@ -35,6 +37,7 @@ export function Sidebar() {
     focusedPanel,
   } = useTabs();
   const { data: dmCampaigns } = useCampaigns();
+  const { data: creditBalance } = useCreditBalance();
   const [collapsed, setCollapsed] = useState(false);
   const [layoutsOpen, setLayoutsOpen] = useState(false);
 
@@ -147,6 +150,32 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Credit Balance */}
+      {creditBalance && (
+        <div className={`px-3 py-2 ${collapsed ? 'text-center' : ''}`}>
+          <div
+            className={`flex items-center gap-2 rounded-md px-3 py-2 ${
+              creditBalance.total < 10
+                ? 'bg-[hsla(30,80%,50%,0.1)] text-[hsl(30,80%,60%)]'
+                : 'bg-brass/10 text-brass'
+            }`}
+            title={collapsed ? `${creditBalance.total} credits` : undefined}
+          >
+            <Coins className="h-4 w-4 shrink-0" />
+            {!collapsed && (
+              <div className="flex-1">
+                <p className="font-[Cinzel] text-xs font-semibold tracking-wider">
+                  {creditBalance.total} Credits
+                </p>
+                {creditBalance.total < 10 && (
+                  <p className="text-[10px] opacity-75">Low balance</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Ornate divider above user section */}
       <div className="divider-ornate" />

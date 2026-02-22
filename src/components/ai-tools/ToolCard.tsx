@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronDown, type LucideIcon } from 'lucide-react';
+import { ChevronDown, Coins, type LucideIcon } from 'lucide-react';
 
 interface ToolCardProps {
   title: string;
@@ -7,9 +7,10 @@ interface ToolCardProps {
   icon: LucideIcon;
   children: ReactNode;
   defaultOpen?: boolean;
+  creditCost?: number;
 }
 
-export function ToolCard({ title, description, icon: Icon, children, defaultOpen }: ToolCardProps) {
+export function ToolCard({ title, description, icon: Icon, children, defaultOpen, creditCost }: ToolCardProps) {
   const [open, setOpen] = useState(defaultOpen ?? false);
 
   return (
@@ -23,9 +24,17 @@ export function ToolCard({ title, description, icon: Icon, children, defaultOpen
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-[Cinzel] text-sm font-semibold tracking-wider text-card-foreground">
-            {title}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-[Cinzel] text-sm font-semibold tracking-wider text-card-foreground">
+              {title}
+            </h3>
+            {creditCost !== undefined && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brass/15 px-2 py-0.5 text-[10px] font-medium text-brass">
+                <Coins className="h-3 w-3" />
+                {creditCost}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />

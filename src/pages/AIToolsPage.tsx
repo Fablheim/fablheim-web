@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User, Swords, BookOpen, Lightbulb, Sparkles } from 'lucide-react';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
+import { useCreditCosts } from '@/hooks/useCredits';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CampaignSelector } from '@/components/ui/CampaignSelector';
 import { ToolCard } from '@/components/ai-tools/ToolCard';
@@ -16,6 +17,7 @@ interface AIToolsPageProps {
 
 export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
   const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+  const { data: creditCosts } = useCreditCosts();
   const [selectedCampaignId, setSelectedCampaignId] = useState(propCampaignId ?? '');
 
   const campaignId = propCampaignId || selectedCampaignId;
@@ -75,6 +77,7 @@ export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
             description="Generate named NPCs with personality, stats, and plot hooks"
             icon={User}
             defaultOpen
+            creditCost={creditCosts?.npc_generation}
           >
             <NPCGenerator campaignId={campaignId} />
           </ToolCard>
@@ -85,6 +88,7 @@ export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
             title="Encounter Builder"
             description="Build balanced encounters with tactics and treasure"
             icon={Swords}
+            creditCost={creditCosts?.encounter_building}
           >
             <EncounterGenerator campaignId={campaignId} />
           </ToolCard>
@@ -95,6 +99,7 @@ export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
             title="Plot Hook Generator"
             description="Create story hooks that tie into your campaign"
             icon={Lightbulb}
+            creditCost={creditCosts?.plot_hooks}
           >
             <PlotHookGenerator campaignId={campaignId} />
           </ToolCard>
@@ -105,6 +110,7 @@ export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
             title="Rule Assistant"
             description="Quick SRD lookup with plain-English explanations"
             icon={BookOpen}
+            creditCost={creditCosts?.rule_questions}
           >
             <RuleAssistant campaignId={campaignId} />
           </ToolCard>
@@ -115,6 +121,7 @@ export function AIToolsPage({ campaignId: propCampaignId }: AIToolsPageProps) {
             title="Quick Content"
             description="One-click NPCs, locations, taverns, and shops"
             icon={Sparkles}
+            creditCost={creditCosts?.world_building}
           >
             <QuickContent campaignId={campaignId} />
           </ToolCard>
