@@ -15,7 +15,7 @@ import { CharacterFormModal } from '@/components/characters/CharacterFormModal';
 import { NPCFormModal } from '@/components/characters/NPCFormModal';
 import { CharacterDetailModal } from '@/components/characters/CharacterDetailModal';
 import { DeleteCharacterModal } from '@/components/characters/DeleteCharacterModal';
-import type { Character, WorldEntity } from '@/types/campaign';
+import type { Character, WorldEntity, CampaignSystem } from '@/types/campaign';
 
 type FilterTab = 'all' | 'pc' | 'npc';
 
@@ -53,7 +53,7 @@ export function CharactersPage() {
 
   // Derived
   const selectedCampaign = campaigns?.find((c) => c._id === selectedCampaignId);
-  const isDM = selectedCampaign?.role === 'dm';
+  const isDM = selectedCampaign?.role === 'dm' || selectedCampaign?.role === 'co_dm';
   const isLoading = charsLoading || npcsLoading;
   const error = charsError || npcsError;
 
@@ -195,7 +195,14 @@ export function CharactersPage() {
 
           {selectedCampaignId && (
             <>
-              <Button onClick={() => setShowPCModal(true)}>
+              <Button onClick={() => {
+                const path = `/app/campaigns/${selectedCampaignId}/characters/create`;
+                openTab({
+                  title: 'Create Character',
+                  path,
+                  content: resolveRouteContent(path, 'Create Character'),
+                });
+              }}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 Character
               </Button>
@@ -296,8 +303,15 @@ export function CharactersPage() {
                       ? 'Create a character to join the adventure'
                       : 'Create a character or NPC to begin'}
                 </p>
-                {filter !== 'npc' && (
-                  <Button onClick={() => setShowPCModal(true)}>
+                {filter !== 'npc' && selectedCampaignId && (
+                  <Button onClick={() => {
+                    const path = `/app/campaigns/${selectedCampaignId}/characters/create`;
+                    openTab({
+                      title: 'Create Character',
+                      path,
+                      content: resolveRouteContent(path, 'Create Character'),
+                    });
+                  }}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Character
                   </Button>
@@ -336,6 +350,7 @@ export function CharactersPage() {
         onClose={handleClosePCModal}
         campaignId={selectedCampaignId}
         character={editingPC}
+        campaignSystem={(selectedCampaign?.system as CampaignSystem) || 'dnd5e'}
       />
 
       <NPCFormModal
@@ -352,6 +367,7 @@ export function CharactersPage() {
         canEdit={viewingItem ? canEditItem(viewingItem) : false}
         onEdit={handleEditFromDetail}
         onDelete={handleDeleteFromDetail}
+        campaignSystem={selectedCampaign?.system}
       />
 
       <DeleteCharacterModal

@@ -6,6 +6,7 @@ import { InitiativeTracker } from '@/components/session/InitiativeTracker';
 import { CharacterStatusPanel } from '@/components/session/CharacterStatusPanel';
 import { useSessionRoom } from '@/hooks/useSocket';
 import { useAuth } from '@/context/AuthContext';
+import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { api } from '@/api/client';
 import type { Campaign } from '@/types/campaign';
 
@@ -17,12 +18,14 @@ export function LiveSessionPage({ campaignId }: LiveSessionPageProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { connected, connectedUsers, joined, error } = useSessionRoom(campaignId);
+  const { data: campaigns } = useAccessibleCampaigns();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [campaignLoading, setCampaignLoading] = useState(true);
   const [campaignError, setCampaignError] = useState<string | null>(null);
 
-  const isDM = !!(campaign && user && campaign.dmId === user._id);
+  const selectedCampaign = campaigns?.find((c) => c._id === campaignId);
+  const isDM = !!(campaign && user && campaign.dmId === user._id) || selectedCampaign?.role === 'co_dm';
 
   // Fetch campaign data
   useEffect(() => {

@@ -42,7 +42,7 @@ const gmSections: FeatureSection[] = [
     tagline:
       'Pick your system, name your world, and start playing. No setup marathon required.',
     bullets: [
-      'Choose from D&D 5e, Pathfinder 2e, Call of Cthulhu, Fate, Daggerheart, or go fully custom',
+      'Choose from D&D 5e, Pathfinder 2e, Fate, Daggerheart, or go fully custom',
       'Set your homebrew rules and toggle specific mechanics on or off',
       'Add a description, banner, and session schedule',
       'Manage multiple campaigns from a single dashboard',
@@ -252,6 +252,12 @@ export default function HowItWorksPage() {
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Home
               </Button>
+              <Button variant="ghost" onClick={() => navigate('/new-to-ttrpgs')}>
+                New to TTRPGs?
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/srd')}>
+                SRD
+              </Button>
               {user ? (
                 <Button onClick={() => navigate('/app')}>
                   Dashboard
@@ -425,7 +431,7 @@ export default function HowItWorksPage() {
                 icon: RefreshCw,
                 title: 'System-Agnostic',
                 description:
-                  'Not just D&D. Built for Pathfinder 2e, Call of Cthulhu, Fate, Daggerheart, and fully custom systems.',
+                  'Not just D&D. Built for Pathfinder 2e, Fate, Daggerheart, and fully custom systems.',
               },
               {
                 icon: Sparkles,

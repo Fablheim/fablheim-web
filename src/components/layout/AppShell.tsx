@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { PanelTabBar } from './PanelTabBar';
 import { TabProvider, useTabs } from '@/context/TabContext';
 import { useDefaultLayout } from '@/hooks/useLayouts';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { resolveRouteContent } from '@/routes';
 
 const routeTitles: Record<string, string> = {
@@ -53,6 +54,7 @@ function ShellContent({ children }: { children: ReactNode }) {
   } = useTabs();
 
   const location = useLocation();
+  useKeyboardShortcuts();
 
   // Auto-load default layout on first mount
   const { data: defaultLayout, isSuccess } = useDefaultLayout();

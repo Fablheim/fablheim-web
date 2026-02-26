@@ -7,11 +7,12 @@ import {
   Swords,
   Calendar,
   ScrollText,
+  Map,
   type LucideIcon,
 } from 'lucide-react';
 import type { WorldEntityType } from '@/types/campaign';
 
-export type WorldTab = 'all' | 'locations' | 'factions' | 'npcs' | 'items' | 'quests' | 'lore' | 'events';
+export type WorldTab = 'all' | 'locations' | 'factions' | 'npcs' | 'items' | 'quests' | 'lore' | 'events' | 'map';
 
 export interface WorldTabDef {
   key: WorldTab;
@@ -29,6 +30,7 @@ export const WORLD_TABS: WorldTabDef[] = [
   { key: 'quests', label: 'Quests', types: ['quest'], icon: Swords },
   { key: 'lore', label: 'Lore', types: ['lore'], icon: ScrollText },
   { key: 'events', label: 'Events', types: ['event'], icon: Calendar },
+  { key: 'map', label: 'Map', types: [], icon: Map },
 ];
 
 export const TYPE_ACCENTS: Record<WorldEntityType, { bg: string; text: string; border: string }> = {
@@ -129,6 +131,7 @@ export const CREATE_LABELS: Record<WorldTab, string> = {
   quests: 'Quest',
   lore: 'Lore Entry',
   events: 'Event',
+  map: 'Map',
 };
 
 export const EMPTY_MESSAGES: Record<WorldTab, { title: string; description: string }> = {
@@ -140,4 +143,5 @@ export const EMPTY_MESSAGES: Record<WorldTab, { title: string; description: stri
   quests: { title: 'No quests posted', description: 'Add quests to drive your story forward' },
   lore: { title: 'No lore recorded', description: 'Write the history and legends of your world' },
   events: { title: 'No events chronicled', description: 'Record the events that shape your world' },
+  map: { title: 'No world map', description: 'Upload a map of your campaign world' },
 };

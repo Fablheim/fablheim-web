@@ -36,9 +36,9 @@ export const campaignMembersApi = {
 
   /** Get all members of a specific campaign */
   listByCampaign: async (campaignId: string): Promise<CampaignMember[]> => {
-    const { data } = await api.get<CampaignMember[]>('/campaign-members', {
-      params: { campaignId },
-    });
+    const { data } = await api.get<CampaignMember[]>(
+      `/campaigns/${campaignId}/members`,
+    );
     return data;
   },
 };

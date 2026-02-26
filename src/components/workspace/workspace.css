@@ -1,0 +1,109 @@
+/* ── react-mosaic-component theme overrides ─────────────────── */
+
+.mosaic {
+  background: transparent !important;
+}
+
+.mosaic-tile {
+  margin: 2px !important;
+}
+
+.mosaic-window {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid hsla(38, 30%, 25%, 0.25);
+  box-shadow: 0 1px 3px hsla(24, 20%, 5%, 0.3);
+}
+
+.mosaic-window .mosaic-window-toolbar {
+  background: hsl(24, 16%, 12%);
+  border-bottom: 1px solid hsla(38, 30%, 25%, 0.2);
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: hsla(38, 30%, 70%, 0.9);
+}
+
+.mosaic-window .mosaic-window-toolbar .mosaic-window-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mosaic-window .mosaic-window-toolbar .mosaic-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mosaic-window .mosaic-window-toolbar button {
+  background: transparent;
+  border: none;
+  color: hsla(38, 20%, 55%, 0.7);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.mosaic-window .mosaic-window-toolbar button:hover {
+  color: hsl(38, 60%, 60%);
+  background: hsla(38, 40%, 30%, 0.15);
+}
+
+.mosaic-window .mosaic-window-body {
+  background: hsl(24, 18%, 9%);
+  overflow: auto;
+}
+
+/* ── Resize handles ────────────────────────────────────────── */
+
+.mosaic-split {
+  z-index: 10;
+}
+
+.mosaic-split.-row {
+  margin-left: -2px;
+  margin-right: -2px;
+}
+
+.mosaic-split.-column {
+  margin-top: -2px;
+  margin-bottom: -2px;
+}
+
+.mosaic-split .mosaic-split-line {
+  background: hsla(38, 30%, 30%, 0.3) !important;
+  transition: background 0.15s;
+}
+
+.mosaic-split:hover .mosaic-split-line {
+  background: hsla(38, 60%, 45%, 0.5) !important;
+}
+
+/* ── Drop zone highlights ──────────────────────────────────── */
+
+.mosaic .drop-target-container .drop-target {
+  border: 2px solid hsla(38, 80%, 50%, 0.4) !important;
+  background: hsla(38, 80%, 50%, 0.06) !important;
+  border-radius: 4px;
+}
+
+.mosaic .drop-target-container .drop-target.drop-target-hover {
+  background: hsla(38, 80%, 50%, 0.12) !important;
+}
+
+/* ── Zero state ────────────────────────────────────────────── */
+
+.mosaic-zero-state {
+  background: transparent !important;
+}

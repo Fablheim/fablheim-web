@@ -54,6 +54,9 @@ export function RegisterPage() {
       <div className="rounded-lg border border-gold/20 bg-card p-8 shadow-warm-lg tavern-card texture-parchment iron-brackets animate-unfurl relative z-10">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
+            <Link to="/" className="inline-block font-[Cinzel] text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-gold transition-colors mb-4">
+              Fablheim
+            </Link>
             <h1 className="font-['IM_Fell_English'] text-3xl sm:text-4xl text-carved">Begin Your Journey</h1>
             <p className="mt-2 text-sm text-muted-foreground font-['IM_Fell_English'] italic">
               Already have an account?{' '}

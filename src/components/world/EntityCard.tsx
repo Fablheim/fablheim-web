@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2 } from 'lucide-react';
 import type { WorldEntity } from '@/types/campaign';
 import { TYPE_ACCENTS, TYPE_LABELS, TYPE_ICONS } from './world-constants';
 
@@ -64,6 +64,34 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
           </div>
         )}
       </div>
+
+      {/* Location parent breadcrumb */}
+      {entity.parentEntityId && typeof entity.parentEntityId === 'object' && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <MapPin className="h-3 w-3" />
+          <span>{entity.parentEntityId.name}</span>
+        </div>
+      )}
+
+      {/* Quest status + progress */}
+      {entity.type === 'quest' && entity.questStatus && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] ${
+            entity.questStatus === 'completed' ? 'bg-forest/20 text-[hsl(150,50%,55%)]' :
+            entity.questStatus === 'in_progress' ? 'bg-brass/20 text-brass' :
+            entity.questStatus === 'failed' ? 'bg-blood/20 text-blood' :
+            'bg-gold/20 text-gold'
+          }`}>
+            {entity.questStatus === 'completed' && <CheckCircle2 className="h-3 w-3" />}
+            {entity.questStatus.replace('_', ' ')}
+          </span>
+          {entity.objectives && entity.objectives.length > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              {entity.objectives.filter((o) => o.completed).length}/{entity.objectives.length} objectives
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Description */}
       {entity.description && (

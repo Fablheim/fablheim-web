@@ -69,3 +69,49 @@ export function useDeleteWorldEntity() {
     },
   });
 }
+
+// ── Quest hooks ─────────────────────────────────────────
+
+export function useUpdateQuestStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, status }: { campaignId: string; entityId: string; status: string }) =>
+      worldEntitiesApi.updateQuestStatus(campaignId, entityId, status),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+    },
+  });
+}
+
+export function useToggleObjective() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, objectiveId }: { campaignId: string; entityId: string; objectiveId: string }) =>
+      worldEntitiesApi.toggleObjective(campaignId, entityId, objectiveId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+    },
+  });
+}
+
+export function useAddObjective() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, description }: { campaignId: string; entityId: string; description: string }) =>
+      worldEntitiesApi.addObjective(campaignId, entityId, description),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+    },
+  });
+}
+
+export function useRemoveObjective() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, objectiveId }: { campaignId: string; entityId: string; objectiveId: string }) =>
+      worldEntitiesApi.removeObjective(campaignId, entityId, objectiveId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+    },
+  });
+}

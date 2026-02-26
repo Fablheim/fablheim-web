@@ -6,6 +6,9 @@ import type {
   Initiative,
   AddInitiativeEntryRequest,
   UpdateInitiativeEntryRequest,
+  BattleMap,
+  AddMapTokenRequest,
+  UpdateMapTokenRequest,
 } from '@/types/live-session';
 
 export const liveSessionApi = {
@@ -84,5 +87,56 @@ export const liveSessionApi = {
       `/campaigns/${campaignId}/session/initiative/end`,
     );
     return data;
+  },
+
+  // ── Battle Map ──────────────────────────────────────────
+  getMap: async (campaignId: string): Promise<BattleMap> => {
+    const { data } = await api.get<BattleMap>(
+      `/campaigns/${campaignId}/session/map`,
+    );
+    return data;
+  },
+
+  updateMapSettings: async (
+    campaignId: string,
+    body: Partial<Pick<BattleMap, 'name' | 'backgroundImageUrl' | 'gridWidth' | 'gridHeight' | 'gridSquareSizeFt'>>,
+  ): Promise<BattleMap> => {
+    const { data } = await api.patch<BattleMap>(
+      `/campaigns/${campaignId}/session/map`,
+      body,
+    );
+    return data;
+  },
+
+  addMapToken: async (
+    campaignId: string,
+    body: AddMapTokenRequest,
+  ): Promise<BattleMap> => {
+    const { data } = await api.post<BattleMap>(
+      `/campaigns/${campaignId}/session/map/tokens`,
+      body,
+    );
+    return data;
+  },
+
+  updateMapToken: async (
+    campaignId: string,
+    tokenId: string,
+    body: UpdateMapTokenRequest,
+  ): Promise<BattleMap> => {
+    const { data } = await api.patch<BattleMap>(
+      `/campaigns/${campaignId}/session/map/tokens/${tokenId}`,
+      body,
+    );
+    return data;
+  },
+
+  removeMapToken: async (
+    campaignId: string,
+    tokenId: string,
+  ): Promise<void> => {
+    await api.delete(
+      `/campaigns/${campaignId}/session/map/tokens/${tokenId}`,
+    );
   },
 };

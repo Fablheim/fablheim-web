@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { connectSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 
@@ -92,4 +92,24 @@ export function useSessionRoom(campaignId: string | null) {
   }, [socket, connected, campaignId]);
 
   return state;
+}
+
+/** Subscribe to a socket event. The callback is stable via ref so it won't cause re-subscriptions. */
+export function useSocketEvent(event: string, handler: (data: any) => void) {
+  const { socket, connected } = useSocket();
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  const stableHandler = useCallback((data: any) => {
+    handlerRef.current(data);
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    socket.on(event, stableHandler);
+    return () => {
+      socket.off(event, stableHandler);
+    };
+  }, [socket, connected, event, stableHandler]);
 }

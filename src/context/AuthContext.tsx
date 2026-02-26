@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from '../types/user';
 import * as authApi from '../api/auth';
+import { registerSessionExpiredHandler } from '../api/client';
 
 interface AuthContextValue {
   user: User | null;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    registerSessionExpiredHandler(() => setUser(null));
     refreshUser().finally(() => setIsLoading(false));
   }, []);
 

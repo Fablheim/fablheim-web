@@ -1,9 +1,9 @@
 import { type FormEvent, useState, useEffect } from 'react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useCreateWorldEntity, useUpdateWorldEntity } from '@/hooks/useWorldEntities';
+import { useCreateWorldEntity, useUpdateWorldEntity, useWorldEntities } from '@/hooks/useWorldEntities';
 import { TYPE_LABELS, TYPE_DATA_FIELDS } from './world-constants';
-import type { WorldEntity, WorldEntityType, WorldEntityVisibility } from '@/types/campaign';
+import type { WorldEntity, WorldEntityType, WorldEntityVisibility, CreateWorldEntityPayload } from '@/types/campaign';
 
 interface CreateEntityModalProps {
   open: boolean;
@@ -32,9 +32,18 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
   const [tagsInput, setTagsInput] = useState('');
   const [visibility, setVisibility] = useState<WorldEntityVisibility>('public');
   const [typeData, setTypeData] = useState<Record<string, string>>({});
+  // Quest-specific
+  const [questStatus, setQuestStatus] = useState('available');
+  const [questGiver, setQuestGiver] = useState('');
+  const [rewards, setRewards] = useState('');
+  const [objectives, setObjectives] = useState<Array<{ id: string; description: string }>>([]);
+  const [newObjText, setNewObjText] = useState('');
+  // Location hierarchy
+  const [parentEntityId, setParentEntityId] = useState('');
 
   const createEntity = useCreateWorldEntity();
   const updateEntity = useUpdateWorldEntity();
+  const { data: allEntities } = useWorldEntities(campaignId);
 
   useEffect(() => {
     if (entity) {
@@ -50,6 +59,15 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
         }
       }
       setTypeData(td);
+      // Quest fields
+      setQuestStatus(entity.questStatus ?? 'available');
+      setQuestGiver(typeof entity.questGiver === 'object' ? entity.questGiver._id : (entity.questGiver ?? ''));
+      setRewards(entity.rewards ?? '');
+      setObjectives(entity.objectives?.map((o) => ({ id: o.id, description: o.description })) ?? []);
+      // Location hierarchy
+      setParentEntityId(
+        typeof entity.parentEntityId === 'object' ? entity.parentEntityId._id : (entity.parentEntityId ?? ''),
+      );
     } else {
       resetForm();
     }
@@ -64,6 +82,12 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
     setTagsInput('');
     setVisibility('public');
     setTypeData({});
+    setQuestStatus('available');
+    setQuestGiver('');
+    setRewards('');
+    setObjectives([]);
+    setNewObjText('');
+    setParentEntityId('');
   }
 
   function handleClose() {
@@ -88,7 +112,7 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
       if (v.trim()) cleanTypeData[k] = v.trim();
     }
 
-    const payload = {
+    const payload: CreateWorldEntityPayload = {
       name,
       type: entityType,
       description: description || undefined,
@@ -96,6 +120,19 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
       visibility,
       typeData: Object.keys(cleanTypeData).length > 0 ? cleanTypeData : undefined,
     };
+
+    // Quest-specific fields
+    if (entityType === 'quest') {
+      payload.questStatus = questStatus;
+      if (questGiver) payload.questGiver = questGiver;
+      if (rewards.trim()) payload.rewards = rewards.trim();
+      if (objectives.length > 0) payload.objectives = objectives;
+    }
+
+    // Location hierarchy
+    if ((entityType === 'location' || entityType === 'location_detail') && parentEntityId) {
+      payload.parentEntityId = parentEntityId;
+    }
 
     if (isEdit && entity) {
       await updateEntity.mutateAsync({ campaignId, id: entity._id, data: payload });
@@ -231,6 +268,133 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
                   )}
                 </div>
               ))}
+            </>
+          )}
+
+          {/* Parent location selector */}
+          {(entityType === 'location' || entityType === 'location_detail') && (
+            <>
+              <div className="divider-ornate" />
+              <div>
+                <label htmlFor="parent-location" className={labelClass}>Parent Location</label>
+                <select
+                  id="parent-location"
+                  value={parentEntityId}
+                  onChange={(e) => setParentEntityId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">None (top-level)</option>
+                  {(allEntities ?? [])
+                    .filter((e) => (e.type === 'location' || e.type === 'location_detail') && e._id !== entity?._id)
+                    .map((loc) => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* Quest-specific fields */}
+          {entityType === 'quest' && (
+            <>
+              <div className="divider-ornate" />
+              <p className="font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+                Quest Details
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="quest-status" className={labelClass}>Status</label>
+                  <select
+                    id="quest-status"
+                    value={questStatus}
+                    onChange={(e) => setQuestStatus(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="available">Available</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="quest-giver" className={labelClass}>Quest Giver</label>
+                  <select
+                    id="quest-giver"
+                    value={questGiver}
+                    onChange={(e) => setQuestGiver(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">None</option>
+                    {(allEntities ?? [])
+                      .filter((e) => e.type === 'npc' || e.type === 'npc_minor')
+                      .map((npc) => (
+                        <option key={npc._id} value={npc._id}>{npc.name}</option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="quest-rewards" className={labelClass}>Rewards</label>
+                <input
+                  id="quest-rewards"
+                  type="text"
+                  maxLength={500}
+                  value={rewards}
+                  onChange={(e) => setRewards(e.target.value)}
+                  placeholder="500gp, magic sword, faction reputation..."
+                  className={inputClass}
+                />
+              </div>
+              {/* Objectives list */}
+              <div>
+                <label className={labelClass}>Objectives</label>
+                <ul className="mt-1 space-y-1.5">
+                  {objectives.map((obj, i) => (
+                    <li key={obj.id} className="flex items-center gap-2">
+                      <span className="flex-1 rounded-sm border border-input bg-input px-2 py-1 text-xs text-foreground">
+                        {obj.description}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setObjectives((prev) => prev.filter((_, j) => j !== i))}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newObjText}
+                    onChange={(e) => setNewObjText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newObjText.trim()) {
+                        e.preventDefault();
+                        setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
+                        setNewObjText('');
+                      }
+                    }}
+                    placeholder="Add an objective..."
+                    className={inputClass + ' !mt-0'}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={!newObjText.trim()}
+                    onClick={() => {
+                      if (newObjText.trim()) {
+                        setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
+                        setNewObjText('');
+                      }
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             </>
           )}
 

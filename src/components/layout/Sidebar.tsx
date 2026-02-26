@@ -8,6 +8,7 @@ import {
   Map,
   BookOpen,
   Sparkles,
+  Skull,
   Settings,
   LogOut,
   ChevronLeft,
@@ -43,6 +44,7 @@ export function Sidebar() {
 
   // Show DM-only items while loading (undefined) or if user has DM campaigns
   const showDMItems = dmCampaigns === undefined || dmCampaigns.length > 0;
+  const isPaidUser = user && user.subscriptionTier !== 'free';
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/app' },
@@ -53,7 +55,10 @@ export function Sidebar() {
       ? [
           { icon: Map, label: 'World', path: '/app/world' },
           { icon: BookOpen, label: 'Notebook', path: '/app/notebook' },
-          { icon: Sparkles, label: 'AI Tools', path: '/app/tools' },
+          ...(isPaidUser
+            ? [{ icon: Sparkles, label: 'AI Tools', path: '/app/tools' }]
+            : []),
+          { icon: Skull, label: 'Enemy Library', path: '/app/enemies' },
         ]
       : []),
   ];
@@ -105,6 +110,7 @@ export function Sidebar() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="rounded-md p-1.5 transition-colors hover:bg-muted"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -118,7 +124,7 @@ export function Sidebar() {
       <div className="divider-ornate" />
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Main navigation">
         {!collapsed && (
           <p className="px-3 pt-2 pb-1 font-[Cinzel] text-muted-foreground text-[10px] tracking-widest uppercase">Navigation</p>
         )}
@@ -134,6 +140,8 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={() => handleNavClick(item.path, item.label)}
+                aria-current={active ? 'page' : undefined}
+                aria-label={collapsed ? item.label : undefined}
                 className={`flex w-full items-center gap-3 rounded-md px-3 py-2 transition-colors ${
                   active
                     ? 'border-l-2 border-primary bg-primary/8 text-primary shadow-[inset_0_0_25px_hsla(38,90%,50%,0.08)]'
@@ -149,20 +157,22 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Credit Balance */}
-      {creditBalance && (
+      {/* Credit Balance (paid users only) */}
+      {isPaidUser && creditBalance && (
         <div className={`px-3 py-2 ${collapsed ? 'text-center' : ''}`}>
-          <div
-            className={`flex items-center gap-2 rounded-md px-3 py-2 ${
+          <button
+            type="button"
+            onClick={() => handleNavClick('/app/credits', 'Credits')}
+            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 transition-colors cursor-pointer ${
               creditBalance.total < 10
-                ? 'bg-[hsla(30,80%,50%,0.1)] text-[hsl(30,80%,60%)]'
-                : 'bg-brass/10 text-brass'
+                ? 'bg-[hsla(30,80%,50%,0.1)] text-[hsl(30,80%,60%)] hover:bg-[hsla(30,80%,50%,0.15)]'
+                : 'bg-brass/10 text-brass hover:bg-brass/15'
             }`}
             title={collapsed ? `${creditBalance.total} credits` : undefined}
           >
             <Coins className="h-4 w-4 shrink-0" />
             {!collapsed && (
-              <div className="flex-1">
+              <div className="flex-1 text-left">
                 <p className="font-[Cinzel] text-xs font-semibold tracking-wider">
                   {creditBalance.total} Credits
                 </p>
@@ -171,7 +181,7 @@ export function Sidebar() {
                 )}
               </div>
             )}
-          </div>
+          </button>
         </div>
       )}
 
@@ -214,7 +224,18 @@ export function Sidebar() {
 
         {!collapsed && (
           <div className="rounded-md bg-accent/80 texture-leather px-3 py-2 bg-[hsla(24,20%,12%,0.8)]">
-            <p className="truncate text-sm font-medium text-foreground">{user?.username}</p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-medium text-foreground">{user?.username}</p>
+              {isPaidUser && (
+                <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 font-[Cinzel] text-[9px] font-bold tracking-wider text-primary">
+                  {user?.subscriptionTier === 'professional'
+                    ? 'PRO+'
+                    : user?.subscriptionTier === 'pro'
+                      ? 'GM'
+                      : 'HOB'}
+                </span>
+              )}
+            </div>
             <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
           </div>
         )}

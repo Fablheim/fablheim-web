@@ -1,4 +1,4 @@
-import { X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
+import { X, Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, Circle, Target, Clock, CheckCheck, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { TYPE_LABELS, TYPE_ACCENTS, TYPE_ICONS, TYPE_DATA_FIELDS } from './world-constants';
 import { EntityRelationships } from './EntityRelationships';
@@ -85,6 +85,23 @@ export function EntityDetailModal({
           </div>
         )}
 
+        {/* Location parent breadcrumb */}
+        {entity.parentEntityId && typeof entity.parentEntityId === 'object' && (
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5" />
+            <span className="font-[Cinzel] uppercase tracking-wider">Located in:</span>
+            <button
+              onClick={() => {
+                const parent = allEntities.find((e) => e._id === (entity.parentEntityId as any)._id);
+                if (parent) onViewEntity(parent);
+              }}
+              className="text-brass hover:underline"
+            >
+              {(entity.parentEntityId as any).name}
+            </button>
+          </div>
+        )}
+
         {/* Description */}
         {entity.description && (
           <>
@@ -97,6 +114,123 @@ export function EntityDetailModal({
             </p>
           </>
         )}
+
+        {/* Quest details */}
+        {entity.type === 'quest' && (
+          <>
+            <div className="divider-ornate mt-5 mb-4" />
+            <p className="mb-3 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+              Quest Details
+            </p>
+            <div className="space-y-3">
+              {/* Status */}
+              <div className="flex items-center gap-2">
+                <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Status:</span>
+                {(() => {
+                  const s = entity.questStatus ?? 'available';
+                  const config: Record<string, { icon: typeof Target; color: string; bg: string; label: string }> = {
+                    available: { icon: Target, color: 'text-gold', bg: 'bg-gold/20', label: 'Available' },
+                    in_progress: { icon: Clock, color: 'text-brass', bg: 'bg-brass/20', label: 'In Progress' },
+                    completed: { icon: CheckCheck, color: 'text-[hsl(150,50%,55%)]', bg: 'bg-forest/20', label: 'Completed' },
+                    failed: { icon: XCircle, color: 'text-blood', bg: 'bg-blood/20', label: 'Failed' },
+                  };
+                  const c = config[s] ?? config.available;
+                  const Icon = c.icon;
+                  return (
+                    <span className={`inline-flex items-center gap-1 rounded-md ${c.bg} px-2 py-0.5 text-xs ${c.color}`}>
+                      <Icon className="h-3 w-3" />
+                      {c.label}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* Quest giver */}
+              {entity.questGiver && (
+                <div>
+                  <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Quest Giver: </span>
+                  {typeof entity.questGiver === 'object' ? (
+                    <button
+                      onClick={() => {
+                        const npc = allEntities.find((e) => e._id === (entity.questGiver as any)._id);
+                        if (npc) onViewEntity(npc);
+                      }}
+                      className="text-sm text-brass hover:underline"
+                    >
+                      {entity.questGiver.name}
+                    </button>
+                  ) : (
+                    <span className="text-sm text-foreground">{entity.questGiver}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Rewards */}
+              {entity.rewards && (
+                <div>
+                  <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Rewards: </span>
+                  <span className="text-sm text-foreground">{entity.rewards}</span>
+                </div>
+              )}
+
+              {/* Objectives */}
+              {entity.objectives && entity.objectives.length > 0 && (
+                <div>
+                  <p className="mb-1.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Objectives ({entity.objectives.filter((o) => o.completed).length}/{entity.objectives.length})
+                  </p>
+                  <ul className="space-y-1">
+                    {entity.objectives.map((obj) => (
+                      <li key={obj.id} className="flex items-center gap-2 text-sm">
+                        {obj.completed ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-[hsl(150,50%,55%)]" />
+                        ) : (
+                          <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className={obj.completed ? 'line-through text-muted-foreground/60' : 'text-foreground'}>
+                          {obj.description}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Location children */}
+        {(entity.type === 'location' || entity.type === 'location_detail') && (() => {
+          const children = allEntities.filter(
+            (e) =>
+              (typeof e.parentEntityId === 'string' && e.parentEntityId === entity._id) ||
+              (typeof e.parentEntityId === 'object' && e.parentEntityId?._id === entity._id),
+          );
+          if (children.length === 0) return null;
+          return (
+            <>
+              <div className="divider-ornate mt-5 mb-4" />
+              <p className="mb-2 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+                Sub-locations ({children.length})
+              </p>
+              <div className="space-y-1.5">
+                {children.map((child) => (
+                  <button
+                    key={child._id}
+                    onClick={() => onViewEntity(child)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-[hsl(150,50%,55%)]" />
+                    <span className="text-foreground">{child.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {TYPE_LABELS[child.type]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          );
+        })()}
 
         {/* Type-specific fields */}
         {fields.length > 0 && entity.typeData && Object.keys(entity.typeData).length > 0 && (

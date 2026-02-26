@@ -21,6 +21,7 @@ import type {
 interface InitiativeTrackerProps {
   campaignId: string;
   isDM: boolean;
+  selectedEntryId?: string | null;
 }
 
 const TYPE_BADGES: Record<InitiativeEntry['type'], { label: string; className: string }> = {
@@ -60,7 +61,7 @@ function HpBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-export function InitiativeTracker({ campaignId, isDM }: InitiativeTrackerProps) {
+export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: InitiativeTrackerProps) {
   const queryClient = useQueryClient();
   const { data: initiative } = useInitiative(campaignId);
   const addEntry = useAddInitiativeEntry(campaignId);
@@ -356,6 +357,7 @@ export function InitiativeTracker({ campaignId, isDM }: InitiativeTrackerProps) 
           {visibleEntries.map((entry) => {
             const isCurrent = initiative?.isActive && entry.id === currentTurnEntryId;
             const isHidden = entry.isHidden;
+            const isMapSelected = selectedEntryId === entry.id;
 
             return (
               <div
@@ -363,9 +365,11 @@ export function InitiativeTracker({ campaignId, isDM }: InitiativeTrackerProps) 
                 className={`flex items-center gap-3 rounded-md px-3 py-2 transition-all ${
                   isCurrent
                     ? 'border-l-4 border-primary bg-primary/8 shadow-[0_0_18px_hsla(38,90%,50%,0.18)] animate-candle'
-                    : isHidden
-                      ? 'border-l-4 border-dashed border-iron/40 opacity-50'
-                      : 'border-l-4 border-transparent'
+                    : isMapSelected
+                      ? 'border-l-4 border-blue-400 bg-blue-500/8 shadow-[0_0_8px_hsla(220,80%,60%,0.15)]'
+                      : isHidden
+                        ? 'border-l-4 border-dashed border-iron/40 opacity-50'
+                        : 'border-l-4 border-transparent'
                 }`}
               >
                 {/* Turn indicator */}

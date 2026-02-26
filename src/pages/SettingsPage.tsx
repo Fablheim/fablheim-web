@@ -1,9 +1,13 @@
-import { type FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { type FormEvent, useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
+import { toast } from 'sonner';
+import { Crown, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
+import { UpgradeModal } from '@/components/ui/UpgradeModal';
+import { stripeApi } from '@/api/stripe';
 import * as authApi from '@/api/auth';
 
 const inputClass =
@@ -271,13 +275,104 @@ function DeleteAccountSection() {
   );
 }
 
+const TIER_DISPLAY: Record<string, string> = {
+  free: 'Wanderer (Free)',
+  hobbyist: 'Hobbyist',
+  pro: 'Game Master',
+  professional: 'Professional',
+};
+
+function SubscriptionSection() {
+  const { user } = useAuth();
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const tier = user?.subscriptionTier ?? 'free';
+  const isPaid = tier !== 'free';
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const { url } = await stripeApi.createPortalSession();
+      window.location.href = url;
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to open subscription portal');
+      setPortalLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="text-lg font-semibold text-card-foreground">Subscription</h2>
+
+        <div className="mt-3 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Crown className={`h-5 w-5 ${isPaid ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="font-medium text-foreground">{TIER_DISPLAY[tier] ?? tier}</span>
+            </div>
+            {user?.subscriptionStatus && user.subscriptionStatus !== 'active' && (
+              <p className="mt-1 text-sm text-muted-foreground capitalize">
+                Status: {user.subscriptionStatus}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            {isPaid && (
+              <Button
+                variant="outline"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {portalLoading ? 'Loading...' : 'Manage'}
+              </Button>
+            )}
+            {!isPaid && (
+              <Button onClick={() => setShowUpgrade(true)}>
+                <Crown className="mr-2 h-4 w-4" />
+                Upgrade
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showUpgrade && (
+        <UpgradeModal
+          currentTier={tier}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+    </>
+  );
+}
+
 export function SettingsPage() {
   const { user } = useAuth();
   const isLocal = user?.provider === 'local';
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const subscription = searchParams.get('subscription');
+    if (subscription === 'success') {
+      toast.success('Subscription activated! Your credits have been added.');
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    } else if (subscription === 'cancelled') {
+      toast.info('Subscription upgrade was cancelled.');
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <PageContainer title="Settings" subtitle="Manage your account">
       <div className="space-y-6">
+        <SubscriptionSection />
+
         {isLocal && <ChangePasswordSection />}
         {isLocal && <ChangeEmailSection />}
 

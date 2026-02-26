@@ -11,6 +11,11 @@ import { WorldPage } from './pages/WorldPage';
 import { AIToolsPage } from './pages/AIToolsPage';
 import { CharacterDetailPage } from './pages/CharacterDetailPage';
 import { NotebookPage } from './pages/NotebookPage';
+import { CreditsPage } from './pages/CreditsPage';
+import { SessionRunnerPage } from './pages/SessionRunnerPage';
+import { CharacterCreationWizardPage } from './pages/CharacterCreationWizardPage';
+import { EncounterPrepPage } from './pages/EncounterPrepPage';
+import { EnemyLibraryPage } from './pages/EnemyLibraryPage';
 
 function PagePlaceholder({ title }: { title: string }) {
   return (
@@ -30,11 +35,28 @@ export function resolveRouteContent(path: string, title: string): ReactNode {
     const campaignId = path.split('/')[3];
     return <LiveSessionPage campaignId={campaignId} />;
   }
+  if (path.startsWith('/app/campaigns/') && path.endsWith('/characters/create')) {
+    const campaignId = path.split('/')[3];
+    return <CharacterCreationWizardPage campaignId={campaignId} />;
+  }
+  if (path.startsWith('/app/campaigns/') && path.endsWith('/encounters')) {
+    const campaignId = path.split('/')[3];
+    return <EncounterPrepPage campaignId={campaignId} />;
+  }
   if (path.startsWith('/app/campaigns/') && path.endsWith('/ai-tools')) {
     const campaignId = path.split('/')[3];
     return <AIToolsPage campaignId={campaignId} />;
   }
-  if (path.startsWith('/app/campaigns/')) return <CampaignDetailPage />;
+  if (path.startsWith('/app/campaigns/') && path.includes('/session/') && path.endsWith('/play')) {
+    const parts = path.split('/');
+    const campaignId = parts[3];
+    const sessionId = parts[5];
+    return <SessionRunnerPage campaignId={campaignId} sessionId={sessionId} />;
+  }
+  if (path.startsWith('/app/campaigns/')) {
+    const campaignId = path.split('/')[3];
+    return <CampaignDetailPage campaignId={campaignId} />;
+  }
   if (path === '/app/sessions') return <SessionsPage />;
   if (path.startsWith('/app/characters/')) {
     const characterId = path.split('/')[3];
@@ -44,6 +66,8 @@ export function resolveRouteContent(path: string, title: string): ReactNode {
   if (path === '/app/world') return <WorldPage />;
   if (path === '/app/notebook') return <NotebookPage />;
   if (path === '/app/tools') return <AIToolsPage />;
+  if (path === '/app/enemies') return <EnemyLibraryPage />;
+  if (path === '/app/credits') return <CreditsPage />;
   if (path === '/app/settings') return <SettingsPage />;
   return <PagePlaceholder title={title} />;
 }
@@ -54,12 +78,14 @@ export function AppRoutes() {
       <Route path="/" element={<DashboardPage />} />
       <Route path="/campaigns" element={<CampaignsPage />} />
       <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+      <Route path="/campaigns/:campaignId/characters/create" element={<CharacterCreationWizardPage />} />
       <Route path="/sessions" element={<SessionsPage />} />
       <Route path="/characters" element={<CharactersPage />} />
       <Route path="/characters/:id" element={<CharacterDetailPage />} />
       <Route path="/world" element={<WorldPage />} />
       <Route path="/notebook" element={<NotebookPage />} />
       <Route path="/tools" element={<AIToolsPage />} />
+      <Route path="/credits" element={<CreditsPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </>

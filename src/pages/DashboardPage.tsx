@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Crown, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCampaigns } from '@/hooks/useCampaigns';
@@ -8,15 +9,32 @@ import { resolveRouteContent } from '@/routes';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { PlayerCampaignCard } from '@/components/player/PlayerCampaignCard';
+import { WelcomeTour } from '@/components/onboarding/WelcomeTour';
+import { GMChecklist } from '@/components/onboarding/GMChecklist';
+import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import type { Character } from '@/types/campaign';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const { openTab } = useTabs();
+  const {
+    isFirstTime,
+    showChecklist,
+    completedSteps,
+    completeTour,
+    dismissChecklist,
+    completeStep,
+  } = useFirstTimeUser();
 
   const { data: dmCampaigns, isLoading: dmLoading } = useCampaigns();
   const { data: memberships, isLoading: membershipsLoading } = useMyCampaignMemberships();
   const { data: myCharacters, isLoading: charsLoading } = useMyCharacters();
+
+  // Auto-detect completed onboarding steps
+  useEffect(() => {
+    if (dmCampaigns && dmCampaigns.length > 0) completeStep('create-campaign');
+    if (myCharacters && myCharacters.length > 0) completeStep('create-character');
+  }, [dmCampaigns, myCharacters, completeStep]);
 
   if (!user) return null;
 
@@ -38,6 +56,11 @@ export function DashboardPage() {
   return (
     <PageContainer title="Dashboard" subtitle={`Welcome back, ${user.displayName}`}>
       <div className="space-y-8 animate-unfurl">
+        {/* GM Checklist */}
+        {showChecklist && !isLoading && (
+          <GMChecklist completedSteps={completedSteps} onDismiss={dismissChecklist} />
+        )}
+
         {/* Loading */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
@@ -211,6 +234,7 @@ export function DashboardPage() {
         )}
       </div>
 
+      {isFirstTime && <WelcomeTour onComplete={completeTour} />}
     </PageContainer>
   );
 }

@@ -101,6 +101,62 @@ export interface Initiative {
   updatedAt: string;
 }
 
+// ── Battle Map ──────────────────────────────────────────────
+
+export interface MapToken {
+  id: string;
+  name: string;
+  type: 'pc' | 'npc' | 'monster' | 'other';
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  characterId?: string;
+  initiativeEntryId?: string;
+  imageUrl?: string;
+  isHidden?: boolean;
+}
+
+export interface BattleMap {
+  _id: string;
+  campaignId: string;
+  name: string;
+  backgroundImageUrl?: string;
+  gridWidth: number;
+  gridHeight: number;
+  gridSquareSizeFt: number;
+  tokens: MapToken[];
+  isActive: boolean;
+}
+
+export interface MapUpdatedEvent {
+  action: string;
+  map: BattleMap;
+}
+
+export interface AddMapTokenRequest {
+  name: string;
+  type: 'pc' | 'npc' | 'monster' | 'other';
+  x: number;
+  y: number;
+  size?: number;
+  color?: string;
+  characterId?: string;
+  imageUrl?: string;
+  isHidden?: boolean;
+}
+
+export interface UpdateMapTokenRequest {
+  name?: string;
+  x?: number;
+  y?: number;
+  size?: number;
+  color?: string;
+  characterId?: string;
+  imageUrl?: string;
+  isHidden?: boolean;
+}
+
 // ── Connected Users ──────────────────────────────────────────
 
 export interface ConnectedUser {

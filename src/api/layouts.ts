@@ -5,10 +5,15 @@ export const layoutsApi = {
   create: (payload: CreateLayoutPayload) =>
     api.post<Layout>('/layouts', payload).then((r) => r.data),
 
-  getAll: (campaignId?: string) =>
-    api.get<Layout[]>('/layouts', {
-      params: campaignId ? { campaignId } : undefined,
-    }).then((r) => r.data),
+  getAll: (campaignId?: string, layoutType?: string, stage?: string) => {
+    const params: Record<string, string> = {};
+    if (campaignId) params.campaignId = campaignId;
+    if (layoutType) params.layoutType = layoutType;
+    if (stage) params.stage = stage;
+    return api.get<Layout[]>('/layouts', {
+      params: Object.keys(params).length ? params : undefined,
+    }).then((r) => r.data);
+  },
 
   getDefault: () =>
     api.get<Layout | null>('/layouts/default').then((r) => r.data),

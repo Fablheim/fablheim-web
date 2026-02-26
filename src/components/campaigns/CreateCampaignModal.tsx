@@ -1,5 +1,5 @@
 import { type FormEvent, useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCreateCampaign, useUpdateCampaign } from '@/hooks/useCampaigns';
 import { systemLabels, statusLabels } from '@/types/campaign';
@@ -24,6 +24,13 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
   const [setting, setSetting] = useState('');
   const [system, setSystem] = useState<CampaignSystem>('dnd5e');
   const [status, setStatus] = useState<CampaignStatus>('active');
+  // Advanced settings
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [visibility, setVisibility] = useState('private');
+  const [maxPlayers, setMaxPlayers] = useState(6);
+  const [levelingSystem, setLevelingSystem] = useState('milestone');
+  const [startingLevel, setStartingLevel] = useState(1);
+  const [sessionFrequency, setSessionFrequency] = useState('');
 
   const createCampaign = useCreateCampaign();
   const updateCampaign = useUpdateCampaign();
@@ -36,12 +43,26 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
       setSetting(campaign.setting);
       setSystem(campaign.system);
       setStatus(campaign.status);
+      setVisibility(campaign.visibility ?? 'private');
+      setMaxPlayers(campaign.maxPlayers ?? 6);
+      setLevelingSystem(campaign.levelingSystem ?? 'milestone');
+      setStartingLevel(campaign.startingLevel ?? 1);
+      setSessionFrequency(campaign.sessionFrequency ?? '');
+      if (campaign.visibility || campaign.maxPlayers || campaign.levelingSystem || campaign.sessionFrequency) {
+        setShowAdvanced(true);
+      }
     } else {
       setName('');
       setDescription('');
       setSetting('');
       setSystem('dnd5e');
       setStatus('active');
+      setShowAdvanced(false);
+      setVisibility('private');
+      setMaxPlayers(6);
+      setLevelingSystem('milestone');
+      setStartingLevel(1);
+      setSessionFrequency('');
     }
   }, [campaign]);
 
@@ -53,6 +74,12 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
     setSetting('');
     setSystem('dnd5e');
     setStatus('active');
+    setShowAdvanced(false);
+    setVisibility('private');
+    setMaxPlayers(6);
+    setLevelingSystem('milestone');
+    setStartingLevel(1);
+    setSessionFrequency('');
     onClose();
   }
 
@@ -65,6 +92,11 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
       setting: setting || undefined,
       system,
       status,
+      visibility,
+      maxPlayers,
+      levelingSystem,
+      startingLevel,
+      sessionFrequency: sessionFrequency || undefined,
     };
 
     if (isEdit && campaign) {
@@ -80,7 +112,7 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative w-full max-w-lg rounded-lg border border-border border-t-2 border-t-brass/50 bg-card p-6 shadow-warm-lg tavern-card iron-brackets texture-parchment">
+      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-border border-t-2 border-t-brass/50 bg-card p-6 shadow-warm-lg tavern-card iron-brackets texture-parchment">
         <div className="flex items-center justify-between">
           <h2 className="font-['IM_Fell_English'] text-xl text-card-foreground">
             {isEdit ? 'Edit Campaign' : 'Create Campaign'}
@@ -176,6 +208,101 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
               placeholder="A brief overview of your campaign..."
               className={inputClass}
             />
+          </div>
+
+          {/* Advanced Settings */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAdvanced ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              Advanced Settings
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-3 space-y-4 rounded-md border border-border/50 bg-background/30 p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="campaign-visibility" className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+                      Visibility
+                    </label>
+                    <select
+                      id="campaign-visibility"
+                      value={visibility}
+                      onChange={(e) => setVisibility(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="private">Private</option>
+                      <option value="unlisted">Unlisted</option>
+                      <option value="public">Public</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="campaign-max-players" className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+                      Max Players
+                    </label>
+                    <input
+                      id="campaign-max-players"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={maxPlayers}
+                      onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="campaign-leveling" className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+                      Leveling System
+                    </label>
+                    <select
+                      id="campaign-leveling"
+                      value={levelingSystem}
+                      onChange={(e) => setLevelingSystem(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="milestone">Milestone</option>
+                      <option value="xp">Experience Points</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="campaign-starting-level" className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+                      Starting Level
+                    </label>
+                    <input
+                      id="campaign-starting-level"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={startingLevel}
+                      onChange={(e) => setStartingLevel(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="campaign-frequency" className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+                    Session Frequency
+                  </label>
+                  <input
+                    id="campaign-frequency"
+                    type="text"
+                    maxLength={100}
+                    value={sessionFrequency}
+                    onChange={(e) => setSessionFrequency(e.target.value)}
+                    placeholder="Weekly, biweekly, monthly..."
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

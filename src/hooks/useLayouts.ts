@@ -64,3 +64,11 @@ export function useDeleteLayout() {
     },
   });
 }
+
+export function useWorkspacePresets(stage?: string, campaignId?: string) {
+  return useQuery({
+    queryKey: ['layouts', 'mosaic', stage, campaignId],
+    queryFn: () => layoutsApi.getAll(campaignId, 'mosaic', stage),
+    enabled: !!stage,
+  });
+}

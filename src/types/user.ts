@@ -5,8 +5,10 @@ export interface User {
   displayName: string;
   avatar: string;
   provider: 'local' | 'google';
-  subscriptionTier: 'free' | 'hobbyist' | 'pro';
+  subscriptionTier: 'free' | 'hobbyist' | 'pro' | 'professional';
   subscriptionStatus: 'active' | 'cancelled' | 'expired';
+  ageVerified: boolean;
+  ageVerifiedAt?: string;
   aiUsage: {
     enabled: boolean;
     tier: 'none' | 'starter' | 'pro' | 'ultimate';

@@ -68,4 +68,29 @@ export const aiToolsApi = {
     const res = await api.post<WorldEntity>('/ai/world/generate-npc', data);
     return res.data;
   },
+
+  // ── Quest Generation ────────────────────────────────────
+  generateQuest: async (data: {
+    campaignId: string;
+    questType: string;
+    prompt?: string;
+    difficulty?: string;
+    partyLevel?: number;
+    shareWithSession?: boolean;
+  }): Promise<WorldEntity> => {
+    const res = await api.post<WorldEntity>('/ai/world/generate-quest', data);
+    return res.data;
+  },
+
+  // ── Lore Generation ─────────────────────────────────────
+  generateLore: async (data: {
+    campaignId: string;
+    loreType: string;
+    prompt?: string;
+    name?: string;
+    shareWithSession?: boolean;
+  }): Promise<WorldEntity> => {
+    const res = await api.post<WorldEntity>('/ai/world/generate-lore', data);
+    return res.data;
+  },
 };

@@ -56,6 +56,9 @@ export function LoginPage() {
       <div className="rounded-lg border border-gold/20 bg-card p-8 shadow-warm-lg tavern-card texture-parchment iron-brackets animate-unfurl relative z-10">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
+            <Link to="/" className="inline-block font-[Cinzel] text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-gold transition-colors mb-4">
+              Fablheim
+            </Link>
             <h1 className="font-['IM_Fell_English'] text-3xl sm:text-4xl text-carved">Return, Adventurer</h1>
             <p className="mt-2 text-sm text-muted-foreground font-['IM_Fell_English'] italic">
               Don't have an account?{' '}
@@ -66,6 +69,11 @@ export function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {searchParams.get('session_expired') === 'true' && (
+              <div className="rounded-sm border border-gold/30 bg-gold/10 p-3 text-sm text-gold">
+                Your session has expired. Please log in again.
+              </div>
+            )}
             {error && (
               <div className="rounded-sm border border-blood/30 bg-blood/10 p-3 text-sm text-[hsl(0,55%,55%)]">{error}</div>
             )}

@@ -76,7 +76,7 @@ const pricingTiers = [
     description: 'For Game Masters who seek arcane aid',
     features: [
       'Everything in Wanderer',
-      'Arcane session summaries (10/month)',
+      '100 AI credits per month',
       'Arcane NPC conjurer',
       'Arcane plot divinations',
       'Saved workspace layouts',
@@ -92,10 +92,10 @@ const pricingTiers = [
     description: 'For legendary GMs commanding multiple realms',
     features: [
       'Everything in Hobbyist',
-      'Unlimited arcane features',
+      '300 AI credits per month',
       'Advanced world forging',
-      'Campaign war-table analytics',
-      'Custom guild branding',
+      'Purchased credits never expire',
+      'Priority access to new features',
       'Premium raven support',
     ],
     cta: 'Ascend the Throne',
@@ -121,6 +121,12 @@ export default function LandingPage() {
             <div className="flex items-center gap-4">
               <Button variant="ghost" onClick={() => navigate('/how-it-works')}>
                 How It Works
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/new-to-ttrpgs')}>
+                New to TTRPGs?
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/srd')}>
+                SRD
               </Button>
               <Button variant="ghost" onClick={() => navigate('/login')}>
                 Sign In
@@ -391,6 +397,11 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          <p className="mx-auto mt-8 max-w-xl text-center text-sm text-[hsl(30,12%,55%)]">
+            Credits renew monthly and expire after 90 days. Purchase additional credits
+            anytime — they never expire. Subscription credits are consumed first.
+          </p>
         </div>
       </section>
 
@@ -431,9 +442,35 @@ export default function LandingPage() {
                 Fablheim
               </span>
             </div>
-            <p className="text-sm text-[hsl(30,12%,55%)]">
-              &copy; 2026 Fablheim. Forged for Game Masters, by Game Masters.
-            </p>
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => navigate('/legal/terms')}
+                className="text-sm text-[hsl(30,12%,55%)] transition-colors hover:text-[hsl(35,25%,92%)]"
+              >
+                Terms
+              </button>
+              <button
+                onClick={() => navigate('/legal/privacy')}
+                className="text-sm text-[hsl(30,12%,55%)] transition-colors hover:text-[hsl(35,25%,92%)]"
+              >
+                Privacy
+              </button>
+              <button
+                onClick={() => navigate('/legal')}
+                className="text-sm text-[hsl(30,12%,55%)] transition-colors hover:text-[hsl(35,25%,92%)]"
+              >
+                Legal &amp; Attributions
+              </button>
+              <button
+                onClick={() => navigate('/new-to-ttrpgs')}
+                className="text-sm text-[hsl(30,12%,55%)] transition-colors hover:text-[hsl(35,25%,92%)]"
+              >
+                New to TTRPGs?
+              </button>
+              <p className="text-sm text-[hsl(30,12%,55%)]">
+                &copy; 2026 Fablheim. Forged for Game Masters, by Game Masters.
+              </p>
+            </div>
           </div>
         </div>
       </footer>

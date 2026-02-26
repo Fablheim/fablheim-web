@@ -1,12 +1,16 @@
 import { useState, useMemo } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
+import { useCampaign } from '@/hooks/useCampaigns';
 import { useWorldEntities, useDeleteWorldEntity } from '@/hooks/useWorldEntities';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CampaignSelector } from '@/components/ui/CampaignSelector';
 import { EntityCard } from '@/components/world/EntityCard';
+import { QuestTracker } from '@/components/world/QuestTracker';
+import { WorldMapViewer } from '@/components/world/WorldMapViewer';
 import { CreateEntityModal } from '@/components/world/CreateEntityModal';
 import { EntityDetailModal } from '@/components/world/EntityDetailModal';
 import { DeleteEntityModal } from '@/components/world/DeleteEntityModal';
@@ -25,11 +29,15 @@ const TAB_DEFAULT_TYPES: Partial<Record<WorldTab, WorldEntityType>> = {
 };
 
 export function WorldPage() {
+  const queryClient = useQueryClient();
   const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
 
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [activeTab, setActiveTab] = useState<WorldTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Full campaign data (includes worldMap)
+  const { data: fullCampaign } = useCampaign(selectedCampaignId);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,7 +57,7 @@ export function WorldPage() {
 
   // Derived
   const selectedCampaign = campaigns?.find((c) => c._id === selectedCampaignId);
-  const isDM = selectedCampaign?.role === 'dm';
+  const isDM = selectedCampaign?.role === 'dm' || selectedCampaign?.role === 'co_dm';
 
   // Step 1: visibility filter
   const visibleEntities = useMemo(() => {
@@ -69,6 +77,7 @@ export function WorldPage() {
       quests: 0,
       lore: 0,
       events: 0,
+      map: fullCampaign?.worldMap ? 1 : 0,
     };
     for (const e of visibleEntities) {
       for (const tab of WORLD_TABS) {
@@ -78,7 +87,7 @@ export function WorldPage() {
       }
     }
     return counts;
-  }, [visibleEntities]);
+  }, [visibleEntities, fullCampaign?.worldMap]);
 
   // Step 2: tab filter
   const tabFiltered = useMemo(() => {
@@ -240,66 +249,90 @@ export function WorldPage() {
             })}
           </div>
 
-          {/* Loading */}
-          {entitiesLoading && (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-lg border border-border bg-card p-5 tavern-card texture-leather">
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-5 w-3/4 rounded bg-muted" />
-                    <div className="flex gap-2">
-                      <div className="h-4 w-16 rounded bg-muted" />
-                      <div className="h-4 w-14 rounded bg-muted" />
+          {/* World Map tab */}
+          {activeTab === 'map' && fullCampaign && (
+            <WorldMapViewer
+              campaign={fullCampaign}
+              isDM={isDM}
+              onMapUpdated={() => queryClient.invalidateQueries({ queryKey: ['campaigns', selectedCampaignId] })}
+            />
+          )}
+
+          {/* Entity content (all tabs except map) */}
+          {activeTab !== 'map' && (
+            <>
+              {/* Loading */}
+              {entitiesLoading && (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-lg border border-border bg-card p-5 tavern-card texture-leather">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-5 w-3/4 rounded bg-muted" />
+                        <div className="flex gap-2">
+                          <div className="h-4 w-16 rounded bg-muted" />
+                          <div className="h-4 w-14 rounded bg-muted" />
+                        </div>
+                        <div className="h-10 rounded bg-muted" />
+                      </div>
                     </div>
-                    <div className="h-10 rounded bg-muted" />
+                  ))}
+                </div>
+              )}
+
+              {/* Error */}
+              {entitiesError && (
+                <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
+                  <p className="font-medium text-destructive">Failed to load world entities</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{(entitiesError as Error).message}</p>
+                </div>
+              )}
+
+              {/* Empty */}
+              {!entitiesLoading && !entitiesError && filteredEntities.length === 0 && (
+                <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+                  <div className="mx-auto max-w-sm">
+                    <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
+                      {searchQuery ? 'No results found' : emptyState.title}
+                    </h3>
+                    <p className="mb-6 text-muted-foreground">
+                      {searchQuery ? `No entities matching "${searchQuery}"` : emptyState.description}
+                    </p>
+                    {!searchQuery && isDM && (
+                      <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create {activeTab !== 'all' ? EMPTY_MESSAGES[activeTab].title.split(' ').pop() : 'Entity'}
+                      </Button>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Error */}
-          {entitiesError && (
-            <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
-              <p className="font-medium text-destructive">Failed to load world entities</p>
-              <p className="mt-1 text-sm text-muted-foreground">{(entitiesError as Error).message}</p>
-            </div>
-          )}
-
-          {/* Empty */}
-          {!entitiesLoading && !entitiesError && filteredEntities.length === 0 && (
-            <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
-              <div className="mx-auto max-w-sm">
-                <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
-                  {searchQuery ? 'No results found' : emptyState.title}
-                </h3>
-                <p className="mb-6 text-muted-foreground">
-                  {searchQuery ? `No entities matching "${searchQuery}"` : emptyState.description}
-                </p>
-                {!searchQuery && isDM && (
-                  <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create {activeTab !== 'all' ? EMPTY_MESSAGES[activeTab].title.split(' ').pop() : 'Entity'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Card grid */}
-          {!entitiesLoading && !entitiesError && filteredEntities.length > 0 && (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEntities.map((entity) => (
-                <EntityCard
-                  key={entity._id}
-                  entity={entity}
-                  canEdit={isDM}
-                  onEdit={() => handleEdit(entity)}
-                  onDelete={() => setDeletingEntity(entity)}
-                  onClick={() => handleView(entity)}
+              {/* Quest tracker (when on quests tab) */}
+              {!entitiesLoading && !entitiesError && activeTab === 'quests' && filteredEntities.length > 0 && (
+                <QuestTracker
+                  quests={filteredEntities}
+                  campaignId={selectedCampaignId}
+                  isDM={isDM}
+                  onViewQuest={handleView}
                 />
-              ))}
-            </div>
+              )}
+
+              {/* Card grid (for non-quest tabs) */}
+              {!entitiesLoading && !entitiesError && activeTab !== 'quests' && filteredEntities.length > 0 && (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredEntities.map((entity) => (
+                    <EntityCard
+                      key={entity._id}
+                      entity={entity}
+                      canEdit={isDM}
+                      onEdit={() => handleEdit(entity)}
+                      onDelete={() => setDeletingEntity(entity)}
+                      onClick={() => handleView(entity)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

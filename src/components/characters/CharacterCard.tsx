@@ -60,10 +60,12 @@ function PCCard({
       onClick={onClick}
       className="group relative cursor-pointer rounded-lg border border-border bg-card p-5 tavern-card texture-leather transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
     >
-      {/* Level badge */}
-      <div className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-blood/60 bg-blood/90 font-[Cinzel] text-xs font-bold text-parchment shadow-lg">
-        {character.level}
-      </div>
+      {/* Level badge — only shown for systems with levels */}
+      {character.level != null && (
+        <div className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-blood/60 bg-blood/90 font-[Cinzel] text-xs font-bold text-parchment shadow-lg">
+          {character.level}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between pr-8">
@@ -91,19 +93,15 @@ function PCCard({
         )}
       </div>
 
-      {/* Stats preview */}
+      {/* Stats preview — iterates whatever stats the character has */}
       {character.stats && Object.keys(character.stats).length > 0 && (
-        <div className="mt-3 flex gap-2">
-          {['str', 'dex', 'con', 'int', 'wis', 'cha'].map((stat) => {
-            const val = character.stats?.[stat];
-            if (val === undefined) return null;
-            return (
-              <div key={stat} className="flex flex-col items-center rounded bg-background/40 px-1.5 py-1">
-                <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">{stat}</span>
-                <span className="text-xs font-medium text-foreground">{val}</span>
-              </div>
-            );
-          })}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {Object.entries(character.stats).map(([key, val]) => (
+            <div key={key} className="flex flex-col items-center rounded bg-background/40 px-1.5 py-1">
+              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">{key}</span>
+              <span className="text-xs font-medium text-foreground">{val}</span>
+            </div>
+          ))}
         </div>
       )}
 

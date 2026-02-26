@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Play, Calendar, FileText, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Play, Calendar, FileText, CheckCircle2, XCircle, Clock, Loader2, Dice5, Flame, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useSessions, useCreateSession } from '@/hooks/useSessions';
@@ -36,7 +36,7 @@ export function SessionsPage() {
   const createSession = useCreateSession();
 
   const selectedCampaign = campaigns?.find((c) => c._id === selectedCampaignId);
-  const isDM = selectedCampaign?.role === 'dm';
+  const isDM = selectedCampaign?.role === 'dm' || selectedCampaign?.role === 'co_dm';
 
   // Filter
   const filterTabs: { key: SessionFilter; label: string; count: number }[] = useMemo(() => {
@@ -290,6 +290,11 @@ export function SessionsPage() {
                               <Clock className="h-3 w-3" />
                               {formatDate(session.createdAt)}
                             </span>
+                            {session.durationMinutes > 0 && (
+                              <span className="text-muted-foreground">
+                                {Math.floor(session.durationMinutes / 60)}h {session.durationMinutes % 60}m
+                              </span>
+                            )}
                           </div>
 
                           {/* Notes preview */}
@@ -324,18 +329,37 @@ export function SessionsPage() {
                           </div>
                         )}
 
-                        {session.aiSummary && (
+                        {(session.aiRecap || session.aiSummary) && (
                           <div className="mb-4">
                             <div className="divider-ornate mb-3" />
                             <p className="mb-1 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
                               <span className="inline-flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
-                                AI Summary
+                                {session.aiRecap ? 'AI Recap' : 'AI Summary'}
                               </span>
                             </p>
                             <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground">
-                              {session.aiSummary}
+                              {session.aiRecap || session.aiSummary}
                             </p>
+                          </div>
+                        )}
+
+                        {/* Session Statistics */}
+                        {session.statistics && session.statistics.diceRolls > 0 && (
+                          <div className="mb-4">
+                            <div className="divider-ornate mb-3" />
+                            <p className="mb-2 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">Statistics</p>
+                            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Dice5 className="h-3 w-3" /> {session.statistics.diceRolls} rolls
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Flame className="h-3 w-3" /> {session.statistics.damageDealt} damage
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Target className="h-3 w-3" /> {session.statistics.criticalHits} crits
+                              </span>
+                            </div>
                           </div>
                         )}
 
