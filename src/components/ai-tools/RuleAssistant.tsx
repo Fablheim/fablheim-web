@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAskRule, useRecentRules } from '@/hooks/useAITools';
+import { GenerationMeta } from './GenerationMeta';
 import type { RuleAnswer } from '@/types/ai-tools';
 
 interface RuleAssistantProps {
@@ -131,6 +132,8 @@ export function RuleAssistant({ campaignId }: RuleAssistantProps) {
               <p className="mt-0.5 text-sm italic text-muted-foreground">{result.dmAdvice}</p>
             </div>
           )}
+
+          {result._meta && <GenerationMeta meta={result._meta} />}
         </div>
       )}
 

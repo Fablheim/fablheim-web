@@ -1,3 +1,5 @@
+import type { GenerationMeta } from './ai-tools';
+
 export type CampaignSystem = 'dnd5e' | 'pathfinder2e' | 'daggerheart' | 'fate' | 'custom';
 export type CampaignStatus = 'active' | 'paused' | 'completed' | 'archived';
 
@@ -36,6 +38,8 @@ export interface Campaign {
   levelingSystem?: string;
   startingLevel?: number;
   sessionFrequency?: string;
+  isArchived?: boolean;
+  archivedAt?: string | null;
   worldMap?: {
     url: string;
     key: string;
@@ -218,6 +222,7 @@ export interface WorldEntity {
   nextQuests?: string[];
   createdAt: string;
   updatedAt: string;
+  _meta?: GenerationMeta;
 }
 
 export interface CreateWorldEntityPayload {

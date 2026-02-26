@@ -82,6 +82,7 @@ const EMPTY_TRAIT: EnemyTrait = { name: '', description: '' };
 
 export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplateFormModalProps) {
   const isEdit = !!template;
+  const readOnly = !!template?.isGlobal;
   const createTemplate = useCreateEnemyTemplate();
   const updateTemplate = useUpdateEnemyTemplate();
 
@@ -211,13 +212,15 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
       <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border border-t-2 border-t-brass/50 bg-card p-6 shadow-warm-lg tavern-card iron-brackets texture-parchment">
         {renderHeader()}
         <form onSubmit={handleSubmit} className="mt-4 space-y-5">
-          {renderBasicInfo()}
-          {renderCombatStats()}
-          {renderAbilities()}
-          {renderAttacks()}
-          {renderTraits()}
-          {renderAppearance()}
-          {renderFooter()}
+          <fieldset disabled={readOnly} className="space-y-5 disabled:opacity-70">
+            {renderBasicInfo()}
+            {renderCombatStats()}
+            {renderAbilities()}
+            {renderAttacks()}
+            {renderTraits()}
+            {renderAppearance()}
+          </fieldset>
+          {!readOnly && renderFooter()}
         </form>
       </div>
     </div>
@@ -227,7 +230,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
     return (
       <div className="flex items-center justify-between">
         <h2 className="font-['IM_Fell_English'] text-xl text-card-foreground">
-          {isEdit ? 'Edit Enemy Template' : 'New Enemy Template'}
+          {readOnly ? 'View Template' : isEdit ? 'Edit Enemy Template' : 'New Enemy Template'}
         </h2>
         <button type="button" onClick={handleClose} className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors">
           <X className="h-5 w-5" />

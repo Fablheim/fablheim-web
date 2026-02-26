@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Sparkles, Users, Swords, BookOpen, Loader2, ScrollText, BookMarked } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { GenerationMeta } from '@/components/ai-tools/GenerationMeta';
+import { StreamingOutput } from '@/components/session/StreamingOutput';
+import { useAIStreaming } from '@/hooks/useAIStreaming';
 import { aiToolsApi } from '@/api/ai-tools';
 import type { GeneratedNPC, GeneratedEncounter, RuleAnswer } from '@/types/ai-tools';
 import type { EncounterDifficulty } from '@/types/ai-tools';
@@ -43,59 +46,29 @@ function NPCGenerator({ campaignId }: { campaignId: string }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GeneratedNPC | null>(null);
+  const stream = useAIStreaming('npc-generator');
 
   async function handleGenerate() {
     if (!description.trim() || loading) return;
     setLoading(true);
+    stream.listen();
     try {
-      const npc = await aiToolsApi.generateNPC({ campaignId, description: description.trim() });
+      const npc = await aiToolsApi.generateNPC({
+        campaignId,
+        description: description.trim(),
+        stream: true,
+      });
       setResult(npc);
     } catch {
       toast.error('Failed to generate NPC');
     } finally {
       setLoading(false);
+      stream.reset();
     }
   }
 
   if (result) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
-          <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
-            Generate Another
-          </Button>
-        </div>
-        <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
-          <div>
-            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Role</span>
-            <p className="text-sm text-foreground">{result.role}</p>
-          </div>
-          <div>
-            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Appearance</span>
-            <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.appearance}</p>
-          </div>
-          <div>
-            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Personality</span>
-            <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.personality}</p>
-          </div>
-          {result.plotHooks && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Plot Hooks</span>
-              <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.plotHooks}</p>
-            </div>
-          )}
-          <details className="border-t border-gold/10 pt-2">
-            <summary className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground">
-              Stat Block
-            </summary>
-            <pre className="mt-1 text-xs text-foreground whitespace-pre-wrap font-mono bg-background/50 rounded p-2">
-              {result.statBlock}
-            </pre>
-          </details>
-        </div>
-      </div>
-    );
+    return renderNPCResult(result, () => setResult(null));
   }
 
   return (
@@ -107,6 +80,20 @@ function NPCGenerator({ campaignId }: { campaignId: string }) {
         rows={3}
         className="w-full input-carved rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground font-['IM_Fell_English'] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
       />
+      {loading && stream.isStreaming && (
+        <StreamingOutput
+          text={stream.text}
+          isStreaming={stream.isStreaming}
+          error={stream.error}
+          label="Generating NPC"
+        />
+      )}
+      {loading && !stream.isStreaming && !stream.text && (
+        <div className="flex items-center gap-2 py-3 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="font-['IM_Fell_English'] text-sm italic">Preparing generation...</span>
+        </div>
+      )}
       <Button
         size="sm"
         variant="primary"
@@ -130,6 +117,48 @@ function NPCGenerator({ campaignId }: { campaignId: string }) {
   );
 }
 
+function renderNPCResult(result: GeneratedNPC, onReset: () => void) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
+        <Button size="sm" variant="ghost" onClick={onReset}>
+          Generate Another
+        </Button>
+      </div>
+      <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
+        <div>
+          <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Role</span>
+          <p className="text-sm text-foreground">{result.role}</p>
+        </div>
+        <div>
+          <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Appearance</span>
+          <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.appearance}</p>
+        </div>
+        <div>
+          <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Personality</span>
+          <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.personality}</p>
+        </div>
+        {result.plotHooks && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Plot Hooks</span>
+            <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.plotHooks}</p>
+          </div>
+        )}
+        <details className="border-t border-gold/10 pt-2">
+          <summary className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground">
+            Stat Block
+          </summary>
+          <pre className="mt-1 text-xs text-foreground whitespace-pre-wrap font-mono bg-background/50 rounded p-2">
+            {result.statBlock}
+          </pre>
+        </details>
+        {result._meta && <GenerationMeta meta={result._meta} />}
+      </div>
+    </div>
+  );
+}
+
 function EncounterGenerator({ campaignId }: { campaignId: string }) {
   const [partyLevel, setPartyLevel] = useState(3);
   const [partySize, setPartySize] = useState(4);
@@ -137,10 +166,12 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
   const [environment, setEnvironment] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GeneratedEncounter | null>(null);
+  const stream = useAIStreaming('encounter-generator');
 
   async function handleGenerate() {
     if (loading) return;
     setLoading(true);
+    stream.listen();
     try {
       const encounter = await aiToolsApi.generateEncounter({
         campaignId,
@@ -148,55 +179,19 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
         partySize,
         difficulty,
         environment: environment.trim() || undefined,
+        stream: true,
       });
       setResult(encounter);
     } catch {
       toast.error('Failed to generate encounter');
     } finally {
       setLoading(false);
+      stream.reset();
     }
   }
 
   if (result) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.title}</h4>
-          <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
-            Generate Another
-          </Button>
-        </div>
-        <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
-          <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.description}</p>
-
-          <div>
-            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">
-              Monsters ({result.difficulty} — {result.totalXP} XP)
-            </span>
-            <div className="mt-1 space-y-1">
-              {result.npcs.map((npc, i) => (
-                <div key={i} className="flex items-center justify-between text-sm text-foreground rounded-sm bg-background/50 px-2 py-1">
-                  <span>{npc.count}x {npc.name}</span>
-                  <span className="text-xs text-muted-foreground">CR {npc.cr} · AC {npc.ac} · HP {npc.hp}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Tactics</span>
-            <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.tactics}</p>
-          </div>
-
-          {result.treasure && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Treasure</span>
-              <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.treasure}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return renderEncounterResult(result, () => setResult(null));
   }
 
   return (
@@ -258,6 +253,21 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
         />
       </div>
 
+      {loading && stream.isStreaming && (
+        <StreamingOutput
+          text={stream.text}
+          isStreaming={stream.isStreaming}
+          error={stream.error}
+          label="Generating Encounter"
+        />
+      )}
+      {loading && !stream.isStreaming && !stream.text && (
+        <div className="flex items-center gap-2 py-3 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="font-['IM_Fell_English'] text-sm italic">Preparing generation...</span>
+        </div>
+      )}
+
       <Button
         size="sm"
         variant="primary"
@@ -277,6 +287,46 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
           </>
         )}
       </Button>
+    </div>
+  );
+}
+
+function renderEncounterResult(result: GeneratedEncounter, onReset: () => void) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.title}</h4>
+        <Button size="sm" variant="ghost" onClick={onReset}>
+          Generate Another
+        </Button>
+      </div>
+      <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
+        <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.description}</p>
+        <div>
+          <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">
+            Monsters ({result.difficulty} — {result.totalXP} XP)
+          </span>
+          <div className="mt-1 space-y-1">
+            {result.npcs.map((npc, i) => (
+              <div key={i} className="flex items-center justify-between text-sm text-foreground rounded-sm bg-background/50 px-2 py-1">
+                <span>{npc.count}x {npc.name}</span>
+                <span className="text-xs text-muted-foreground">CR {npc.cr} · AC {npc.ac} · HP {npc.hp}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Tactics</span>
+          <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.tactics}</p>
+        </div>
+        {result.treasure && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Treasure</span>
+            <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.treasure}</p>
+          </div>
+        )}
+        {result._meta && <GenerationMeta meta={result._meta} />}
+      </div>
     </div>
   );
 }
@@ -338,6 +388,7 @@ function RulesLookup({ campaignId }: { campaignId: string }) {
                   </div>
                 </div>
               )}
+              {r._meta && <GenerationMeta meta={r._meta} />}
             </div>
           ))}
         </div>
@@ -355,10 +406,12 @@ function QuestGenerator({ campaignId }: { campaignId: string }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WorldEntity | null>(null);
+  const stream = useAIStreaming('quest-generator');
 
   async function handleGenerate() {
     if (loading) return;
     setLoading(true);
+    stream.listen();
     try {
       const quest = await aiToolsApi.generateQuest({
         campaignId,
@@ -366,61 +419,19 @@ function QuestGenerator({ campaignId }: { campaignId: string }) {
         difficulty,
         prompt: prompt.trim() || undefined,
         shareWithSession: true,
+        stream: true,
       });
       setResult(quest);
     } catch {
       toast.error('Failed to generate quest');
     } finally {
       setLoading(false);
+      stream.reset();
     }
   }
 
   if (result) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
-          <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
-            Generate Another
-          </Button>
-        </div>
-        <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
-          <p className="text-sm text-foreground font-['IM_Fell_English'] italic leading-relaxed whitespace-pre-wrap">
-            {result.description}
-          </p>
-          {result.objectives && result.objectives.length > 0 && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Objectives</span>
-              <ul className="mt-1 space-y-0.5">
-                {result.objectives.map((obj) => (
-                  <li key={obj.id} className="text-sm text-foreground flex items-center gap-1.5">
-                    <span className="text-gold">-</span> {obj.description}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.rewards && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Rewards</span>
-              <p className="text-sm text-foreground">{result.rewards}</p>
-            </div>
-          )}
-          {result.typeData?.complications && (result.typeData.complications as string[]).length > 0 && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Complications</span>
-              <ul className="mt-1 space-y-0.5">
-                {(result.typeData.complications as string[]).map((c, i) => (
-                  <li key={i} className="text-sm text-foreground flex items-center gap-1.5">
-                    <span className="text-blood">!</span> {c}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return renderQuestResult(result, () => setResult(null));
   }
 
   return (
@@ -471,6 +482,21 @@ function QuestGenerator({ campaignId }: { campaignId: string }) {
         className="w-full input-carved rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground font-['IM_Fell_English'] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
       />
 
+      {loading && stream.isStreaming && (
+        <StreamingOutput
+          text={stream.text}
+          isStreaming={stream.isStreaming}
+          error={stream.error}
+          label="Generating Quest"
+        />
+      )}
+      {loading && !stream.isStreaming && !stream.text && (
+        <div className="flex items-center gap-2 py-3 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="font-['IM_Fell_English'] text-sm italic">Preparing generation...</span>
+        </div>
+      )}
+
       <Button size="sm" variant="primary" disabled={loading} onClick={handleGenerate} className="w-full">
         {loading ? (
           <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Generating...</>
@@ -482,16 +508,67 @@ function QuestGenerator({ campaignId }: { campaignId: string }) {
   );
 }
 
+function renderQuestResult(result: WorldEntity, onReset: () => void) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
+        <Button size="sm" variant="ghost" onClick={onReset}>
+          Generate Another
+        </Button>
+      </div>
+      <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
+        <p className="text-sm text-foreground font-['IM_Fell_English'] italic leading-relaxed whitespace-pre-wrap">
+          {result.description}
+        </p>
+        {result.objectives && result.objectives.length > 0 && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Objectives</span>
+            <ul className="mt-1 space-y-0.5">
+              {result.objectives.map((obj) => (
+                <li key={obj.id} className="text-sm text-foreground flex items-center gap-1.5">
+                  <span className="text-gold">-</span> {obj.description}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {result.rewards && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Rewards</span>
+            <p className="text-sm text-foreground">{result.rewards}</p>
+          </div>
+        )}
+        {result.typeData?.complications && (result.typeData.complications as string[]).length > 0 && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Complications</span>
+            <ul className="mt-1 space-y-0.5">
+              {(result.typeData.complications as string[]).map((c, i) => (
+                <li key={i} className="text-sm text-foreground flex items-center gap-1.5">
+                  <span className="text-blood">!</span> {c}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {result._meta && <GenerationMeta meta={result._meta} />}
+      </div>
+    </div>
+  );
+}
+
 function LoreGenerator({ campaignId }: { campaignId: string }) {
   const [loreType, setLoreType] = useState('history');
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WorldEntity | null>(null);
+  const stream = useAIStreaming('lore-generator');
 
   async function handleGenerate() {
     if (loading) return;
     setLoading(true);
+    stream.listen();
     try {
       const lore = await aiToolsApi.generateLore({
         campaignId,
@@ -499,63 +576,19 @@ function LoreGenerator({ campaignId }: { campaignId: string }) {
         name: name.trim() || undefined,
         prompt: prompt.trim() || undefined,
         shareWithSession: true,
+        stream: true,
       });
       setResult(lore);
     } catch {
       toast.error('Failed to generate lore');
     } finally {
       setLoading(false);
+      stream.reset();
     }
   }
 
   if (result) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
-          <Button size="sm" variant="ghost" onClick={() => setResult(null)}>
-            Generate Another
-          </Button>
-        </div>
-        <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
-          <p className="text-sm text-foreground font-['IM_Fell_English'] italic leading-relaxed whitespace-pre-wrap">
-            {result.description}
-          </p>
-          {result.typeData?.significance && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Significance</span>
-              <p className="text-sm text-foreground">{result.typeData.significance as string}</p>
-            </div>
-          )}
-          {result.typeData?.connections && (result.typeData.connections as string[]).length > 0 && (
-            <div>
-              <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Connections</span>
-              <ul className="mt-1 space-y-0.5">
-                {(result.typeData.connections as string[]).map((c, i) => (
-                  <li key={i} className="text-sm text-foreground flex items-center gap-1.5">
-                    <span className="text-gold">-</span> {c}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.typeData?.secrets && (result.typeData.secrets as string[]).length > 0 && (
-            <details className="border-t border-gold/10 pt-2">
-              <summary className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground">
-                GM Secrets
-              </summary>
-              <ul className="mt-1 space-y-0.5">
-                {(result.typeData.secrets as string[]).map((s, i) => (
-                  <li key={i} className="text-sm text-arcane flex items-center gap-1.5">
-                    <span>-</span> {s}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
-      </div>
-    );
+    return renderLoreResult(result, () => setResult(null));
   }
 
   return (
@@ -595,6 +628,21 @@ function LoreGenerator({ campaignId }: { campaignId: string }) {
         className="w-full input-carved rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground font-['IM_Fell_English'] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
       />
 
+      {loading && stream.isStreaming && (
+        <StreamingOutput
+          text={stream.text}
+          isStreaming={stream.isStreaming}
+          error={stream.error}
+          label="Generating Lore"
+        />
+      )}
+      {loading && !stream.isStreaming && !stream.text && (
+        <div className="flex items-center gap-2 py-3 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="font-['IM_Fell_English'] text-sm italic">Preparing generation...</span>
+        </div>
+      )}
+
       <Button size="sm" variant="primary" disabled={loading} onClick={handleGenerate} className="w-full">
         {loading ? (
           <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Generating...</>
@@ -602,6 +650,57 @@ function LoreGenerator({ campaignId }: { campaignId: string }) {
           <><Sparkles className="mr-1.5 h-3.5 w-3.5" />Generate Lore</>
         )}
       </Button>
+    </div>
+  );
+}
+
+function renderLoreResult(result: WorldEntity, onReset: () => void) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.name}</h4>
+        <Button size="sm" variant="ghost" onClick={onReset}>
+          Generate Another
+        </Button>
+      </div>
+      <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
+        <p className="text-sm text-foreground font-['IM_Fell_English'] italic leading-relaxed whitespace-pre-wrap">
+          {result.description}
+        </p>
+        {result.typeData?.significance && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Significance</span>
+            <p className="text-sm text-foreground">{result.typeData.significance as string}</p>
+          </div>
+        )}
+        {result.typeData?.connections && (result.typeData.connections as string[]).length > 0 && (
+          <div>
+            <span className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">Connections</span>
+            <ul className="mt-1 space-y-0.5">
+              {(result.typeData.connections as string[]).map((c, i) => (
+                <li key={i} className="text-sm text-foreground flex items-center gap-1.5">
+                  <span className="text-gold">-</span> {c}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {result.typeData?.secrets && (result.typeData.secrets as string[]).length > 0 && (
+          <details className="border-t border-gold/10 pt-2">
+            <summary className="font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground">
+              GM Secrets
+            </summary>
+            <ul className="mt-1 space-y-0.5">
+              {(result.typeData.secrets as string[]).map((s, i) => (
+                <li key={i} className="text-sm text-arcane flex items-center gap-1.5">
+                  <span>-</span> {s}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {result._meta && <GenerationMeta meta={result._meta} />}
+      </div>
     </div>
   );
 }

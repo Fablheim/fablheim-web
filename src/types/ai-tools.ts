@@ -6,6 +6,13 @@ export interface AIUsage {
   cost: number;
 }
 
+export interface GenerationMeta {
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+  creditsConsumed: number;
+}
+
 // ── NPC Generation ───────────────────────────────────────
 
 export interface GenerateNPCRequest {
@@ -14,6 +21,7 @@ export interface GenerateNPCRequest {
   level?: number;
   role?: string;
   shareWithSession?: boolean;
+  stream?: boolean;
 }
 
 export interface GeneratedNPC {
@@ -25,6 +33,8 @@ export interface GeneratedNPC {
   plotHooks?: string;
   raw: string;
   usage: AIUsage;
+  _meta?: GenerationMeta;
+  streamId?: string;
 }
 
 // ── Encounter Generation ─────────────────────────────────
@@ -39,6 +49,7 @@ export interface GenerateEncounterRequest {
   environment?: string;
   encounterType?: string;
   shareWithSession?: boolean;
+  stream?: boolean;
 }
 
 export interface EncounterNPC {
@@ -65,6 +76,8 @@ export interface GeneratedEncounter {
   hooks?: string[];
   raw: string;
   usage: AIUsage;
+  _meta?: GenerationMeta;
+  streamId?: string;
 }
 
 // ── Rule Assistant ───────────────────────────────────────
@@ -82,6 +95,7 @@ export interface RuleAnswer {
   dmAdvice?: string;
   questionId: string;
   usage: AIUsage;
+  _meta?: GenerationMeta;
 }
 
 export interface RuleQuestionRecord {
@@ -110,6 +124,7 @@ export interface GeneratePlotHooksRequest {
 export interface GeneratedPlotHooks {
   hooks: string[];
   usage: AIUsage;
+  _meta?: GenerationMeta;
 }
 
 // ── World Building ───────────────────────────────────────

@@ -41,4 +41,9 @@ export const campaignMembersApi = {
     );
     return data;
   },
+
+  /** Leave a campaign (current user removes themselves) */
+  leaveCampaign: async (campaignId: string): Promise<void> => {
+    await api.delete(`/campaigns/${campaignId}/members/me`);
+  },
 };

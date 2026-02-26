@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Loader2, Trash2, Search, Skull, Pencil } from 'lucide-react';
+import { Plus, Loader2, Trash2, Search, Skull, Pencil, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -57,14 +57,23 @@ const CATEGORY_COLORS: Record<EnemyCategory, string> = {
   custom: 'bg-muted text-muted-foreground',
 };
 
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'global', label: 'SRD' },
+  { value: 'user', label: 'My Templates' },
+] as const;
+
 export function EnemyLibraryPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [systemFilter, setSystemFilter] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EnemyTemplate | null>(null);
 
-  const filters = categoryFilter ? { category: categoryFilter } : undefined;
+  const filters: { category?: string; scope?: string } = {};
+  if (categoryFilter) filters.category = categoryFilter;
+  if (scopeFilter !== 'all') filters.scope = scopeFilter;
   const { data: templates, isLoading } = useEnemyTemplates(filters);
   const deleteTemplate = useDeleteEnemyTemplate();
 
@@ -117,7 +126,8 @@ export function EnemyLibraryPage() {
 
   function renderFilters() {
     return (
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        {renderScopeToggle()}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
@@ -148,6 +158,27 @@ export function EnemyLibraryPage() {
             <option key={val} value={val}>{label}</option>
           ))}
         </select>
+      </div>
+    );
+  }
+
+  function renderScopeToggle() {
+    return (
+      <div className="flex rounded-sm border border-input overflow-hidden">
+        {SCOPE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setScopeFilter(opt.value)}
+            className={`px-3 py-2 text-xs font-[Cinzel] uppercase tracking-wider transition-colors ${
+              scopeFilter === opt.value
+                ? 'bg-primary/20 text-primary border-primary/30'
+                : 'bg-input text-muted-foreground hover:text-foreground hover:bg-accent/40'
+            } ${opt.value !== 'all' ? 'border-l border-input' : ''}`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
     );
   }
@@ -203,6 +234,8 @@ export function EnemyLibraryPage() {
   }
 
   function renderCardContent(template: EnemyTemplate) {
+    const isGlobal = !!template.isGlobal;
+
     return (
       <>
         <div className="flex items-start justify-between gap-2">
@@ -216,23 +249,31 @@ export function EnemyLibraryPage() {
             <h3 className="font-['IM_Fell_English'] text-sm font-semibold text-foreground line-clamp-1">
               {template.name}
             </h3>
+            {isGlobal && (
+              <span className="flex items-center gap-0.5 rounded-md bg-brass/15 px-1.5 py-0.5 text-[9px] font-[Cinzel] uppercase tracking-wider text-brass shrink-0">
+                <BookOpen className="h-2.5 w-2.5" />
+                SRD
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); handleEdit(template); }}
-              className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => handleDelete(e, template._id)}
-              className="rounded p-1 text-muted-foreground hover:text-blood hover:bg-blood/10 transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          {!isGlobal && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleEdit(template); }}
+                className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => handleDelete(e, template._id)}
+                className="rounded p-1 text-muted-foreground hover:text-blood hover:bg-blood/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-2 flex items-center gap-2 flex-wrap">

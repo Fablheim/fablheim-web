@@ -12,6 +12,7 @@ import {
   Settings,
   FileEdit,
   Play,
+  Brain,
 } from 'lucide-react';
 import { SidebarSection } from './SidebarSection';
 import { Button } from '@/components/ui/Button';
@@ -33,6 +34,7 @@ const PREP_SECTIONS: SidebarNavSection[] = [
       { label: 'Encounters', icon: Swords, panel: 'encounter-prep' },
       { label: 'Enemy Library', icon: Skull, path: '/app/enemies' },
       { label: 'AI Tools', icon: Sparkles, panel: 'ai-tools', requiresPaid: true },
+      { label: 'Campaign Brain', icon: Brain, panel: 'campaign-brain' },
       { label: 'World Builder', icon: Globe, panel: 'world-browser' },
       { label: 'Locations', icon: MapPin, path: '/app/world' },
       { label: 'Quests', icon: ScrollText, path: '/app/world' },

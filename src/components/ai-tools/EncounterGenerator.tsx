@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useGenerateEncounter } from '@/hooks/useAITools';
+import { GenerationMeta } from './GenerationMeta';
 import type { EncounterDifficulty, GeneratedEncounter } from '@/types/ai-tools';
 
 interface EncounterGeneratorProps {
@@ -233,6 +234,8 @@ export function EncounterGenerator({ campaignId }: EncounterGeneratorProps) {
               )}
             </Button>
           </div>
+
+          {result._meta && <GenerationMeta meta={result._meta} />}
         </div>
       )}
     </div>

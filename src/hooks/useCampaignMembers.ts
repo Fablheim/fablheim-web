@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { campaignMembersApi } from '@/api/campaign-members';
 import { useCampaigns } from '@/hooks/useCampaigns';
 
@@ -15,6 +15,19 @@ export function useCampaignMembers(campaignId: string) {
     queryKey: ['campaign-members', campaignId],
     queryFn: () => campaignMembersApi.listByCampaign(campaignId),
     enabled: !!campaignId,
+  });
+}
+
+export function useLeaveCampaign() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (campaignId: string) =>
+      campaignMembersApi.leaveCampaign(campaignId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-memberships'] });
+    },
   });
 }
 

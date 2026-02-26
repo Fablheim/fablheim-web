@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Loader2, Save, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { GenerationMeta } from '@/components/ai-tools/GenerationMeta';
 import { useGenerateEncounter } from '@/hooks/useAITools';
 import { useUpdateEncounter } from '@/hooks/useEncounters';
 import type { EncounterDifficulty, GeneratedEncounter } from '@/types/ai-tools';
@@ -252,6 +253,8 @@ export function EncounterAIPanel({ campaignId, encounter }: EncounterAIPanelProp
             <p className="mt-0.5 text-sm italic text-muted-foreground">{result!.treasure}</p>
           </div>
         )}
+
+        {result!._meta && <GenerationMeta meta={result!._meta} />}
       </>
     );
   }

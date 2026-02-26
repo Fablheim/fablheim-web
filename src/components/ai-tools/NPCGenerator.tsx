@@ -3,6 +3,7 @@ import { Loader2, Copy, Check, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useGenerateNPC } from '@/hooks/useAITools';
 import { useCreateWorldEntity } from '@/hooks/useWorldEntities';
+import { GenerationMeta } from './GenerationMeta';
 import type { GeneratedNPC } from '@/types/ai-tools';
 
 interface NPCGeneratorProps {
@@ -212,6 +213,8 @@ export function NPCGenerator({ campaignId }: NPCGeneratorProps) {
               {saved ? 'Added' : 'Add to Campaign'}
             </Button>
           </div>
+
+          {result._meta && <GenerationMeta meta={result._meta} />}
         </div>
       )}
     </div>

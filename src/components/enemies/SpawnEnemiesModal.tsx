@@ -11,6 +11,20 @@ interface SpawnEnemiesModalProps {
   onSpawn: (enemies: SpawnedEnemy[]) => void;
 }
 
+const SYSTEM_LABELS: Record<string, string> = {
+  dnd5e: 'D&D 5e',
+  pathfinder2e: 'PF2e',
+  daggerheart: 'Daggerheart',
+  custom: 'Custom',
+};
+
+const SYSTEM_COLORS: Record<string, string> = {
+  dnd5e: 'bg-blood/20 text-blood',
+  pathfinder2e: 'bg-[hsl(200,40%,20%)] text-[hsl(200,50%,65%)]',
+  daggerheart: 'bg-primary/15 text-primary',
+  custom: 'bg-iron/20 text-muted-foreground',
+};
+
 const CATEGORY_COLORS: Record<EnemyCategory, string> = {
   humanoid: 'bg-brass/20 text-brass',
   beast: 'bg-forest/20 text-[hsl(150,50%,55%)]',
@@ -35,6 +49,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
   const spawnEnemies = useSpawnEnemies();
 
   const [search, setSearch] = useState('');
+  const [systemFilter, setSystemFilter] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<EnemyTemplate | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [namingPattern, setNamingPattern] = useState<NamingPattern>('numeric');
@@ -43,6 +58,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
 
   function handleClose() {
     setSearch('');
+    setSystemFilter('');
     setSelectedTemplate(null);
     setQuantity(1);
     setNamingPattern('numeric');
@@ -71,9 +87,11 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
     }
   }
 
-  const filtered = templates?.filter((t) =>
-    !search || t.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = templates?.filter((t) => {
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (systemFilter && t.system !== systemFilter) return false;
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -101,7 +119,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
   function renderTemplateList() {
     return (
       <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="p-4 shrink-0">
+        <div className="p-4 pb-2 shrink-0 space-y-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
@@ -113,6 +131,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
               autoFocus
             />
           </div>
+          {renderSystemFilter()}
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
@@ -148,6 +167,11 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-['IM_Fell_English'] text-sm text-foreground truncate">{t.name}</span>
+                    {t.system && t.system !== 'custom' && (
+                      <span className={`shrink-0 rounded-md px-1 py-0.5 font-[Cinzel] text-[8px] uppercase tracking-wider ${SYSTEM_COLORS[t.system] ?? 'bg-iron/20 text-muted-foreground'}`}>
+                        {SYSTEM_LABELS[t.system] ?? t.system}
+                      </span>
+                    )}
                     <span className={`shrink-0 rounded-md px-1 py-0.5 font-[Cinzel] text-[8px] uppercase tracking-wider ${CATEGORY_COLORS[t.category]}`}>
                       {t.category}
                     </span>
@@ -217,6 +241,38 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
             Spawn {quantity} {quantity > 1 ? 'Enemies' : 'Enemy'}
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  function renderSystemFilter() {
+    return (
+      <div className="flex gap-1.5 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setSystemFilter('')}
+          className={`px-2 py-1 rounded-sm text-[9px] font-[Cinzel] uppercase tracking-wider transition-colors ${
+            !systemFilter
+              ? 'bg-primary/20 text-primary'
+              : 'bg-input text-muted-foreground hover:text-foreground hover:bg-accent/40'
+          }`}
+        >
+          All
+        </button>
+        {Object.entries(SYSTEM_LABELS).map(([val, label]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => setSystemFilter(systemFilter === val ? '' : val)}
+            className={`px-2 py-1 rounded-sm text-[9px] font-[Cinzel] uppercase tracking-wider transition-colors ${
+              systemFilter === val
+                ? SYSTEM_COLORS[val] || 'bg-primary/20 text-primary'
+                : 'bg-input text-muted-foreground hover:text-foreground hover:bg-accent/40'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     );
   }

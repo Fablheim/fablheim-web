@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Archive } from 'lucide-react';
 import { useTabs } from '@/context/TabContext';
 import { resolveRouteContent } from '@/routes';
 import { ItemContextMenu } from '@/components/ui/ItemContextMenu';
@@ -56,9 +56,10 @@ export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) 
                 e.stopPropagation();
                 onDelete(campaign);
               }}
-              className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:shadow-glow-sm"
+              className="rounded-md p-1 text-muted-foreground hover:bg-brass/10 hover:text-brass hover:shadow-glow-sm"
+              title="Archive"
             >
-              <Trash2 className="h-4 w-4" />
+              <Archive className="h-4 w-4" />
             </button>
           </div>
         </div>

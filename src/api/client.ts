@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as Sentry from '@sentry/react';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000'),
@@ -20,6 +21,14 @@ export function registerSessionExpiredHandler(handler: () => void) {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Tag Sentry with correlation ID from backend
+    if (axios.isAxiosError(error)) {
+      const correlationId = error.response?.headers?.['x-request-id'];
+      if (correlationId) {
+        Sentry.setTag('correlationId', correlationId);
+      }
+    }
+
     if (
       axios.isAxiosError(error) &&
       error.response?.status === 401 &&

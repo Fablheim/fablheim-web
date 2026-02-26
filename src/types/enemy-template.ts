@@ -35,7 +35,7 @@ export type EnemySize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargan
 
 export interface EnemyTemplate {
   _id: string;
-  userId: string;
+  userId?: string;
   name: string;
   category: EnemyCategory;
   cr?: string;
@@ -54,6 +54,8 @@ export interface EnemyTemplate {
   notes?: string;
   system?: string;
   systemData?: Record<string, unknown>;
+  isGlobal?: boolean;
+  srdSource?: string;
   createdAt: string;
   updatedAt: string;
 }

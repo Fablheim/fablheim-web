@@ -11,10 +11,12 @@ export const enemyTemplatesApi = {
   list: async (filters?: {
     category?: string;
     tags?: string[];
+    scope?: string;
   }): Promise<EnemyTemplate[]> => {
     const params = new URLSearchParams();
     if (filters?.category) params.append('category', filters.category);
     if (filters?.tags?.length) params.append('tags', filters.tags.join(','));
+    if (filters?.scope) params.append('scope', filters.scope);
     const qs = params.toString();
     const { data } = await api.get<EnemyTemplate[]>(
       `/enemy-templates${qs ? `?${qs}` : ''}`,

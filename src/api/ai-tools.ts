@@ -77,6 +77,7 @@ export const aiToolsApi = {
     difficulty?: string;
     partyLevel?: number;
     shareWithSession?: boolean;
+    stream?: boolean;
   }): Promise<WorldEntity> => {
     const res = await api.post<WorldEntity>('/ai/world/generate-quest', data);
     return res.data;
@@ -89,6 +90,7 @@ export const aiToolsApi = {
     prompt?: string;
     name?: string;
     shareWithSession?: boolean;
+    stream?: boolean;
   }): Promise<WorldEntity> => {
     const res = await api.post<WorldEntity>('/ai/world/generate-lore', data);
     return res.data;

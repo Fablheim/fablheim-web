@@ -11,7 +11,8 @@ export type PrepPanelId =
   | 'world-browser'
   | 'notebook'
   | 'characters'
-  | 'ai-tools';
+  | 'ai-tools'
+  | 'campaign-brain';
 
 export type LivePanelId =
   | 'initiative'

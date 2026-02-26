@@ -27,6 +27,7 @@ import { WorldBrowserPanel } from './panels/WorldBrowserPanel';
 import { NotebookPanel } from './panels/NotebookPanel';
 import { CharactersPanel } from './panels/CharactersPanel';
 import { SessionNotesRecapPanel } from './panels/SessionNotesRecapPanel';
+import { CampaignBrainPanel } from './panels/CampaignBrainPanel';
 
 export interface PanelRendererProps {
   panelId: PanelId;
@@ -52,6 +53,8 @@ export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRende
       return <CharactersPanel campaignId={campaignId} />;
     case 'ai-tools':
       return <AIToolsPage campaignId={campaignId} />;
+    case 'campaign-brain':
+      return <CampaignBrainPanel campaignId={campaignId} />;
 
     // ── Live ──────────────────────────────────────────────
     case 'initiative':

@@ -15,6 +15,7 @@ import {
   Dices,
   BarChart3,
   SkipForward,
+  Brain,
 } from 'lucide-react';
 import type { PanelDefinition, PanelId, CampaignStage } from '@/types/workspace';
 
@@ -54,6 +55,12 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
     id: 'ai-tools',
     title: 'AI Tools',
     icon: Sparkles,
+    stages: ['prep'],
+  },
+  'campaign-brain': {
+    id: 'campaign-brain',
+    title: 'Campaign Brain',
+    icon: Brain,
     stages: ['prep'],
   },
 

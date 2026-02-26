@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { GenerationMeta } from '@/components/ai-tools/GenerationMeta';
 import { aiToolsApi } from '@/api/ai-tools';
 import type { RuleAnswer } from '@/types/ai-tools';
 
@@ -41,6 +42,8 @@ function RuleResult({ result }: { result: RuleAnswer }) {
           </p>
         </div>
       )}
+
+      {result._meta && <GenerationMeta meta={result._meta} />}
     </div>
   );
 }

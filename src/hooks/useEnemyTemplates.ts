@@ -9,6 +9,7 @@ import type {
 export function useEnemyTemplates(filters?: {
   category?: string;
   tags?: string[];
+  scope?: string;
 }) {
   return useQuery({
     queryKey: ['enemy-templates', filters],

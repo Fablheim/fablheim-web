@@ -3,6 +3,8 @@ import { Loader2, Copy, Check, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useGeneratePlotHooks } from '@/hooks/useAITools';
 import { useCreateWorldEntity } from '@/hooks/useWorldEntities';
+import { GenerationMeta } from './GenerationMeta';
+import type { GenerationMeta as GenerationMetaType } from '@/types/ai-tools';
 
 interface PlotHookGeneratorProps {
   campaignId: string;
@@ -12,6 +14,7 @@ export function PlotHookGenerator({ campaignId }: PlotHookGeneratorProps) {
   const [themes, setThemes] = useState('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [hooks, setHooks] = useState<string[]>([]);
+  const [meta, setMeta] = useState<GenerationMetaType | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
 
@@ -20,6 +23,7 @@ export function PlotHookGenerator({ campaignId }: PlotHookGeneratorProps) {
 
   async function handleGenerate() {
     setHooks([]);
+    setMeta(null);
     setSavedIdx(new Set());
 
     const themeList = themes
@@ -34,6 +38,7 @@ export function PlotHookGenerator({ campaignId }: PlotHookGeneratorProps) {
       themes: themeList.length > 0 ? themeList : undefined,
     });
     setHooks(data.hooks);
+    if (data._meta) setMeta(data._meta);
   }
 
   async function handleCopy(idx: number) {
@@ -152,6 +157,8 @@ export function PlotHookGenerator({ campaignId }: PlotHookGeneratorProps) {
               </div>
             </div>
           ))}
+
+          {meta && <GenerationMeta meta={meta} />}
         </div>
       )}
     </div>

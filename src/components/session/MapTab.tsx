@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useEffect, type PointerEvent as ReactPointerEvent, type WheelEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type WheelEvent } from 'react';
 import { Plus, Trash2, Move, Loader2, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
 import {
   useBattleMap,
   useAddMapToken,
@@ -8,6 +9,8 @@ import {
   useRemoveMapToken,
 } from '@/hooks/useBattleMap';
 import { useInitiative } from '@/hooks/useLiveSession';
+import { useCharacters } from '@/hooks/useCharacters';
+import { useAuth } from '@/context/AuthContext';
 import type { MapToken } from '@/types/live-session';
 
 interface MapTabProps {
@@ -34,6 +37,29 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
   const addToken = useAddMapToken(campaignId);
   const moveToken = useMoveMapToken(campaignId);
   const removeToken = useRemoveMapToken(campaignId);
+
+  const { user } = useAuth();
+  const { data: characters } = useCharacters(campaignId);
+
+  // Build a set of character IDs owned by the current user
+  const myCharacterIds = useMemo(() => {
+    if (!user || !characters) return new Set<string>();
+    return new Set(
+      characters
+        .filter((c) => c.userId === user._id)
+        .map((c) => c._id),
+    );
+  }, [user, characters]);
+
+  /** Check whether a token belongs to the current player */
+  function isMyToken(token: MapToken): boolean {
+    return (
+      token.type === 'pc' &&
+      !token.isHidden &&
+      !!token.characterId &&
+      myCharacterIds.has(token.characterId)
+    );
+  }
 
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [placingToken, setPlacingToken] = useState(false);
@@ -98,7 +124,14 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
         { tokenId: movingTokenId, x, y },
         {
           onSuccess: () => setMovingTokenId(null),
-          onError: () => toast.error('Failed to move token'),
+          onError: (err) => {
+            if (axios.isAxiosError(err) && err.response?.status === 403) {
+              toast.error("You can only move your own character's token");
+            } else {
+              toast.error('Failed to move token');
+            }
+            setMovingTokenId(null);
+          },
         },
       );
       return;
@@ -320,6 +353,19 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
           </>
         )}
 
+        {!isDM && selectedTokenId && (() => {
+          const selectedToken = map!.tokens.find((t) => t.id === selectedTokenId);
+          return selectedToken && isMyToken(selectedToken) ? (
+            <button
+              type="button"
+              onClick={() => setMovingTokenId(selectedTokenId)}
+              className="flex items-center gap-1 rounded-md border border-iron bg-accent px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent/80 transition-colors font-[Cinzel] uppercase tracking-wider"
+            >
+              <Move className="h-3 w-3" /> Move
+            </button>
+          ) : null;
+        })()}
+
         {/* Zoom controls */}
         <div className="flex items-center gap-1 ml-2 border-l border-[hsla(38,40%,30%,0.15)] pl-2">
           <button
@@ -516,8 +562,8 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
               height: TILE_SIZE,
             }}
           >
-            {token && !token.isHidden && renderToken(token, isSelected, isCurrentTurn)}
-            {token && token.isHidden && isDM && renderToken(token, isSelected, isCurrentTurn)}
+            {token && !token.isHidden && renderToken(token, isSelected, isCurrentTurn, isMyToken(token))}
+            {token && token.isHidden && isDM && renderToken(token, isSelected, isCurrentTurn, false)}
           </div>,
         );
       }
@@ -525,7 +571,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
     return cells;
   }
 
-  function renderToken(token: MapToken, isSelected: boolean, isCurrentTurn: boolean) {
+  function renderToken(token: MapToken, isSelected: boolean, isCurrentTurn: boolean, isOwn: boolean) {
     return (
       <div
         title={`${token.name} (${TOKEN_TYPE_LABELS[token.type]})`}
@@ -534,6 +580,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
           transition-all duration-200
           ${isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-card scale-110' : ''}
           ${isCurrentTurn ? 'ring-2 ring-[hsl(38,80%,55%)] shadow-[0_0_8px_hsla(38,80%,55%,0.6)]' : ''}
+          ${isOwn && !isSelected && !isCurrentTurn ? 'ring-2 ring-primary/50' : ''}
           ${token.isHidden ? 'opacity-50' : ''}
         `}
         style={{ backgroundColor: token.color }}

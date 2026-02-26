@@ -9,6 +9,13 @@ export function useCampaigns() {
   });
 }
 
+export function useArchivedCampaigns() {
+  return useQuery({
+    queryKey: ['campaigns', 'archived'],
+    queryFn: () => campaignsApi.listArchived(),
+  });
+}
+
 export function useCampaign(id: string) {
   return useQuery({
     queryKey: ['campaigns', id],
@@ -48,6 +55,30 @@ export function useDeleteCampaign() {
     mutationFn: (id: string) => campaignsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', 'archived'] });
+    },
+  });
+}
+
+export function useRestoreCampaign() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => campaignsApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', 'archived'] });
+    },
+  });
+}
+
+export function useDeleteCampaignPermanently() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => campaignsApi.deletePermanently(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', 'archived'] });
     },
   });
 }

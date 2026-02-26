@@ -7,6 +7,13 @@ export const campaignsApi = {
     return data;
   },
 
+  listArchived: async (): Promise<Campaign[]> => {
+    const { data } = await api.get<Campaign[]>('/campaigns', {
+      params: { archived: 'true' },
+    });
+    return data;
+  },
+
   get: async (id: string): Promise<Campaign> => {
     const { data } = await api.get<Campaign>(`/campaigns/${id}`);
     return data;
@@ -22,8 +29,18 @@ export const campaignsApi = {
     return data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await api.delete(`/campaigns/${id}`);
+  delete: async (id: string): Promise<Campaign> => {
+    const { data } = await api.delete<Campaign>(`/campaigns/${id}`);
+    return data;
+  },
+
+  restore: async (id: string): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/restore`);
+    return data;
+  },
+
+  deletePermanently: async (id: string): Promise<void> => {
+    await api.delete(`/campaigns/${id}/permanent`);
   },
 
   // ── Stage Transitions ──────────────────────────────────────

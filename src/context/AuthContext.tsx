@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import type { User } from '../types/user';
 import * as authApi from '../api/auth';
 import { registerSessionExpiredHandler } from '../api/client';
+import { identifyUser, resetAnalytics } from '../lib/analytics';
 
 interface AuthContextValue {
   user: User | null;
@@ -23,8 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await authApi.getMe();
       setUser(me);
+      Sentry.setUser({ id: me._id });
+      identifyUser(me._id, { subscriptionTier: (me as any).subscriptionTier });
     } catch {
       setUser(null);
+      Sentry.setUser(null);
     }
   }
 
@@ -36,16 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string, turnstileToken?: string) {
     const { user } = await authApi.login(email, password, turnstileToken);
     setUser(user);
+    Sentry.setUser({ id: user._id });
+    identifyUser(user._id, { subscriptionTier: (user as any).subscriptionTier });
   }
 
   async function register(username: string, email: string, password: string, turnstileToken?: string) {
     const { user } = await authApi.register(username, email, password, turnstileToken);
     setUser(user);
+    Sentry.setUser({ id: user._id });
+    identifyUser(user._id);
   }
 
   async function logout() {
     await authApi.logout();
     setUser(null);
+    Sentry.setUser(null);
+    resetAnalytics();
   }
 
   return (
