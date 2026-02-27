@@ -12,7 +12,7 @@ const variantClasses = {
   secondary:
     'bg-secondary text-secondary-foreground btn-emboss border border-secondary/30 hover:bg-secondary/80',
   destructive:
-    'bg-destructive text-destructive-foreground btn-emboss hover:bg-destructive/90',
+    'bg-destructive text-destructive-foreground btn-emboss border border-destructive/40 hover:bg-destructive/90',
   ghost:
     'text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:shadow-[inset_0_0_15px_hsla(38,60%,50%,0.05)]',
   outline:
@@ -28,7 +28,7 @@ const sizeClasses = {
 export function Button({ children, variant = 'primary', size = 'default', className = '', ...props }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-sm font-[Cinzel] font-medium tracking-wider uppercase text-[0.8em] shadow-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-[calc(var(--mkt-radius)-0.2rem)] font-[Cinzel] font-medium tracking-wider uppercase text-[0.8em] shadow-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:pointer-events-none ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {children}

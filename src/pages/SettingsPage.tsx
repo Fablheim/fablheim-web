@@ -279,7 +279,7 @@ const TIER_DISPLAY: Record<string, string> = {
   free: 'Wanderer (Free)',
   hobbyist: 'Hobbyist',
   pro: 'Game Master',
-  professional: 'Professional',
+  professional: 'Pro',
 };
 
 function SubscriptionSection() {

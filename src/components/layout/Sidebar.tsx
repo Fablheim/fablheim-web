@@ -16,6 +16,9 @@ import {
   LayoutGrid,
   HelpCircle,
   Coins,
+  Library,
+  MessageSquare,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTabs } from '@/context/TabContext';
@@ -61,6 +64,7 @@ export function Sidebar() {
           { icon: Skull, label: 'Enemy Library', path: '/app/enemies' },
         ]
       : []),
+    { icon: MessageSquare, label: 'Feedback', path: '/app/feedback' },
   ];
 
   // Derive the "current path" from the active tab in the focused panel,
@@ -200,6 +204,15 @@ export function Sidebar() {
         </button>
 
         <button
+          onClick={() => navigate('/srd')}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-[hsla(38,30%,30%,0.08)] hover:text-foreground"
+          title={collapsed ? 'SRD Reference' : undefined}
+        >
+          <Library className="h-5 w-5 shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">SRD Reference</span>}
+        </button>
+
+        <button
           onClick={() => navigate('/how-it-works')}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-[hsla(38,30%,30%,0.08)] hover:text-foreground"
           title={collapsed ? 'How It Works' : undefined}
@@ -207,6 +220,22 @@ export function Sidebar() {
           <HelpCircle className="h-5 w-5 shrink-0" />
           {!collapsed && <span className="text-sm font-medium">How It Works</span>}
         </button>
+
+        {user?.role === 'admin' && (
+          <button
+            type="button"
+            onClick={() => handleNavClick('/app/admin', 'Admin')}
+            className={`flex w-full items-center gap-3 rounded-md px-3 py-2 transition-colors ${
+              isActive('/app/admin')
+                ? 'bg-primary/8 text-primary shadow-[inset_0_0_25px_hsla(38,90%,50%,0.08)]'
+                : 'text-muted-foreground hover:bg-[hsla(38,30%,30%,0.08)] hover:text-foreground'
+            }`}
+            title={collapsed ? 'Admin' : undefined}
+          >
+            <Shield className="h-5 w-5 shrink-0" />
+            {!collapsed && <span className="text-sm font-medium">Admin</span>}
+          </button>
+        )}
 
         <button
           type="button"

@@ -86,7 +86,7 @@ function CreditBalanceCard() {
         className="w-full"
       >
         <ShoppingCart className="mr-2 h-4 w-4" />
-        {buyLoading ? 'Loading...' : 'Buy 150 Credits — $5.00'}
+        {buyLoading ? 'Loading...' : 'Buy 150 Credits — $4.99'}
       </Button>
     </div>
   );

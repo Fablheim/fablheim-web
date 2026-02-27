@@ -7,6 +7,7 @@ export interface User {
   provider: 'local' | 'google';
   subscriptionTier: 'free' | 'hobbyist' | 'pro' | 'professional';
   subscriptionStatus: 'active' | 'cancelled' | 'expired';
+  role: 'user' | 'admin';
   ageVerified: boolean;
   ageVerifiedAt?: string;
   aiUsage: {

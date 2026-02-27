@@ -12,7 +12,7 @@ const tiers = [
   {
     id: 'hobbyist' as const,
     name: 'Hobbyist',
-    price: '$4.99',
+    price: '$5.99',
     period: '/month',
     credits: 100,
     icon: Sparkles,
@@ -40,7 +40,7 @@ const tiers = [
   },
   {
     id: 'professional' as const,
-    name: 'Professional',
+    name: 'Pro',
     price: '$19.99',
     period: '/month',
     credits: 500,

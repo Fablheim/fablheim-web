@@ -1,158 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Loader2,
-  ScrollText,
-  FolderOpen,
-} from 'lucide-react';
+import { ArrowRight, ChevronLeft, FolderOpen, Loader2, Search, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useSRDSearch } from '@/hooks/useSRD';
+import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 import { quickStartConfigs } from './quickStartConfigs';
-import type { QuickStartSection, QuickStartLink } from './quickStartConfigs';
-
-function renderNav(navigate: ReturnType<typeof useNavigate>, user: unknown) {
-  return (
-    <nav className="texture-wood sticky top-0 z-50 border-b border-gold bg-[hsl(24,18%,6%)]/95 backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 transition-opacity hover:opacity-80"
-          >
-            <img src="/fablheim-logo.png" alt="Fablheim" className="h-9 w-9 rounded-md shadow-glow-sm animate-candle" />
-            <span className="font-['Cinzel_Decorative'] text-glow-gold text-xl font-bold text-[hsl(35,25%,92%)]">
-              Fablheim
-            </span>
-          </button>
-          {renderNavButtons(navigate, user)}
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-function renderNavButtons(navigate: ReturnType<typeof useNavigate>, user: unknown) {
-  return (
-    <div className="flex items-center gap-4">
-      <Button variant="ghost" onClick={() => navigate('/srd')}>
-        <ChevronLeft className="mr-1 h-4 w-4" />
-        All Systems
-      </Button>
-      {user ? (
-        <Button onClick={() => navigate('/app')}>
-          Dashboard
-          <ArrowRight className="ml-1 h-4 w-4" />
-        </Button>
-      ) : (
-        <>
-          <Button variant="ghost" onClick={() => navigate('/login')}>
-            Sign In
-          </Button>
-          <Button onClick={() => navigate('/register')}>Enter the Realm</Button>
-        </>
-      )}
-    </div>
-  );
-}
-
-function renderHero(
-  displayName: string,
-  tagline: string,
-  system: string,
-  navigate: ReturnType<typeof useNavigate>,
-) {
-  return (
-    <section className="relative overflow-hidden py-16 sm:py-20">
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-transparent to-rose-700/8" />
-      <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-        <h1 className="font-['IM_Fell_English'] mb-3 text-3xl font-bold text-[hsl(35,25%,92%)] sm:text-4xl lg:text-5xl">
-          {displayName}
-        </h1>
-        <div className="divider-ornate mx-auto mb-4 max-w-md" />
-        <p className="mx-auto mb-8 max-w-2xl text-lg text-[hsl(30,12%,55%)]">
-          {tagline}
-        </p>
-        <Button
-          variant="outline"
-          onClick={() => navigate(`/srd/${system}/browse`)}
-        >
-          Browse Full SRD
-          <ArrowRight className="ml-1 h-4 w-4" />
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function renderSearchBar(
-  searchQuery: string,
-  setSearchQuery: (q: string) => void,
-) {
-  return (
-    <div className="relative mb-8">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(30,12%,45%)]" />
-      <input
-        type="text"
-        placeholder="Search rules, spells, classes..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="input-carved w-full rounded-md border border-[hsl(24,14%,20%)] bg-[hsl(24,14%,10%)] py-2.5 pl-10 pr-4 text-sm text-[hsl(35,25%,92%)] placeholder-[hsl(30,12%,40%)] transition-colors focus:border-amber-500/40 focus:outline-none"
-      />
-    </div>
-  );
-}
-
-function renderSearchResults(
-  system: string,
-  searchData: { results: { title: string; category: string; snippet: string }[] } | undefined,
-  isSearching: boolean,
-  navigate: ReturnType<typeof useNavigate>,
-) {
-  if (isSearching) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
-      </div>
-    );
-  }
-
-  if (!searchData || searchData.results.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-[hsl(30,12%,45%)]">
-        No results found.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {searchData.results.map((result, i) => (
-        <button
-          key={`${result.category}-${result.title}-${i}`}
-          onClick={() => navigate(`/srd/${system}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`)}
-          className="w-full rounded-md border border-[hsl(24,14%,20%)] bg-[hsl(24,14%,10%)] p-3 text-left transition-all hover:border-amber-500/30"
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <span className="font-[Cinzel] text-sm font-semibold text-[hsl(35,25%,92%)]">
-              {result.title}
-            </span>
-            <span className="text-xs text-[hsl(30,12%,45%)]">
-              in {result.category}
-            </span>
-          </div>
-          <p className="text-xs text-[hsl(30,12%,55%)] line-clamp-2">
-            {result.snippet}
-          </p>
-        </button>
-      ))}
-    </div>
-  );
-}
+import type { QuickStartLink, QuickStartSection } from './quickStartConfigs';
 
 function buildLinkUrl(system: string, link: QuickStartLink): string {
   if (link.type === 'category') {
@@ -161,37 +15,13 @@ function buildLinkUrl(system: string, link: QuickStartLink): string {
   return `/srd/${system}/${encodeURIComponent(link.category)}/${encodeURIComponent(link.entry!)}`;
 }
 
-function renderSectionLinks(
-  system: string,
-  links: QuickStartLink[],
-  navigate: ReturnType<typeof useNavigate>,
-) {
+function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
   return (
-    <ul className="space-y-1">
-      {links.map((link) => (
-        <li key={link.label}>
-          <button
-            onClick={() => navigate(buildLinkUrl(system, link))}
-            className="group flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-amber-500/5"
-          >
-            {link.type === 'category' ? (
-              <FolderOpen className="h-4 w-4 shrink-0 text-amber-500/60 transition-colors group-hover:text-amber-500" />
-            ) : (
-              <ScrollText className="h-4 w-4 shrink-0 text-[hsl(30,12%,35%)] transition-colors group-hover:text-amber-500/60" />
-            )}
-            <span className="flex-1 text-sm text-[hsl(35,20%,75%)] transition-colors group-hover:text-[hsl(35,25%,92%)]">
-              {link.label}
-            </span>
-            {link.badge && (
-              <span className="rounded-full border border-[hsl(24,14%,25%)] bg-[hsl(24,14%,10%)] px-2 py-0.5 text-[10px] text-[hsl(30,12%,50%)]">
-                {link.badge}
-              </span>
-            )}
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[hsl(30,12%,30%)] transition-colors group-hover:text-[hsl(30,12%,55%)]" />
-          </button>
-        </li>
-      ))}
-    </ul>
+    <header className="max-w-3xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">{eyebrow}</p>
+      <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)] sm:text-4xl">{title}</h2>
+      <p className="mt-4 text-[color:var(--mkt-muted)]">{body}</p>
+    </header>
   );
 }
 
@@ -199,51 +29,43 @@ function renderSection(
   section: QuickStartSection,
   system: string,
   navigate: ReturnType<typeof useNavigate>,
-  index: number,
 ) {
   const Icon = section.icon;
   return (
-    <div
-      key={section.title}
-      className="animate-unfurl iron-brackets texture-parchment rounded-lg border border-[hsl(24,14%,20%)] bg-[hsl(24,14%,13%)] p-6 transition-all hover:border-amber-500/30 sm:p-8"
-      style={{ animationDelay: `${index * 0.08}s` }}
-    >
+    <article key={section.title} className="mkt-card mkt-card-mounted iron-brackets rounded-xl p-6 sm:p-7">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gold-strong bg-amber-600/20 shadow-glow-sm">
-          <Icon className="h-5 w-5 text-amber-500" />
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/25">
+          <Icon className="h-5 w-5 text-[color:var(--mkt-accent)]" />
         </div>
         <div>
-          <h2 className="font-[Cinzel] text-lg font-semibold text-[hsl(35,25%,92%)]">
-            {section.title}
-          </h2>
-          <p className="text-sm text-[hsl(30,12%,55%)]">
-            {section.description}
-          </p>
+          <h3 className="font-[Cinzel] text-xl text-[color:var(--mkt-text)]">{section.title}</h3>
+          <p className="text-sm text-[color:var(--mkt-muted)]">{section.description}</p>
         </div>
       </div>
-      {renderSectionLinks(system, section.links, navigate)}
-    </div>
-  );
-}
 
-function renderFooter() {
-  return (
-    <footer className="texture-wood relative border-t border-[hsl(24,14%,15%)] py-12">
-      <div className="divider-ornate absolute top-0 right-0 left-0" />
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-          <div className="flex items-center gap-2">
-            <img src="/fablheim-logo.png" alt="Fablheim" className="h-8 w-8 rounded-md shadow-glow-sm" />
-            <span className="font-['Cinzel_Decorative'] text-glow-gold font-semibold text-[hsl(35,25%,92%)]">
-              Fablheim
-            </span>
-          </div>
-          <p className="text-sm text-[hsl(30,12%,55%)]">
-            &copy; 2026 Fablheim. Forged for Game Masters, by Game Masters.
-          </p>
-        </div>
-      </div>
-    </footer>
+      <ul className="space-y-2 text-sm">
+        {section.links.map((link) => (
+          <li key={link.label}>
+            <button
+              onClick={() => navigate(buildLinkUrl(system, link))}
+              className="mkt-tab flex w-full items-center gap-3 rounded-md px-3 py-2 text-left"
+            >
+              {link.type === 'category' ? (
+                <FolderOpen className="h-4 w-4 shrink-0 text-[color:var(--mkt-accent)]" />
+              ) : (
+                <ScrollText className="h-4 w-4 shrink-0 text-[color:var(--mkt-muted)]" />
+              )}
+              <span className="flex-1 text-[color:var(--mkt-text)]">{link.label}</span>
+              {link.badge && (
+                <span className="rounded-full border border-[color:var(--mkt-border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[color:var(--mkt-muted)]">
+                  {link.badge}
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
@@ -251,53 +73,143 @@ export default function SRDQuickStartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { system = '' } = useParams<{ system: string }>();
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const { data: searchData, isFetching: isSearching } = useSRDSearch(
-    system,
-    searchQuery,
-  );
+  const [query, setQuery] = useState('');
 
   const config = quickStartConfigs[system];
-  const isSearchActive = searchQuery.length >= 2;
+  const { data: searchData, isFetching } = useSRDSearch(system, query);
+
+  const searchResults = useMemo(() => searchData?.results ?? [], [searchData]);
 
   if (!config) {
     return (
-      <div className="vignette grain-overlay min-h-screen bg-[hsl(24,18%,6%)]">
-        {renderNav(navigate, user)}
-        <div className="flex items-center justify-center py-32">
-          <p className="text-[hsl(30,12%,55%)]">System not found.</p>
-        </div>
-        {renderFooter()}
-      </div>
+      <MarketingPage>
+        <MarketingNavbar
+          user={user}
+          links={[
+            { label: 'Rules Library', to: '/srd', icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
+            { label: 'Home', to: '/' },
+          ]}
+        />
+        <section className="mkt-section px-4 py-24 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <article className="mkt-card rounded-xl p-8 text-center">
+              <h1 className="font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">Rules guide not found</h1>
+              <p className="mt-3 text-[color:var(--mkt-muted)]">This system does not have a quick guide yet.</p>
+              <Button className="mt-5" variant="outline" onClick={() => navigate('/srd')}>Back to Rules Library</Button>
+            </article>
+          </div>
+        </section>
+        <MarketingFooter />
+      </MarketingPage>
     );
   }
 
   return (
-    <div className="vignette grain-overlay min-h-screen bg-[hsl(24,18%,6%)]">
-      {renderNav(navigate, user)}
-      {renderHero(config.displayName, config.tagline, system, navigate)}
+    <MarketingPage>
+      <MarketingNavbar
+        user={user}
+        links={[
+          { label: 'Rules Library', to: '/srd', icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
+          { label: 'How It Works', to: '/how-it-works' },
+        ]}
+      />
 
-      <div className="divider-ornate mx-auto max-w-3xl" />
+      <section className="mkt-section mkt-hero-stage relative px-4 pb-14 pt-14 sm:px-6 sm:pt-18 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <p className="mkt-chip mb-4 inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <ScrollText className="h-3.5 w-3.5" />
+            Rules Library guide
+          </p>
+          <h1 className="font-['IM_Fell_English'] text-4xl leading-[1.05] text-[color:var(--mkt-text)] sm:text-5xl">
+            {config.displayName}
+          </h1>
+          <p className="mt-4 max-w-3xl text-[color:var(--mkt-muted)]">{config.tagline}</p>
+          <p className="mt-2 max-w-3xl text-sm text-[color:var(--mkt-muted)]">System Reference Documents (SRDs), searchable by system.</p>
 
-      <section className="relative py-12">
-        <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          {renderSearchBar(searchQuery, setSearchQuery)}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => navigate(`/srd/${system}/browse`)}>
+              Browse full rules index
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </section>
 
-          {isSearchActive ? (
-            renderSearchResults(system, searchData, isSearching, navigate)
-          ) : (
-            <div className="space-y-6">
-              {config.sections.map((section, i) =>
-                renderSection(section, system, navigate, i),
+      <section className="mkt-section mkt-section-surface px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mkt-card mkt-card-mounted rounded-xl p-5 sm:p-6">
+            <label htmlFor="quick-rules-search" className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--mkt-muted)]">
+              Search this system
+            </label>
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--mkt-muted)]" />
+              <input
+                id="quick-rules-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search rules, spells, conditions..."
+                className="mkt-input w-full py-2.5 pl-10 pr-3"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mkt-section px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          {query.trim().length >= 2 ? (
+            <div>
+              <SectionHeader
+                eyebrow="Search Results"
+                title={`Matches in ${config.displayName}`}
+                body="Open entries directly or jump into a category for broader browsing."
+              />
+
+              {isFetching ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-7 w-7 animate-spin text-[color:var(--mkt-accent)]" />
+                </div>
+              ) : searchResults.length === 0 ? (
+                <article className="mkt-card rounded-xl p-6 text-center mt-6">
+                  <p className="font-[Cinzel] text-xl text-[color:var(--mkt-text)]">No matching rules found</p>
+                  <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Try broader terms like "conditions" or "combat".</p>
+                </article>
+              ) : (
+                <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+                  {searchResults.map((result) => (
+                    <button
+                      key={`${result.category}:${result.title}`}
+                      onClick={() => navigate(`/srd/${system}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`)}
+                      className="mkt-card h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/40"
+                    >
+                      <div className="flex h-full flex-col">
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="rounded-full border border-[color:var(--mkt-border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[color:var(--mkt-muted)]">{result.category}</span>
+                        </div>
+                        <h3 className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">{result.title}</h3>
+                        <p className="mt-2 flex-1 text-sm text-[color:var(--mkt-muted)] line-clamp-3">{result.snippet}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
+            </div>
+          ) : (
+            <div>
+              <SectionHeader
+                eyebrow="Quick Start"
+                title="Browse by guide section"
+                body="Start with common paths, then drill into full category browse as needed."
+              />
+              <div className="mt-6 grid gap-4 md:grid-cols-2 items-stretch">
+                {config.sections.map((section) => renderSection(section, system, navigate))}
+              </div>
             </div>
           )}
         </div>
       </section>
 
-      <div className="divider-ornate mx-auto max-w-3xl" />
-      {renderFooter()}
-    </div>
+      <MarketingFooter />
+    </MarketingPage>
   );
 }

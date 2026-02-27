@@ -16,6 +16,15 @@ import { SessionRunnerPage } from './pages/SessionRunnerPage';
 import { CharacterCreationWizardPage } from './pages/CharacterCreationWizardPage';
 import { EncounterPrepPage } from './pages/EncounterPrepPage';
 import { EnemyLibraryPage } from './pages/EnemyLibraryPage';
+import { FeedbackPage } from './pages/FeedbackPage';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { AdminFeedbackPage } from './pages/admin/AdminFeedbackPage';
+import { AdminFeedbackDetailPage } from './pages/admin/AdminFeedbackDetailPage';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminBillingPage } from './pages/admin/AdminBillingPage';
+import { AdminReconcilePage } from './pages/admin/AdminReconcilePage';
+import { AdminSessionsPage } from './pages/admin/AdminSessionsPage';
+import { AdminSessionDetailPage } from './pages/admin/AdminSessionDetailPage';
 
 function PagePlaceholder({ title }: { title: string }) {
   return (
@@ -69,6 +78,24 @@ export function resolveRouteContent(path: string, title: string): ReactNode {
   if (path === '/app/enemies') return <EnemyLibraryPage />;
   if (path === '/app/credits') return <CreditsPage />;
   if (path === '/app/settings') return <SettingsPage />;
+  if (path === '/app/feedback') return <FeedbackPage />;
+  if (path === '/app/admin') return <AdminDashboardPage />;
+  if (path === '/app/admin/feedback') return <AdminFeedbackPage />;
+  if (path.startsWith('/app/admin/feedback/')) {
+    const feedbackId = path.split('/')[4];
+    return <AdminFeedbackDetailPage feedbackId={feedbackId} />;
+  }
+  if (path === '/app/admin/users') return <AdminUsersPage />;
+  if (path.startsWith('/app/admin/billing/reconcile/')) {
+    const reconcileUserId = path.split('/')[5];
+    return <AdminReconcilePage userId={reconcileUserId} />;
+  }
+  if (path === '/app/admin/billing') return <AdminBillingPage />;
+  if (path.startsWith('/app/admin/sessions/')) {
+    const sessionId = path.split('/')[4];
+    return <AdminSessionDetailPage sessionId={sessionId} />;
+  }
+  if (path === '/app/admin/sessions') return <AdminSessionsPage />;
   return <PagePlaceholder title={title} />;
 }
 
@@ -87,6 +114,15 @@ export function AppRoutes() {
       <Route path="/tools" element={<AIToolsPage />} />
       <Route path="/credits" element={<CreditsPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/feedback" element={<FeedbackPage />} />
+      <Route path="/admin" element={<AdminDashboardPage />} />
+      <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
+      <Route path="/admin/feedback/:id" element={<AdminFeedbackDetailPage feedbackId="" />} />
+      <Route path="/admin/users" element={<AdminUsersPage />} />
+      <Route path="/admin/billing" element={<AdminBillingPage />} />
+      <Route path="/admin/billing/reconcile/:userId" element={<AdminReconcilePage userId="" />} />
+      <Route path="/admin/sessions" element={<AdminSessionsPage />} />
+      <Route path="/admin/sessions/:sessionId" element={<AdminSessionDetailPage sessionId="" />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </>
   );

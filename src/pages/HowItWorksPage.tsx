@@ -1,609 +1,478 @@
-import { useState } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Book,
-  Users,
-  Map,
-  Sparkles,
-  Shield,
   ArrowRight,
-  Zap,
-  BookOpen,
-  Crown,
-  Swords,
-  UserPlus,
-  Clock,
-  CheckCircle,
-  Radio,
-  Globe,
+  BookOpenText,
+  Check,
   Compass,
-  ChevronLeft,
-  Dice5,
+  Crown,
+  Layers,
+  Map,
   NotebookPen,
-  RefreshCw,
+  Radio,
+  ScrollText,
+  Sparkles,
+  Sword,
+  UserPlus,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
+import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 
 type Track = 'gm' | 'player';
 
-interface FeatureSection {
-  icon: React.ComponentType<{ className?: string }>;
+type Step = {
   title: string;
-  tagline: string;
+  body: string;
   bullets: string[];
+  icon: ComponentType<{ className?: string }>;
   comingSoon?: boolean;
-}
+};
 
-const gmSections: FeatureSection[] = [
+const gmSteps: Step[] = [
   {
-    icon: Book,
-    title: 'Create a Campaign in Minutes',
-    tagline:
-      'Pick your system, name your world, and start playing. No setup marathon required.',
+    title: 'Create a Campaign',
+    body: 'Pick your system, set your table context, and get a playable foundation in minutes.',
     bullets: [
-      'Choose from D&D 5e, Pathfinder 2e, Fate, Daggerheart, or go fully custom',
-      'Set your homebrew rules and toggle specific mechanics on or off',
-      'Add a description, banner, and session schedule',
-      'Manage multiple campaigns from a single dashboard',
+      'D&D 5e, Pathfinder 2e, Fate Core, Daggerheart, or Custom',
+      'Campaign hall starts with practical defaults',
+      'Built for speed, not setup marathons',
     ],
+    icon: Crown,
   },
   {
-    icon: Map,
     title: 'Build Your World',
-    tagline:
-      'Locations, NPCs, factions, quests, lore -- all connected, all in one place.',
+    body: 'Locations, factions, NPCs, and quests stay connected so prep remains coherent over time.',
     bullets: [
-      'Create world entries that link together: NPCs live in locations, factions control regions',
-      'Control visibility so players only see what you reveal',
-      'Your world data feeds the AI -- the more you build, the smarter it gets',
-      'Filter, search, and browse across every entry in your campaign',
+      'Entity links keep lore usable at the table',
+      'DM-only and player-facing visibility controls',
+      'Search and filter across campaign knowledge',
     ],
+    icon: Map,
   },
   {
+    title: 'Invite Players',
+    body: 'Bring players in quickly by link or email and move from planning to play fast.',
+    bullets: [
+      'Invite in minutes',
+      'Shared campaign context from day one',
+      'Co-DM support for trusted collaborators',
+    ],
     icon: Users,
-    title: 'Invite Your Players',
-    tagline:
-      'Share a link or send an email. Your party assembles in seconds.',
-    bullets: [
-      'Generate a shareable invite link for instant joining',
-      'Send email invitations directly from the app',
-      'Players create an account and land in your campaign immediately',
-      'Promote trusted players to Co-GM for shared worldbuilding access',
-    ],
   },
   {
+    title: 'AI Tools (Optional)',
+    body: 'AI is a toolsmith, not a driver. Generate when needed, edit everything, keep narrative control.',
+    bullets: [
+      'NPCs, encounters, world details, and recaps',
+      'Results are editable before they land',
+      'AI assists. You decide.',
+    ],
     icon: Sparkles,
-    title: 'AI Tools That Save Your Prep',
-    tagline:
-      '"Oh shit" buttons for when you need an NPC, encounter, or location right now.',
-    bullets: [
-      'Generate NPCs, encounters with XP budgeting, locations, taverns, shops, factions, and plot hooks on the fly',
-      'Session recap: jot notes during play, AI polishes them into a structured summary with key moments',
-      'Rule lookups grounded in actual SRD content -- not hallucinated answers',
-      'Everything is a suggestion -- you review and edit before anything goes live',
-    ],
   },
   {
-    icon: BookOpen,
     title: 'Campaign Notebook',
-    tagline:
-      'Your private GM workspace. Works great on its own -- and makes AI dramatically better.',
+    body: 'Capture threads, clues, and follow-ups in one place that stays useful during prep and live play.',
     bullets: [
-      'Organize session notes, plot threads, world lore, NPC details, and player tracking by category',
-      'Tag, pin, and link notes to specific sessions for quick reference',
-      'Works without AI: a full-featured notebook for prep and in-session notes',
-      'When you use AI, the notebook gives it context about YOUR campaign -- not generic content',
+      'Session notes and plot threads stay organized',
+      'Context remains available when pressure is high',
+      'Works great with or without AI',
     ],
+    icon: NotebookPen,
   },
   {
-    icon: Radio,
     title: 'Run Live Sessions',
-    tagline:
-      'Real-time session management with your whole party connected.',
+    body: 'Your table command center for game night: synced tools, clear state, fewer interruptions.',
     bullets: [
-      'See who is online in your session room with live connection status',
-      'Dice rolling with full history, broadcast to the whole table',
-      'Initiative tracking for combat encounters with turn order management',
-      'Take session notes live and generate AI recaps afterward',
+      'Initiative, dice, chat, maps, and handouts',
+      'Live participants and room state visibility',
+      'Designed for confident pacing at the table',
     ],
+    icon: Radio,
   },
   {
-    icon: Compass,
     title: 'Coming Soon',
-    tagline:
-      'These features are being forged in the workshop.',
+    body: 'Carefully scoped additions in active design and validation.',
     bullets: [
-      'Battle maps with AI generation and a community library',
-      'AI Game Master for solo and group one-shots',
-      'Voice narration for AI GM sessions',
+      'AI battle map generation + map library',
+      'Expanded session recap controls',
+      'More panel preset workflows',
     ],
+    icon: Compass,
     comingSoon: true,
   },
 ];
 
-const playerSections: FeatureSection[] = [
+const playerSteps: Step[] = [
   {
-    icon: UserPlus,
     title: 'Join a Campaign',
-    tagline:
-      'Get an invite from your GM and you are in. No hoops, no friction.',
+    body: 'Get invited and enter the table quickly. No complex onboarding.',
     bullets: [
-      'Join via a shared link or email invite from your GM',
-      'Create an account and see your campaign immediately',
-      'Accept or decline invitations at your pace',
-      'Join multiple campaigns across different groups',
+      'Join via link or email invite',
+      'Players join free',
+      'Jump into active sessions fast',
     ],
+    icon: UserPlus,
   },
   {
-    icon: Shield,
     title: 'Create Your Character',
-    tagline:
-      'Build your hero with everything your GM needs -- and an AI brainstorming partner if you want one.',
+    body: 'Build your character with a clear flow and campaign-aware context.',
     bullets: [
-      'Set ability scores, class, race, level, backstory, and passive checks',
-      'AI brainstorming: get backstory ideas, personality suggestions, and build recommendations tailored to your system',
-      'AI helps you get started -- you make every final decision',
-      'Full manual creation if you prefer to do it yourself',
+      'Stats, identity, and system-specific details',
+      'Optional AI support for brainstorming',
+      'Final decisions stay with the player',
     ],
-  },
-  {
-    icon: Swords,
-    title: 'Play Sessions',
-    tagline:
-      'Connect to your GM\'s live session and play in real time.',
-    bullets: [
-      'Join your GM\'s live session room with real-time connection',
-      'Roll dice with full history, visible to the whole table',
-      'Track initiative during combat encounters',
-      'See who else is connected and ready to play',
-    ],
-  },
-  {
-    icon: Clock,
-    title: 'Stay in the Loop',
-    tagline:
-      'Session recaps so you never forget what happened last time.',
-    bullets: [
-      'Browse session history for every campaign you belong to',
-      'Read AI-polished session summaries with key moments and hooks',
-      'Personal notes space for your own tracking and reminders',
-      'Never lose track of where the story left off',
-    ],
-  },
-  {
     icon: Crown,
-    title: 'Free vs Upgraded',
-    tagline:
-      'You never need to pay to play. But if you want AI on your side, it\'s there.',
+  },
+  {
+    title: 'Participate Live',
+    body: 'Roll, chat, and track the action in real time with the rest of the group.',
     bullets: [
-      'Free tier: character sheet, dice rolling, session tracking, join any campaign -- no paywall to play',
-      'Upgraded tier: AI character creation assistant, backstory brainstorming, personal AI session recaps',
-      'Upgraded tier: quick rule lookups grounded in actual SRD content, character development suggestions',
-      'Your GM\'s tier covers campaign-level AI -- your tier covers personal AI tools',
+      'Live dice + session chat',
+      'Initiative and encounter visibility',
+      'Maps and shared handouts during play',
     ],
+    icon: Sword,
+  },
+  {
+    title: 'Catch Up with Recaps',
+    body: 'Stay oriented between sessions without digging through disconnected notes.',
+    bullets: [
+      'Session summaries and campaign continuity',
+      'Key moments are easier to retain',
+      'Less re-explaining next session',
+    ],
+    icon: ScrollText,
+  },
+  {
+    title: 'Rules Lookup',
+    body: 'Quick rules reference keeps momentum high when questions appear mid-session.',
+    bullets: [
+      'Multi-system Rules Library',
+      'Fast lookup from one place',
+      'Supports table confidence under pressure',
+    ],
+    icon: BookOpenText,
   },
 ];
 
-const pricingTiers = [
-  {
-    name: 'Wanderer',
-    price: 'Free',
-    tagline: 'Everything you need to play',
-    highlights: [
-      'Unlimited campaigns',
-      'Character creation & management',
-      'Live sessions & dice rolling',
-      'Session history & tracking',
-      'World browsing (GM-permitted)',
-    ],
-  },
-  {
-    name: 'Hobbyist',
-    price: '$4.99/mo',
-    tagline: 'AI tools for players and GMs',
-    highlights: [
-      'Everything in Wanderer',
-      'AI session summaries (10/mo)',
-      'AI NPC & encounter generation',
-      'Rule lookups (SRD-grounded)',
-      'Priority support',
-    ],
-    popular: true,
-  },
-  {
-    name: 'Game Master',
-    price: '$9.99/mo',
-    tagline: 'Unlimited arcane power',
-    highlights: [
-      'Everything in Hobbyist',
-      'Unlimited AI features',
-      'Advanced worldbuilding AI',
-      'Campaign analytics',
-      'Premium support',
-    ],
-  },
-];
+function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
+  return (
+    <header className="max-w-3xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">{eyebrow}</p>
+      <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)] sm:text-4xl">{title}</h2>
+      <p className="mt-4 text-[color:var(--mkt-muted)]">{body}</p>
+    </header>
+  );
+}
+
+function Hero({
+  loggedIn,
+  onPrimary,
+  onRules,
+}: {
+  loggedIn: boolean;
+  onPrimary: () => void;
+  onRules: () => void;
+}) {
+  return (
+    <section className="mkt-section mkt-hero-stage relative overflow-hidden px-4 pb-18 pt-14 sm:px-6 sm:pb-22 sm:pt-20 lg:px-8">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-36 top-6 h-80 w-80 rounded-full bg-[radial-gradient(circle,hsla(36,95%,60%,0.16)_0%,transparent_68%)]" />
+        <div className="absolute right-0 top-14 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,hsla(16,82%,46%,0.13)_0%,transparent_70%)]" />
+      </div>
+
+      <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+        <div className="lg:pr-8">
+          <p className="mkt-chip mb-4 inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <Layers className="h-3.5 w-3.5" />
+            Prep. Play. Recap. Repeat.
+          </p>
+
+          <h1 className="font-['IM_Fell_English'] text-4xl leading-[1.05] text-[color:var(--mkt-text)] sm:text-5xl lg:text-6xl">
+            How Fablheim Works
+            <span className="gold-forged block">High ritual mood, low cognitive load</span>
+          </h1>
+
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[color:var(--mkt-muted)] sm:text-lg">
+            A practical flow for Game Masters and players: one forged workspace from session prep to live play to recap.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
+              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button size="lg" variant="outline" onClick={onRules} className="text-base">
+              Browse Rules Library
+              <BookOpenText className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <article className="mkt-card mkt-card-mounted mkt-card-elevated iron-brackets texture-parchment rounded-xl p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--mkt-muted)]">Workflow at a glance</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
+              <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Prep</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">World, encounters, notebook</p>
+            </div>
+            <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
+              <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Live</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Initiative, dice, chat, maps</p>
+            </div>
+            <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
+              <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Recap</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Summary, follow-ups, next hooks</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-[color:var(--mkt-muted)]">AI assists where useful, but narrative authority always stays with the GM.</p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function StageWorkflow() {
+  const stages = [
+    {
+      title: 'Prep',
+      body: 'Build encounters, review notes, and arrange your panel layout before players arrive.',
+    },
+    {
+      title: 'Live',
+      body: 'Run initiative, dice, chat, maps, and handouts from one synchronized command view.',
+    },
+    {
+      title: 'Recap',
+      body: 'Capture outcomes, polish summaries, and prepare the next session with continuity intact.',
+    },
+  ];
+
+  return (
+    <section className="mkt-section mkt-section-surface px-4 py-18 sm:px-6 lg:px-8">
+      <div className="rune-divider mx-auto mb-10 max-w-4xl" />
+      <div className="mx-auto max-w-6xl">
+        <SectionHeader
+          eyebrow="Stage Model"
+          title="Prep. Play. Recap. Repeat."
+          body="Fablheim models how real tables run: preparation, live execution, and continuity after the session."
+        />
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3 items-stretch">
+          {stages.map((stage) => (
+            <article key={stage.title} className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
+              <p className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">{stage.title}</p>
+              <p className="mt-3 flex-1 text-sm text-[color:var(--mkt-muted)]">{stage.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Tracks({ activeTrack, setActiveTrack }: { activeTrack: Track; setActiveTrack: (track: Track) => void }) {
+  const steps = useMemo(() => (activeTrack === 'gm' ? gmSteps : playerSteps), [activeTrack]);
+
+  return (
+    <section className="mkt-section px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <SectionHeader
+          eyebrow="Role Paths"
+          title={activeTrack === 'gm' ? 'Game Master Track' : 'Player Track'}
+          body={
+            activeTrack === 'gm'
+              ? 'From campaign setup to live operation, this is the practical flow for running table night with confidence.'
+              : 'From invite to recap, this is the path for players to stay engaged, informed, and ready each session.'
+          }
+        />
+
+        <div className="mt-6 inline-flex rounded-lg border border-[color:var(--mkt-border)] bg-[color:var(--mkt-surface-2)] p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTrack('gm')}
+            className={`mkt-tab px-5 py-2.5 text-sm font-semibold ${activeTrack === 'gm' ? 'mkt-tab-active' : ''}`}
+          >
+            Game Master Track
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTrack('player')}
+            className={`mkt-tab px-5 py-2.5 text-sm font-semibold ${activeTrack === 'player' ? 'mkt-tab-active' : ''}`}
+          >
+            Player Track
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2 items-stretch">
+          {steps.map((step, idx) => {
+            const Icon = step.icon;
+            return (
+              <article
+                key={step.title}
+                className={`mkt-card rounded-xl p-5 h-full flex flex-col ${step.comingSoon ? 'border-dashed opacity-90' : 'mkt-card-mounted'}`}
+              >
+                <div className="mb-4 flex items-start gap-3">
+                  <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/25">
+                    <Icon className="h-5 w-5 text-[color:var(--mkt-accent)]" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--mkt-muted)]">Step {idx + 1}</p>
+                    <h3 className="font-[Cinzel] text-xl text-[color:var(--mkt-text)]">{step.title}</h3>
+                  </div>
+                </div>
+
+                <p className="text-sm text-[color:var(--mkt-muted)]">{step.body}</p>
+                <ul className="mt-4 space-y-2 text-sm text-[color:var(--mkt-muted)]">
+                  {step.bullets.map((bullet) => (
+                    <li key={bullet} className="grid grid-cols-[0.9rem_1fr] items-start gap-3">
+                      <Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" aria-hidden="true" />
+                      <span className="leading-relaxed">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceAndLive() {
+  return (
+    <section className="mkt-section mkt-section-surface px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
+        <div>
+          <SectionHeader
+            eyebrow="Differentiator"
+            title="Dynamic panel workspace"
+            body="Arrange the table your way: drag, resize, and save presets per campaign and stage."
+          />
+          <ul className="mt-5 space-y-3 text-sm text-[color:var(--mkt-muted)]">
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />21 panel types across Prep, Live, and Recap</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Stage-aware defaults + custom presets for power users</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Live session runner includes initiative, dice, chat, maps, and handouts</li>
+          </ul>
+        </div>
+
+        <article className="mkt-card mkt-card-mounted iron-brackets rounded-xl p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--mkt-muted)]">Live Session Runner</p>
+          <div className="mt-4 grid grid-cols-6 gap-2">
+            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Initiative</div>
+            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Battle Map</div>
+            <div className="col-span-4 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Chat + Dice</div>
+            <div className="col-span-2 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Handouts</div>
+            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Rules Lookup</div>
+            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Notebook</div>
+          </div>
+          <p className="mt-4 text-sm text-[color:var(--mkt-muted)]">Mounted for game-night clarity: fewer context switches, better pacing.</p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function AiStanceAndSoon() {
+  const soonItems = [
+    'Expanded recap controls and templates',
+    'Additional panel presets by play style',
+    'Deeper rules-reference workflows',
+  ];
+
+  return (
+    <section className="mkt-section px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <article className="mkt-card mkt-card-mounted rounded-xl border-medieval p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">AI Philosophy</p>
+          <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">AI as a Toolsmith, Not a Driver</h2>
+          <p className="mt-3 text-[color:var(--mkt-muted)]">
+            Optional assistance for prep and recap, with editable outputs and clear control boundaries. Fablheim is built
+            to respect GM authority first.
+          </p>
+          <ul className="mt-5 grid gap-3 text-sm text-[color:var(--mkt-muted)] md:grid-cols-2">
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Generate only when needed</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Every result is editable</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Transparent credit economy</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />No AI-first workflow pressure</li>
+          </ul>
+        </article>
+
+        <div className="mt-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">Coming Soon</p>
+          <div className="mt-3 grid gap-4 md:grid-cols-3 items-stretch">
+            {soonItems.map((item) => (
+              <article key={item} className="mkt-card rounded-lg border-dashed p-5 h-full">
+                <p className="text-sm leading-relaxed text-[color:var(--mkt-muted)]">{item}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClosingCta({ loggedIn, onPrimary, onRules }: { loggedIn: boolean; onPrimary: () => void; onRules: () => void }) {
+  return (
+    <section className="mkt-section relative px-4 py-24 sm:px-6 lg:px-8">
+      <div className="rune-divider mx-auto mb-12 max-w-4xl opacity-80" />
+      <div className="mx-auto max-w-5xl">
+        <div className="mkt-card mkt-card-mounted mkt-card-elevated mkt-ceremony iron-brackets texture-leather rounded-2xl border-medieval p-8 text-center sm:p-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--mkt-muted)]">Ready to run</p>
+          <h2 className="mt-3 font-[Cinzel] text-3xl text-[color:var(--mkt-text)] sm:text-4xl">
+            Bring your table into one command hall
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[color:var(--mkt-muted)]">
+            Forge smoother session nights with a workflow that respects how GMs and players actually play.
+          </p>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
+              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button size="lg" variant="outline" onClick={onRules} className="text-base">
+              Browse Rules Library
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function HowItWorksPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const loggedIn = !!user;
   const [activeTrack, setActiveTrack] = useState<Track>('gm');
 
-  const sections = activeTrack === 'gm' ? gmSections : playerSections;
+  function handlePrimary() {
+    navigate(loggedIn ? '/app' : '/register');
+  }
 
   return (
-    <div className="vignette grain-overlay min-h-screen bg-[hsl(24,18%,6%)]">
-      {/* Navigation */}
-      <nav className="texture-wood sticky top-0 z-50 border-b border-gold bg-[hsl(24,18%,6%)]/95 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 transition-opacity hover:opacity-80"
-            >
-              <img src="/fablheim-logo.png" alt="Fablheim" className="h-9 w-9 rounded-md shadow-glow-sm animate-candle" />
-              <span className="font-['Cinzel_Decorative'] text-glow-gold text-xl font-bold text-[hsl(35,25%,92%)]">
-                Fablheim
-              </span>
-            </button>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate('/')}>
-                <ChevronLeft className="mr-1 h-4 w-4" />
-                Home
-              </Button>
-              <Button variant="ghost" onClick={() => navigate('/new-to-ttrpgs')}>
-                New to TTRPGs?
-              </Button>
-              <Button variant="ghost" onClick={() => navigate('/srd')}>
-                SRD
-              </Button>
-              {user ? (
-                <Button onClick={() => navigate('/app')}>
-                  Dashboard
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              ) : (
-                <>
-                  <Button variant="ghost" onClick={() => navigate('/login')}>
-                    Sign In
-                  </Button>
-                  <Button onClick={() => navigate('/register')}>Enter the Realm</Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+    <MarketingPage>
+      <MarketingNavbar
+        user={user}
+        links={[
+          { label: 'Home', to: '/' },
+          { label: 'New to TTRPGs?', to: '/new-to-ttrpgs' },
+          { label: 'Rules Library', to: '/srd' },
+        ]}
+      />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden py-20 sm:py-28">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-transparent to-rose-700/8" />
-        <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <h1 className="font-['IM_Fell_English'] mb-4 text-4xl font-bold text-[hsl(35,25%,92%)] sm:text-5xl lg:text-6xl">
-            How Fablheim Works
-          </h1>
-          <div className="divider-ornate mx-auto mb-6 max-w-md" />
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-[hsl(30,12%,55%)] sm:text-xl">
-            Whether you command the story or live it, Fablheim gives you the
-            tools to make every session legendary.
-          </p>
+      <Hero loggedIn={loggedIn} onPrimary={handlePrimary} onRules={() => navigate('/srd')} />
+      <StageWorkflow />
+      <Tracks activeTrack={activeTrack} setActiveTrack={setActiveTrack} />
+      <WorkspaceAndLive />
+      <AiStanceAndSoon />
+      <ClosingCta loggedIn={loggedIn} onPrimary={handlePrimary} onRules={() => navigate('/srd')} />
 
-          {/* Track Toggle */}
-          <div className="mx-auto inline-flex rounded-lg border border-[hsl(24,14%,20%)] bg-[hsl(24,14%,10%)] p-1">
-            <button
-              onClick={() => setActiveTrack('gm')}
-              className={`flex items-center gap-2 rounded-md px-6 py-2.5 font-[Cinzel] text-sm font-semibold transition-all ${
-                activeTrack === 'gm'
-                  ? 'bg-amber-600/20 text-amber-400 shadow-glow-sm'
-                  : 'text-[hsl(30,12%,55%)] hover:text-[hsl(35,20%,75%)]'
-              }`}
-            >
-              <Globe className="h-4 w-4" />
-              For Game Masters
-            </button>
-            <button
-              onClick={() => setActiveTrack('player')}
-              className={`flex items-center gap-2 rounded-md px-6 py-2.5 font-[Cinzel] text-sm font-semibold transition-all ${
-                activeTrack === 'player'
-                  ? 'bg-amber-600/20 text-amber-400 shadow-glow-sm'
-                  : 'text-[hsl(30,12%,55%)] hover:text-[hsl(35,20%,75%)]'
-              }`}
-            >
-              <Shield className="h-4 w-4" />
-              For Players
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <div className="divider-ornate mx-auto max-w-3xl" />
-
-      {/* Feature Sections */}
-      <section className="relative py-16">
-        <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="space-y-6">
-            {sections.map((section, index) => {
-              const Icon = section.icon;
-              return (
-                <div
-                  key={section.title}
-                  className={`animate-unfurl rounded-lg border p-6 transition-all sm:p-8 ${
-                    section.comingSoon
-                      ? 'border-dashed border-[hsl(24,14%,22%)] bg-[hsl(24,14%,10%)]/60'
-                      : 'iron-brackets texture-parchment border-[hsl(24,14%,20%)] bg-[hsl(24,14%,13%)] hover:border-amber-500/30'
-                  }`}
-                  style={{ animationDelay: `${index * 0.06}s` }}
-                >
-                  <div className="flex flex-col gap-6 sm:flex-row">
-                    <div className="shrink-0">
-                      <div
-                        className={`flex h-14 w-14 items-center justify-center rounded-full border-2 ${
-                          section.comingSoon
-                            ? 'border-[hsl(24,14%,25%)] bg-[hsl(24,14%,15%)]'
-                            : 'border-gold-strong bg-amber-600/20 shadow-glow-sm'
-                        }`}
-                      >
-                        <Icon
-                          className={`h-7 w-7 ${
-                            section.comingSoon
-                              ? 'text-[hsl(30,12%,45%)]'
-                              : 'text-amber-500'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="mb-3 flex items-center gap-3">
-                        <h3
-                          className={`font-[Cinzel] text-xl font-semibold ${
-                            section.comingSoon
-                              ? 'text-[hsl(30,12%,55%)]'
-                              : 'text-[hsl(35,25%,92%)]'
-                          }`}
-                        >
-                          {section.title}
-                        </h3>
-                        {section.comingSoon && (
-                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 font-[Cinzel] text-[10px] font-bold tracking-widest text-amber-500 uppercase">
-                            Coming Soon
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className={`mb-4 text-sm ${
-                          section.comingSoon
-                            ? 'text-[hsl(30,12%,45%)]'
-                            : 'text-[hsl(35,20%,75%)]'
-                        }`}
-                      >
-                        {section.tagline}
-                      </p>
-                      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {section.bullets.map((bullet) => (
-                          <li key={bullet} className="flex items-start gap-2">
-                            <CheckCircle
-                              className={`mt-0.5 h-4 w-4 shrink-0 ${
-                                section.comingSoon
-                                  ? 'text-[hsl(30,12%,35%)]'
-                                  : 'text-brass'
-                              }`}
-                            />
-                            <span
-                              className={`text-sm ${
-                                section.comingSoon
-                                  ? 'text-[hsl(30,12%,40%)]'
-                                  : 'text-[hsl(30,12%,55%)]'
-                              }`}
-                            >
-                              {bullet}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <div className="divider-ornate mx-auto max-w-3xl" />
-
-      {/* Coming from Roll20? */}
-      <section className="relative bg-[hsl(24,14%,10%)]/50 py-16">
-        <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 text-center">
-            <h2 className="text-carved mb-4 font-[Cinzel] text-2xl font-bold text-[hsl(35,25%,92%)] sm:text-3xl">
-              Coming from Roll20?
-            </h2>
-            <p className="mx-auto max-w-2xl text-[hsl(30,12%,55%)]">
-              If you have used Roll20, here is what is different about Fablheim.
-            </p>
-          </div>
-
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-2">
-            {[
-              {
-                icon: RefreshCw,
-                title: 'System-Agnostic',
-                description:
-                  'Not just D&D. Built for Pathfinder 2e, Fate, Daggerheart, and fully custom systems.',
-              },
-              {
-                icon: Sparkles,
-                title: 'AI-Powered GM Tools',
-                description:
-                  'Generate NPCs, encounters, recaps, and rule lookups on the fly. AI that knows your specific campaign.',
-              },
-              {
-                icon: NotebookPen,
-                title: 'Campaign Notebook',
-                description:
-                  'A private GM workspace that doubles as AI context. The more you write, the smarter your tools get.',
-              },
-              {
-                icon: Dice5,
-                title: 'Modern & Fair',
-                description:
-                  'Clean, modern interface. Free tier covers everything players need. No paywall to play at the table.',
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.title}
-                  className="rounded-lg border border-[hsl(24,14%,20%)] bg-[hsl(24,14%,13%)] p-5 texture-parchment"
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    <Icon className="h-5 w-5 text-amber-500" />
-                    <h3 className="font-[Cinzel] text-base font-semibold text-[hsl(35,25%,92%)]">
-                      {item.title}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-[hsl(30,12%,55%)]">
-                    {item.description}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <div className="divider-ornate mx-auto max-w-3xl" />
-
-      {/* Pricing Summary */}
-      <section className="relative py-16">
-        <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 text-center">
-            <h2 className="text-carved mb-4 font-[Cinzel] text-2xl font-bold text-[hsl(35,25%,92%)] sm:text-3xl">
-              Simple Pricing
-            </h2>
-            <p className="text-[hsl(30,12%,55%)]">
-              Start free. Upgrade when you want arcane power.
-            </p>
-          </div>
-
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
-            {pricingTiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`relative rounded-lg border p-6 texture-parchment ${
-                  tier.popular
-                    ? 'border-2 border-gold-strong bg-[hsl(24,14%,13%)] iron-brackets'
-                    : 'border-[hsl(24,14%,20%)] bg-[hsl(24,14%,12%)]/80'
-                }`}
-              >
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2">
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-[hsl(35,25%,92%)]"
-                      style={{
-                        background:
-                          'radial-gradient(circle at 40% 38%, hsl(350, 48%, 42%) 0%, hsl(350, 44%, 32%) 60%, hsl(350, 40%, 24%) 100%)',
-                        boxShadow:
-                          '0 3px 10px hsla(350, 40%, 15%, 0.7), inset 0 -1px 2px hsla(350, 30%, 12%, 0.5)',
-                      }}
-                    >
-                      <Crown className="h-3 w-3" />
-                      Popular
-                    </span>
-                  </div>
-                )}
-
-                <div className="mb-4 text-center">
-                  <h3 className="font-[Cinzel] text-lg font-bold text-[hsl(35,25%,92%)]">
-                    {tier.name}
-                  </h3>
-                  <p className="font-['IM_Fell_English'] mt-1 text-2xl font-bold text-[hsl(35,25%,92%)]">
-                    {tier.price}
-                  </p>
-                  <p className="mt-1 text-xs text-[hsl(30,12%,55%)]">
-                    {tier.tagline}
-                  </p>
-                </div>
-
-                <ul className="space-y-2">
-                  {tier.highlights.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-brass" />
-                      <span className="text-xs text-[hsl(35,20%,75%)]">
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="divider-ornate mx-auto max-w-3xl" />
-
-      {/* CTA Section */}
-      <section className="relative py-20">
-        <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <div className="iron-brackets border-medieval texture-leather rounded-2xl bg-gradient-to-br from-amber-600/15 via-amber-800/10 to-rose-700/15 p-12">
-            <h2 className="text-flame mb-4 font-[Cinzel] text-2xl font-bold text-[hsl(35,25%,92%)] sm:text-3xl">
-              {user ? 'Back to Your Campaigns' : 'Ready to Begin?'}
-            </h2>
-            <p className="mb-8 text-lg text-[hsl(35,20%,75%)]">
-              {user
-                ? 'Your campaigns are waiting. Return to your dashboard.'
-                : 'Create your free account and forge your first campaign in minutes.'}
-            </p>
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                onClick={() => navigate(user ? '/app' : '/register')}
-                className="btn-emboss shimmer-gold text-lg px-8"
-              >
-                {user ? 'Go to Dashboard' : 'Start Your Campaign'}
-                <Zap className="ml-2 h-5 w-5" />
-              </Button>
-              {!user && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => navigate('/login')}
-                  className="text-lg px-8"
-                >
-                  Sign In
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              )}
-            </div>
-            {!user && (
-              <p className="mt-4 text-sm text-[hsl(30,12%,55%)]">
-                No gold required &middot; Free forever tier
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="texture-wood relative border-t border-[hsl(24,14%,15%)] py-12">
-        <div className="divider-ornate absolute top-0 right-0 left-0" />
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-2">
-              <img src="/fablheim-logo.png" alt="Fablheim" className="h-8 w-8 rounded-md shadow-glow-sm" />
-              <span className="font-['Cinzel_Decorative'] text-glow-gold font-semibold text-[hsl(35,25%,92%)]">
-                Fablheim
-              </span>
-            </div>
-            <p className="text-sm text-[hsl(30,12%,55%)]">
-              &copy; 2026 Fablheim. Forged for Game Masters, by Game Masters.
-            </p>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <MarketingFooter />
+    </MarketingPage>
   );
 }
