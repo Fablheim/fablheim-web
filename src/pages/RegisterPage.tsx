@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { isAxiosError } from 'axios';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 
-const GOOGLE_AUTH_URL = 'http://localhost:3000/auth/google';
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google`;
 
 export function RegisterPage() {
   const { user, register } = useAuth();
@@ -238,7 +238,7 @@ export function RegisterPage() {
       { icon: Gem, text: 'Campaign hall \u2014 prep, live, and recap in one place' },
       { icon: Sparkles, text: 'AI-assisted content \u2014 you keep narrative authority' },
       { icon: Swords, text: 'Live session runner \u2014 initiative, dice, maps, chat' },
-      { icon: Layers, text: 'Dynamic panel workspace \u2014 drag, resize, save' },
+      { icon: Layers, text: 'Flexible workspace \u2014 prep, run, and recap in one place' },
     ];
 
     return (
@@ -267,12 +267,12 @@ export function RegisterPage() {
               <p className="text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">Systems</p>
             </div>
             <div>
-              <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">21</p>
-              <p className="text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">Panels</p>
+              <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">7</p>
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">AI Tools</p>
             </div>
             <div>
-              <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">&lt; 5 min</p>
-              <p className="text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">Setup</p>
+              <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Free</p>
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">To Start</p>
             </div>
           </div>
         </article>

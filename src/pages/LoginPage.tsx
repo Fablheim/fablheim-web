@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { isAxiosError } from 'axios';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 
-const GOOGLE_AUTH_URL = 'http://localhost:3000/auth/google';
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google`;
 
 export function LoginPage() {
   const { user, login } = useAuth();
