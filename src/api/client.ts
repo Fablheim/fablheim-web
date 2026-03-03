@@ -6,6 +6,41 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+const CSRF_COOKIE_NAME = 'csrf_token';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+const csrfBootstrapClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000'),
+  withCredentials: true,
+});
+
+function readCookie(name: string): string | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+api.interceptors.request.use(async (config) => {
+  const method = (config.method || 'get').toLowerCase();
+  if (!MUTATING_METHODS.has(method)) {
+    return config;
+  }
+
+  let csrfToken = readCookie(CSRF_COOKIE_NAME);
+  if (!csrfToken) {
+    await csrfBootstrapClient.get('/auth/csrf-token');
+    csrfToken = readCookie(CSRF_COOKIE_NAME);
+  }
+
+  if (csrfToken) {
+    config.headers = config.headers ?? {};
+    config.headers[CSRF_HEADER_NAME] = csrfToken;
+  }
+
+  return config;
+});
+
 // --- 401 Refresh Token Interceptor ---
 
 const AUTH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/logout', '/auth/forgot-password', '/auth/reset-password'];
