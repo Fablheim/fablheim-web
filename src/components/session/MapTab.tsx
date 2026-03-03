@@ -176,6 +176,9 @@ export function MapTab({ campaignId, isDM, onTokenSelect }: MapTabProps) {
 
   // Zoom toward cursor
   function handleWheel(e: WheelEvent) {
+    if (!e.shiftKey) {
+      return;
+    }
     e.preventDefault();
     const viewport = viewportRef.current;
     if (!viewport) return;

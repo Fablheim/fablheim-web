@@ -6,6 +6,7 @@ import {
   type UpdateFeedbackDto,
   type WebhookEventFilters,
   type LedgerFilters,
+  type GrantCreditsDto,
 } from '@/api/admin';
 
 // Feedback
@@ -142,5 +143,27 @@ export function useResyncSession() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sessions', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'sessions', 'active'] });
     },
+  });
+}
+
+// Credits
+export function useGrantCredits() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, dto }: { userId: string; dto: GrantCreditsDto }) =>
+      adminApi.grantCredits(userId, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'billing', 'credit-ledger'] });
+    },
+  });
+}
+
+// Analytics
+export function useClaudeAnalytics(days?: number) {
+  return useQuery({
+    queryKey: ['admin', 'analytics', 'claude-costs', days],
+    queryFn: () => adminApi.getClaudeAnalytics(days),
+    staleTime: 5 * 60 * 1000, // 5 min
   });
 }

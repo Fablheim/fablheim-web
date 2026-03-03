@@ -47,6 +47,7 @@ export function useUpdateCharacter() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['characters', variables.campaignId] });
       queryClient.invalidateQueries({ queryKey: ['characters', 'detail', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['characters', 'mine'] });
     },
   });
 }

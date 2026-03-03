@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2 } from 'lucide-react';
+import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, ArrowRight } from 'lucide-react';
 import type { WorldEntity } from '@/types/campaign';
 import { TYPE_ACCENTS, TYPE_LABELS, TYPE_ICONS } from './world-constants';
 
@@ -19,7 +19,15 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
   return (
     <div
       onClick={onClick}
-      className={`group cursor-pointer rounded-lg border border-border border-l-4 ${accent.border} bg-card p-5 tavern-card texture-leather transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`group mkt-card mkt-card-mounted cursor-pointer rounded-lg border border-border border-l-4 ${accent.border} p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gold hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/70`}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -118,6 +126,13 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
           )}
         </div>
       )}
+
+      <div className="mt-3 flex justify-end">
+        <span className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-2 py-0.5 text-[10px] font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all group-hover:border-brass/55 group-hover:bg-brass/22">
+          Details
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </div>
     </div>
   );
 }

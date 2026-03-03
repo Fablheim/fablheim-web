@@ -3,9 +3,19 @@ import type { PanelId, CampaignStage } from '@/types/workspace';
 
 const PREP_LAYOUT: MosaicNode<PanelId> = {
   direction: 'row',
-  first: 'campaign-overview',
-  second: 'encounter-prep',
-  splitPercentage: 40,
+  first: {
+    direction: 'column',
+    first: 'campaign-overview',
+    second: 'encounter-prep',
+    splitPercentage: 50,
+  },
+  second: {
+    direction: 'column',
+    first: 'campaign-brain',
+    second: 'notebook',
+    splitPercentage: 50,
+  },
+  splitPercentage: 50,
 };
 
 const LIVE_LAYOUT: MosaicNode<PanelId> = {

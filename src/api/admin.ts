@@ -182,6 +182,51 @@ export interface ResyncResult {
   connectedUsers: number;
 }
 
+// ── Grant Credits ─────────────────────────────────────────────
+
+export interface GrantCreditsDto {
+  amount: number;
+  reason: string;
+  sendEmail?: boolean;
+}
+
+export interface GrantCreditsResult {
+  success: boolean;
+  balanceId: string;
+  amount: number;
+}
+
+// ── Claude Analytics ──────────────────────────────────────────
+
+export interface ClaudeCostAnalytics {
+  period: { from: string; to: string };
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  byModel: Array<{
+    model: string;
+    cost: number;
+    inputTokens: number;
+    outputTokens: number;
+    calls: number;
+  }>;
+  byFeature: Array<{
+    featureType: string;
+    cost: number;
+    calls: number;
+  }>;
+  byDay: Array<{
+    date: string;
+    cost: number;
+    calls: number;
+  }>;
+  runwayProjection: {
+    avgDailyCost: number;
+    daysWithData: number;
+    projectedMonthlyCost: number;
+  };
+}
+
 export const adminApi = {
   // Feedback
   getFeedback: (filters: AdminFeedbackFilters = {}) => {
@@ -275,4 +320,17 @@ export const adminApi = {
 
   resyncSession: (sessionId: string) =>
     api.post<ResyncResult>(`/admin/sessions/${sessionId}/actions/resync`).then((r) => r.data),
+
+  // Credits
+  grantCredits: (userId: string, dto: GrantCreditsDto) =>
+    api.post<GrantCreditsResult>(`/admin/users/${userId}/credits/grant`, dto).then((r) => r.data),
+
+  // Analytics
+  getClaudeAnalytics: (days?: number) => {
+    const params = new URLSearchParams();
+    if (days) params.set('days', String(days));
+    return api
+      .get<ClaudeCostAnalytics>(`/admin/analytics/claude-costs?${params}`)
+      .then((r) => r.data);
+  },
 };

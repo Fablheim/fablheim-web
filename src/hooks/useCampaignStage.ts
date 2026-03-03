@@ -16,13 +16,19 @@ export function useCampaignStage(campaignId: string) {
   const startSession = useMutation({
     mutationFn: (encounterId?: string) =>
       campaignsApi.startSession(campaignId, encounterId),
-    onSuccess: invalidate,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['campaigns', campaignId], data.campaign);
+      invalidate();
+    },
   });
 
   const endSession = useMutation({
     mutationFn: (keyMoments?: string[]) =>
       campaignsApi.endSession(campaignId, keyMoments),
-    onSuccess: invalidate,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['campaigns', campaignId], data.campaign);
+      invalidate();
+    },
   });
 
   const returnToPrep = useMutation({

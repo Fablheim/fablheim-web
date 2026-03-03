@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Users, Scroll } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { useTabs } from '@/context/TabContext';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useCharacters, useDeleteCharacter } from '@/hooks/useCharacters';
 import { useWorldNPCs, useDeleteWorldEntity } from '@/hooks/useWorldEntities';
-import { resolveRouteContent } from '@/routes';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CampaignSelector } from '@/components/ui/CampaignSelector';
@@ -19,13 +18,20 @@ import type { Character, WorldEntity, CampaignSystem } from '@/types/campaign';
 
 type FilterTab = 'all' | 'pc' | 'npc';
 
-export function CharactersPage() {
-  const { user } = useAuth();
-  const { openTab } = useTabs();
-  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+interface CharactersPageProps {
+  campaignId?: string;
+  mode?: 'all' | 'players-only';
+}
 
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [filter, setFilter] = useState<FilterTab>('all');
+export function CharactersPage({ campaignId: propCampaignId, mode = 'all' }: CharactersPageProps = {}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+  const effectiveCampaignId = propCampaignId ?? (searchParams.get('campaign') ?? '');
+
+  const [selectedCampaignId, setSelectedCampaignId] = useState(effectiveCampaignId);
+  const [filter, setFilter] = useState<FilterTab>(mode === 'players-only' ? 'pc' : 'all');
 
   // Modals
   const [showPCModal, setShowPCModal] = useState(false);
@@ -56,6 +62,7 @@ export function CharactersPage() {
   const isDM = selectedCampaign?.role === 'dm' || selectedCampaign?.role === 'co_dm';
   const isLoading = charsLoading || npcsLoading;
   const error = charsError || npcsError;
+  const showNPCs = mode !== 'players-only';
 
   // Build unified list with permission filtering
   const items = useMemo(() => {
@@ -71,7 +78,7 @@ export function CharactersPage() {
     }
 
     // NPCs: DM sees all, players see only public
-    if (npcs) {
+    if (showNPCs && npcs) {
       for (const npc of npcs) {
         if (isDM || npc.visibility === 'public') {
           result.push({ kind: 'npc', data: npc });
@@ -80,14 +87,14 @@ export function CharactersPage() {
     }
 
     return result;
-  }, [characters, npcs, isDM, user?._id]);
+  }, [characters, npcs, isDM, showNPCs, user?._id]);
 
   // Apply filter
   const filteredItems = useMemo(() => {
     if (filter === 'pc') return items.filter((i) => i.kind === 'pc');
-    if (filter === 'npc') return items.filter((i) => i.kind === 'npc');
+    if (showNPCs && filter === 'npc') return items.filter((i) => i.kind === 'npc');
     return items;
-  }, [items, filter]);
+  }, [items, filter, showNPCs]);
 
   const pcCount = items.filter((i) => i.kind === 'pc').length;
   const npcCount = items.filter((i) => i.kind === 'npc').length;
@@ -147,12 +154,7 @@ export function CharactersPage() {
 
   function handleViewDetail(item: CharacterListItem) {
     if (item.kind === 'pc') {
-      const path = `/app/characters/${item.data._id}`;
-      openTab({
-        title: item.data.name,
-        path,
-        content: resolveRouteContent(path, item.data.name),
-      });
+      navigate(`/app/characters/${item.data._id}`);
     } else {
       setViewingItem(item);
     }
@@ -171,11 +173,15 @@ export function CharactersPage() {
   }
 
   // Filter tabs
-  const filterTabs: { key: FilterTab; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: items.length },
-    { key: 'pc', label: 'Player Characters', count: pcCount },
-    { key: 'npc', label: 'NPCs', count: npcCount },
-  ];
+  const filterTabs: { key: FilterTab; label: string; count: number }[] = showNPCs
+    ? [
+      { key: 'all', label: 'All', count: items.length },
+      { key: 'pc', label: 'Player Characters', count: pcCount },
+      { key: 'npc', label: 'NPCs', count: npcCount },
+    ]
+    : [
+      { key: 'pc', label: 'Player Characters', count: pcCount },
+    ];
 
   return (
     <PageContainer
@@ -184,29 +190,24 @@ export function CharactersPage() {
       actions={
         <div className="flex items-center gap-3">
           {/* Campaign Selector */}
-          <CampaignSelector
-            campaigns={campaigns ?? []}
-            value={selectedCampaignId}
-            onChange={(id) => {
-              setSelectedCampaignId(id);
-              setFilter('all');
-            }}
-          />
+          {!effectiveCampaignId && (
+            <CampaignSelector
+              campaigns={campaigns ?? []}
+              value={selectedCampaignId}
+              onChange={(id) => {
+                setSelectedCampaignId(id);
+                setFilter('all');
+              }}
+            />
+          )}
 
           {selectedCampaignId && (
             <>
-              <Button onClick={() => {
-                const path = `/app/campaigns/${selectedCampaignId}/characters/create`;
-                openTab({
-                  title: 'Create Character',
-                  path,
-                  content: resolveRouteContent(path, 'Create Character'),
-                });
-              }}>
+              <Button onClick={() => navigate(`/app/campaigns/${selectedCampaignId}/characters/create`)}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 Character
               </Button>
-              {isDM && (
+              {showNPCs && isDM && (
                 <Button variant="secondary" onClick={() => setShowNPCModal(true)}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   NPC
@@ -219,7 +220,7 @@ export function CharactersPage() {
     >
       {/* No campaign selected */}
       {!selectedCampaignId && !campaignsLoading && (
-        <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+        <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
           <div className="mx-auto max-w-sm">
             <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
               Choose a Campaign
@@ -235,34 +236,36 @@ export function CharactersPage() {
       {selectedCampaignId && (
         <>
           {/* Filter tabs */}
-          <div className="mb-6 flex gap-1 border-b border-border">
-            {filterTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`flex items-center gap-2 border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
-                  filter === tab.key
-                    ? 'border-brass text-brass'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-                }`}
-              >
-                {tab.key === 'pc' && <Users className="h-3.5 w-3.5" />}
-                {tab.key === 'npc' && <Scroll className="h-3.5 w-3.5" />}
-                {tab.label}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  filter === tab.key ? 'bg-brass/20 text-brass' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
+          {filterTabs.length > 1 && (
+            <div className="mkt-card mb-6 flex gap-1 overflow-x-auto rounded-xl border-b border-border px-2 py-2">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setFilter(tab.key)}
+                  className={`flex shrink-0 items-center gap-2 rounded-md border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                    filter === tab.key
+                      ? 'border-brass bg-brass/10 text-brass'
+                      : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/35 hover:text-foreground'
+                  }`}
+                >
+                  {tab.key === 'pc' && <Users className="h-3.5 w-3.5" />}
+                  {tab.key === 'npc' && <Scroll className="h-3.5 w-3.5" />}
+                  {tab.label}
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    filter === tab.key ? 'bg-brass/20 text-brass' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Loading */}
           {isLoading && (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-lg border border-border bg-card p-5 tavern-card texture-leather">
+                <div key={i} className="mkt-card mkt-card-mounted rounded-lg p-5">
                   <div className="animate-pulse space-y-4">
                     <div className="h-6 w-3/4 rounded bg-muted" />
                     <div className="h-4 w-1/2 rounded bg-muted" />
@@ -279,7 +282,7 @@ export function CharactersPage() {
 
           {/* Error */}
           {error && (
-            <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
+            <div className="mkt-card rounded-lg border border-destructive/50 p-8 text-center">
               <p className="font-medium text-destructive">Failed to load characters</p>
               <p className="mt-1 text-sm text-muted-foreground">{(error as Error).message}</p>
             </div>
@@ -287,7 +290,7 @@ export function CharactersPage() {
 
           {/* Empty */}
           {!isLoading && !error && filteredItems.length === 0 && (
-            <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+            <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
               <div className="mx-auto max-w-sm">
                 <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
                   {filter === 'npc'
@@ -301,22 +304,17 @@ export function CharactersPage() {
                     ? 'Populate your world with memorable characters'
                     : filter === 'pc'
                       ? 'Create a character to join the adventure'
-                      : 'Create a character or NPC to begin'}
+                      : showNPCs
+                        ? 'Create a character or NPC to begin'
+                        : 'Create a character to begin'}
                 </p>
                 {filter !== 'npc' && selectedCampaignId && (
-                  <Button onClick={() => {
-                    const path = `/app/campaigns/${selectedCampaignId}/characters/create`;
-                    openTab({
-                      title: 'Create Character',
-                      path,
-                      content: resolveRouteContent(path, 'Create Character'),
-                    });
-                  }}>
+                  <Button onClick={() => navigate(`/app/campaigns/${selectedCampaignId}/characters/create`)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Character
                   </Button>
                 )}
-                {filter === 'npc' && isDM && (
+                {showNPCs && filter === 'npc' && isDM && (
                   <Button onClick={() => setShowNPCModal(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create NPC

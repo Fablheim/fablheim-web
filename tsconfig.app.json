@@ -25,8 +25,10 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "react-helmet-async": ["./src/components/seo/helmetAsyncShim.tsx"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/deprecated", "src/components/session/deprecated"]
 }

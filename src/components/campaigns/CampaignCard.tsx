@@ -1,7 +1,5 @@
+import { useNavigate } from 'react-router-dom';
 import { Pencil, Archive } from 'lucide-react';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
-import { ItemContextMenu } from '@/components/ui/ItemContextMenu';
 import { systemLabels, statusLabels } from '@/types/campaign';
 import type { Campaign } from '@/types/campaign';
 
@@ -19,21 +17,17 @@ const statusColors: Record<Campaign['status'], string> = {
 };
 
 export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   function handleOpen() {
-    const path = `/app/campaigns/${campaign._id}`;
-    openTab({ title: campaign.name, path, content: resolveRouteContent(path, campaign.name) });
+    navigate(`/app/campaigns/${campaign._id}`);
   }
 
   return (
-    <ItemContextMenu
-      item={{ title: campaign.name, path: `/app/campaigns/${campaign._id}`, icon: 'Book' }}
+    <div
+      onClick={handleOpen}
+      className="app-card group h-full cursor-pointer rounded-lg p-6 tavern-card texture-parchment transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
     >
-      <div
-        onClick={handleOpen}
-        className="group cursor-pointer rounded-lg border border-border bg-card p-6 tavern-card texture-parchment transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
-      >
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <h3 className="truncate font-semibold text-card-foreground font-[Cinzel]">{campaign.name}</h3>
@@ -79,7 +73,6 @@ export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) 
             {new Date(campaign.updatedAt).toLocaleDateString()}
           </span>
         </div>
-      </div>
-    </ItemContextMenu>
+    </div>
   );
 }

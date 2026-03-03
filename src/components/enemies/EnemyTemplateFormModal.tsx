@@ -1,8 +1,9 @@
 import { type FormEvent, useState, useEffect } from 'react';
-import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { useCreateEnemyTemplate, useUpdateEnemyTemplate } from '@/hooks/useEnemyTemplates';
+import { SYSTEM_STATS } from '@/lib/enemy-constants';
 import type {
   EnemyTemplate,
   EnemyCategory,
@@ -57,32 +58,13 @@ const SYSTEMS: { value: string; label: string }[] = [
   { value: 'custom', label: 'Custom / Other' },
 ];
 
-const SYSTEM_STATS: Record<string, { key: string; label: string }[]> = {
-  dnd5e: [
-    { key: 'str', label: 'STR' }, { key: 'dex', label: 'DEX' }, { key: 'con', label: 'CON' },
-    { key: 'int', label: 'INT' }, { key: 'wis', label: 'WIS' }, { key: 'cha', label: 'CHA' },
-  ],
-  pathfinder2e: [
-    { key: 'str', label: 'STR' }, { key: 'dex', label: 'DEX' }, { key: 'con', label: 'CON' },
-    { key: 'int', label: 'INT' }, { key: 'wis', label: 'WIS' }, { key: 'cha', label: 'CHA' },
-  ],
-  daggerheart: [
-    { key: 'agility', label: 'AGI' }, { key: 'strength', label: 'STR' }, { key: 'finesse', label: 'FIN' },
-    { key: 'instinct', label: 'INS' }, { key: 'presence', label: 'PRE' }, { key: 'knowledge', label: 'KNO' },
-  ],
-  custom: [
-    { key: 'str', label: 'STR' }, { key: 'dex', label: 'DEX' }, { key: 'con', label: 'CON' },
-    { key: 'int', label: 'INT' }, { key: 'wis', label: 'WIS' }, { key: 'cha', label: 'CHA' },
-  ],
-  // fate: intentionally absent — no ability scores
-};
-
 const EMPTY_ATTACK: EnemyAttack = { name: '', bonus: 0, damage: '', range: '' };
 const EMPTY_TRAIT: EnemyTrait = { name: '', description: '' };
 
 export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplateFormModalProps) {
-  const isEdit = !!template;
-  const readOnly = !!template?.isGlobal;
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const isEdit = !!template && !isDuplicate;
+  const readOnly = !!template?.isGlobal && !isDuplicate;
   const createTemplate = useCreateEnemyTemplate();
   const updateTemplate = useUpdateEnemyTemplate();
 
@@ -107,6 +89,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
   const [system, setSystem] = useState('custom');
 
   useEffect(() => {
+    setIsDuplicate(false);
     if (template) {
       setName(template.name);
       setCategory(template.category);
@@ -115,9 +98,9 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
       setHpAvg(template.hp.average.toString());
       setHpFormula(template.hp.formula ?? '');
       setAc(template.ac.toString());
-      setWalkSpeed(template.speed.walk.toString());
-      setFlySpeed(template.speed.fly?.toString() ?? '');
-      setSwimSpeed(template.speed.swim?.toString() ?? '');
+      setWalkSpeed(template.speed?.walk?.toString() ?? '30');
+      setFlySpeed(template.speed?.fly?.toString() ?? '');
+      setSwimSpeed(template.speed?.swim?.toString() ?? '');
       setInitBonus(template.initiativeBonus?.toString() ?? '0');
       if (template.abilities) {
         const scores: Record<string, string> = {};
@@ -155,6 +138,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
 
   function handleClose() {
     resetForm();
+    setIsDuplicate(false);
     onClose();
   }
 
@@ -220,7 +204,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
             {renderTraits()}
             {renderAppearance()}
           </fieldset>
-          {!readOnly && renderFooter()}
+          {renderFooter()}
         </form>
       </div>
     </div>
@@ -230,7 +214,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
     return (
       <div className="flex items-center justify-between">
         <h2 className="font-['IM_Fell_English'] text-xl text-card-foreground">
-          {readOnly ? 'View Template' : isEdit ? 'Edit Enemy Template' : 'New Enemy Template'}
+          {readOnly ? 'View Template' : isDuplicate ? 'Duplicate Template' : isEdit ? 'Edit Enemy Template' : 'New Enemy Template'}
         </h2>
         <button type="button" onClick={handleClose} className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors">
           <X className="h-5 w-5" />
@@ -347,9 +331,11 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
       <div>
         <div className="flex items-center justify-between">
           <p className={labelClass}>Attacks</p>
-          <button type="button" onClick={() => setAttacks([...attacks, { ...EMPTY_ATTACK }])} className="flex items-center gap-1 text-[10px] text-brass hover:text-brass/80 font-[Cinzel] uppercase">
-            <Plus className="h-3 w-3" /> Add
-          </button>
+          {!readOnly && (
+            <button type="button" onClick={() => setAttacks([...attacks, { ...EMPTY_ATTACK }])} className="flex items-center gap-1 text-[10px] text-brass hover:text-brass/80 font-[Cinzel] uppercase">
+              <Plus className="h-3 w-3" /> Add
+            </button>
+          )}
         </div>
         <div className="mt-1 space-y-2">
           {attacks.map((atk, i) => (
@@ -360,9 +346,11 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
                 <input type="text" value={atk.damage} onChange={(e) => { const a = [...attacks]; a[i] = { ...a[i], damage: e.target.value }; setAttacks(a); }} placeholder="1d6+2 slashing" className={`${inputClass} mt-0`} />
                 <input type="text" value={atk.range ?? ''} onChange={(e) => { const a = [...attacks]; a[i] = { ...a[i], range: e.target.value }; setAttacks(a); }} placeholder="5 ft" className={`${inputClass} mt-0`} />
               </div>
-              <button type="button" onClick={() => setAttacks(attacks.filter((_, j) => j !== i))} className="mt-1 text-muted-foreground hover:text-blood">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {!readOnly && (
+                <button type="button" onClick={() => setAttacks(attacks.filter((_, j) => j !== i))} className="mt-1 text-muted-foreground hover:text-blood">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -375,9 +363,11 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
       <div>
         <div className="flex items-center justify-between">
           <p className={labelClass}>Traits / Abilities</p>
-          <button type="button" onClick={() => setTraits([...traits, { ...EMPTY_TRAIT }])} className="flex items-center gap-1 text-[10px] text-brass hover:text-brass/80 font-[Cinzel] uppercase">
-            <Plus className="h-3 w-3" /> Add
-          </button>
+          {!readOnly && (
+            <button type="button" onClick={() => setTraits([...traits, { ...EMPTY_TRAIT }])} className="flex items-center gap-1 text-[10px] text-brass hover:text-brass/80 font-[Cinzel] uppercase">
+              <Plus className="h-3 w-3" /> Add
+            </button>
+          )}
         </div>
         <div className="mt-1 space-y-2">
           {traits.map((trait, i) => (
@@ -386,9 +376,11 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
                 <input type="text" value={trait.name} onChange={(e) => { const t = [...traits]; t[i] = { ...t[i], name: e.target.value }; setTraits(t); }} placeholder="Trait name" className={`${inputClass} mt-0`} />
                 <textarea value={trait.description} onChange={(e) => { const t = [...traits]; t[i] = { ...t[i], description: e.target.value }; setTraits(t); }} placeholder="Description" rows={2} className={`${inputClass} mt-0 resize-none`} />
               </div>
-              <button type="button" onClick={() => setTraits(traits.filter((_, j) => j !== i))} className="mt-1 text-muted-foreground hover:text-blood">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {!readOnly && (
+                <button type="button" onClick={() => setTraits(traits.filter((_, j) => j !== i))} className="mt-1 text-muted-foreground hover:text-blood">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -425,12 +417,23 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
   }
 
   function renderFooter() {
+    if (readOnly) {
+      return (
+        <div className="flex justify-end gap-2 pt-2 border-t border-[hsla(38,40%,30%,0.15)]">
+          <Button type="button" variant="secondary" onClick={handleClose}>Close</Button>
+          <Button type="button" onClick={() => setIsDuplicate(true)}>
+            <Copy className="mr-1.5 h-4 w-4" />
+            Duplicate to My Library
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="flex justify-end gap-2 pt-2 border-t border-[hsla(38,40%,30%,0.15)]">
         <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
         <Button type="submit" disabled={isPending || !name.trim()}>
           {isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-          {isEdit ? 'Save Changes' : 'Create Template'}
+          {isDuplicate ? 'Create Copy' : isEdit ? 'Save Changes' : 'Create Template'}
         </Button>
       </div>
     );

@@ -1,17 +1,20 @@
-import { useState } from 'react';
-import { Sparkles, Users, Swords, BookOpen, Loader2, ScrollText, BookMarked } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, Users, Swords, BookOpen, Loader2, ScrollText, BookMarked, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { GenerationMeta } from '@/components/ai-tools/GenerationMeta';
 import { StreamingOutput } from '@/components/session/StreamingOutput';
 import { useAIStreaming } from '@/hooks/useAIStreaming';
+import { useSaveAIEncounter, useLoadEncounter } from '@/hooks/useEncounters';
 import { aiToolsApi } from '@/api/ai-tools';
 import type { GeneratedNPC, GeneratedEncounter, RuleAnswer } from '@/types/ai-tools';
 import type { EncounterDifficulty } from '@/types/ai-tools';
 import type { WorldEntity } from '@/types/campaign';
+import type { SaveAIEncounterRequest } from '@/types/encounter';
 
 interface AIToolsTabProps {
   campaignId: string;
+  focusSeed?: number;
 }
 
 type ActiveTool = 'npc' | 'encounter' | 'rules' | 'quest' | 'lore' | null;
@@ -30,14 +33,14 @@ function ToolButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1.5 rounded-md border p-3 transition-all ${
+      className={`flex w-full items-center gap-2 rounded-md border px-2 py-2 text-left transition-all ${
         active
           ? 'border-primary/40 bg-primary/10 shadow-glow-sm text-primary'
           : 'border-iron/30 bg-accent/20 text-muted-foreground hover:border-gold/30 hover:text-foreground'
       }`}
     >
-      <Icon className="h-5 w-5" />
-      <span className="font-[Cinzel] text-[10px] uppercase tracking-wider">{label}</span>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="truncate font-[Cinzel] text-[11px] uppercase tracking-wider leading-none">{label}</span>
     </button>
   );
 }
@@ -167,6 +170,8 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GeneratedEncounter | null>(null);
   const stream = useAIStreaming('encounter-generator');
+  const saveEncounter = useSaveAIEncounter(campaignId);
+  const loadEncounter = useLoadEncounter(campaignId);
 
   async function handleGenerate() {
     if (loading) return;
@@ -190,8 +195,54 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
     }
   }
 
+  async function handleSave(enc: GeneratedEncounter) {
+    const body: SaveAIEncounterRequest = {
+      name: enc.title,
+      description: enc.description,
+      difficulty: enc.difficulty as EncounterDifficulty,
+      estimatedXP: enc.totalXP,
+      npcs: enc.npcs,
+      tactics: enc.tactics,
+      terrain: enc.terrain,
+      treasure: enc.treasure,
+      hooks: enc.hooks,
+    };
+    try {
+      await saveEncounter.mutateAsync(body);
+      toast.success('Encounter saved to library');
+    } catch {
+      toast.error('Failed to save encounter');
+    }
+  }
+
+  async function handleSaveAndLoad(enc: GeneratedEncounter) {
+    const body: SaveAIEncounterRequest = {
+      name: enc.title,
+      description: enc.description,
+      difficulty: enc.difficulty as EncounterDifficulty,
+      estimatedXP: enc.totalXP,
+      npcs: enc.npcs,
+      tactics: enc.tactics,
+      terrain: enc.terrain,
+      treasure: enc.treasure,
+      hooks: enc.hooks,
+    };
+    try {
+      const saved = await saveEncounter.mutateAsync(body);
+      await loadEncounter.mutateAsync({
+        encounterId: saved._id,
+        body: { addToInitiative: true, clearExistingMap: false },
+      });
+      toast.success('Encounter saved & loaded');
+    } catch {
+      toast.error('Failed to save & load encounter');
+    }
+  }
+
+  const actionPending = saveEncounter.isPending || loadEncounter.isPending;
+
   if (result) {
-    return renderEncounterResult(result, () => setResult(null));
+    return renderEncounterResult(result, () => setResult(null), handleSave, handleSaveAndLoad, actionPending);
   }
 
   return (
@@ -291,14 +342,34 @@ function EncounterGenerator({ campaignId }: { campaignId: string }) {
   );
 }
 
-function renderEncounterResult(result: GeneratedEncounter, onReset: () => void) {
+function renderEncounterResult(
+  result: GeneratedEncounter,
+  onReset: () => void,
+  onSave?: (enc: GeneratedEncounter) => void,
+  onSaveAndLoad?: (enc: GeneratedEncounter) => void,
+  pending?: boolean,
+) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground">{result.title}</h4>
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-[Cinzel] text-sm font-semibold text-foreground truncate">{result.title}</h4>
         <Button size="sm" variant="ghost" onClick={onReset}>
           Generate Another
         </Button>
+      </div>
+      <div className="flex gap-1.5">
+        {onSave && (
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => onSave(result)} className="flex-1">
+            {pending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
+            Save
+          </Button>
+        )}
+        {onSaveAndLoad && (
+          <Button size="sm" variant="primary" disabled={pending} onClick={() => onSaveAndLoad(result)} className="flex-1">
+            {pending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            Save & Load
+          </Button>
+        )}
       </div>
       <div className="rounded-md border border-gold/20 bg-accent/20 texture-parchment p-3 space-y-2">
         <p className="text-sm text-foreground font-['IM_Fell_English'] italic">{result.description}</p>
@@ -705,8 +776,19 @@ function renderLoreResult(result: WorldEntity, onReset: () => void) {
   );
 }
 
-export function AIToolsTab({ campaignId }: AIToolsTabProps) {
+export function AIToolsTab({ campaignId, focusSeed }: AIToolsTabProps) {
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
+
+  useEffect(() => {
+    const focus = localStorage.getItem('fablheim:session-v2-ai-focus');
+    if (focus === 'npc' || focus === 'encounter' || focus === 'rules' || focus === 'quest' || focus === 'lore') {
+      setActiveTool(focus);
+      localStorage.removeItem('fablheim:session-v2-ai-focus');
+    } else if (focus === 'location') {
+      setActiveTool('lore');
+      localStorage.removeItem('fablheim:session-v2-ai-focus');
+    }
+  }, [focusSeed]);
 
   return (
     <div className="p-4 space-y-4">
@@ -714,7 +796,7 @@ export function AIToolsTab({ campaignId }: AIToolsTabProps) {
         AI Tools
       </h3>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2">
         <ToolButton
           icon={Users}
           label="NPC"

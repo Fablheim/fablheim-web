@@ -82,7 +82,7 @@ export function EncounterAIPanel({ campaignId, encounter }: EncounterAIPanelProp
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mkt-card mkt-card-mounted space-y-4 rounded-xl p-3">
       {renderForm()}
       {renderGenerateButton()}
       {result && renderResult()}

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, FolderOpen, Loader2, Search, ScrollText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useSRDCategoryEntries, useSRDSearch, useSRDSystem } from '@/hooks/useSRD';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
+import { rulesBrowsePath, rulesEntryPath, rulesIndexPath } from './rulesRouting';
 
 function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
   return (
@@ -16,10 +17,12 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
 }
 
 function EntryList({
+  pathname,
   system,
   category,
   entries,
 }: {
+  pathname: string;
   system: string;
   category: string;
   entries: string[];
@@ -45,7 +48,7 @@ function EntryList({
             {grouped.map((entry) => (
               <button
                 key={entry}
-                onClick={() => navigate(`/srd/${system}/${encodeURIComponent(category)}/${encodeURIComponent(entry)}`)}
+                onClick={() => navigate(rulesEntryPath(pathname, system, category, entry))}
                 className="mkt-tab flex items-center gap-2 rounded-md px-3 py-2 text-left"
               >
                 <ScrollText className="h-4 w-4 shrink-0 text-[color:var(--mkt-muted)]" />
@@ -59,10 +62,21 @@ function EntryList({
   );
 }
 
-export default function SRDSystemPage() {
+interface SRDSystemPageProps {
+  systemOverride?: string;
+  categoryOverride?: string;
+  basePathOverride?: '/app/rules' | '/srd';
+}
+
+export default function SRDSystemPage({ systemOverride, categoryOverride, basePathOverride }: SRDSystemPageProps = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const rulesPathContext = basePathOverride ?? location.pathname;
+  const inAppRules = rulesPathContext.startsWith('/app/rules');
   const { user } = useAuth();
-  const { system = '', category } = useParams<{ system: string; category?: string }>();
+  const params = useParams<{ system: string; category?: string }>();
+  const system = systemOverride ?? params.system ?? '';
+  const category = categoryOverride ?? params.category;
 
   const [query, setQuery] = useState('');
   const { data: systemData, isLoading } = useSRDSystem(system);
@@ -87,15 +101,15 @@ export default function SRDSystemPage() {
       <MarketingNavbar
         user={user}
         links={[
-          { label: 'Rules Library', to: '/srd', icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
-          { label: 'Home', to: '/' },
+          { label: 'Rules Library', to: rulesIndexPath(rulesPathContext), icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
+          { label: inAppRules ? 'Dashboard' : 'Home', to: inAppRules ? '/app' : '/' },
         ]}
       />
 
       <section className="mkt-section mkt-hero-stage relative px-4 pb-10 pt-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-[color:var(--mkt-muted)]">
-            <button onClick={() => navigate('/srd')} className="mkt-tab px-2 py-1">Rules Library</button>
+            <button onClick={() => navigate(rulesIndexPath(rulesPathContext))} className="mkt-tab px-2 py-1">Rules Library</button>
             <ChevronRight className="h-3 w-3" />
             <span>{systemName}</span>
             {category && (
@@ -159,7 +173,7 @@ export default function SRDSystemPage() {
                   {searchData.results.map((result) => (
                     <button
                       key={`${result.category}:${result.title}`}
-                      onClick={() => navigate(`/srd/${system}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`)}
+                      onClick={() => navigate(rulesEntryPath(rulesPathContext, system, result.category, result.title))}
                       className="mkt-card h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/40"
                     >
                       <div className="flex h-full flex-col">
@@ -180,7 +194,7 @@ export default function SRDSystemPage() {
                 body="Browse alphabetically and open any rule entry."
               />
               <div className="mkt-card mkt-card-mounted rounded-xl p-5 sm:p-6 mt-6">
-                <EntryList system={system} category={category} entries={categoryData.entries} />
+                <EntryList pathname={rulesPathContext} system={system} category={category} entries={categoryData.entries} />
               </div>
             </div>
           ) : (
@@ -194,7 +208,7 @@ export default function SRDSystemPage() {
                 {systemData?.categories.map((categoryItem) => (
                   <button
                     key={categoryItem.name}
-                    onClick={() => navigate(`/srd/${system}/browse/${encodeURIComponent(categoryItem.name)}`)}
+                    onClick={() => navigate(rulesBrowsePath(rulesPathContext, system, categoryItem.name))}
                     className="mkt-card mkt-card-mounted h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/40"
                   >
                     <div className="flex h-full flex-col">

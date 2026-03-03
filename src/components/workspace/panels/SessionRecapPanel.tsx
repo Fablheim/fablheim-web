@@ -16,8 +16,8 @@ export function SessionRecapPanel({ campaignId, sessionId }: SessionRecapPanelPr
 
   if (!sessionId) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p>No session selected</p>
+      <div className="app-empty-state m-3 flex h-full items-center justify-center rounded-lg text-muted-foreground">
+        <p className="font-['IM_Fell_English']">No session selected</p>
       </div>
     );
   }
@@ -40,25 +40,27 @@ export function SessionRecapPanel({ campaignId, sessionId }: SessionRecapPanelPr
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-[hsla(38,30%,25%,0.2)] px-4 py-2">
-        <h3 className="font-['IM_Fell_English'] text-sm font-semibold text-foreground">
+    <div className="app-card m-2 flex h-full flex-col rounded-lg texture-parchment">
+      <div className="flex items-center justify-between border-b border-[hsla(38,30%,25%,0.2)] px-4 py-2 texture-wood">
+        <h3 className="font-['IM_Fell_English'] text-sm font-semibold text-foreground text-carved">
           AI Recap
         </h3>
         <div className="flex items-center gap-1">
           <button
             onClick={handleCopy}
             disabled={!recapData?.recap}
-            className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+            className="app-focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
             title="Copy recap"
+            aria-label="Copy recap"
           >
             <Copy className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={handleRegenerate}
             disabled={regenerate.isPending}
-            className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+            className="app-focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
             title="Regenerate recap"
+            aria-label="Regenerate recap"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${regenerate.isPending ? 'animate-spin' : ''}`} />
           </button>
@@ -71,11 +73,11 @@ export function SessionRecapPanel({ campaignId, sessionId }: SessionRecapPanelPr
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : recapData?.recap ? (
-          <div className="prose prose-sm prose-invert max-w-none whitespace-pre-wrap text-sm text-muted-foreground">
+          <div className="rounded-lg border border-[hsla(38,30%,35%,0.22)] bg-[hsla(24,16%,10%,0.45)] p-3 prose prose-sm prose-invert max-w-none whitespace-pre-wrap text-sm text-muted-foreground">
             {recapData.recap}
           </div>
         ) : (
-          <p className="text-center text-sm text-muted-foreground/60">
+          <p className="app-empty-state rounded-lg py-8 text-center text-sm text-muted-foreground/70">
             No recap available yet. It may still be generating.
           </p>
         )}

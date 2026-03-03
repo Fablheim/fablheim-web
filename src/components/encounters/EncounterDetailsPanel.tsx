@@ -28,6 +28,10 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
   const [notes, setNotes] = useState(encounter.notes);
   const [tags, setTags] = useState(encounter.tags.join(', '));
   const [status, setStatus] = useState(encounter.status);
+  const [tactics, setTactics] = useState(encounter.tactics ?? '');
+  const [terrain, setTerrain] = useState(encounter.terrain ?? '');
+  const [treasure, setTreasure] = useState(encounter.treasure ?? '');
+  const [hooks, setHooks] = useState((encounter.hooks ?? []).join('\n'));
   const [dirty, setDirty] = useState(false);
 
   // Sync when encounter changes externally
@@ -39,6 +43,10 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
     setNotes(encounter.notes);
     setTags(encounter.tags.join(', '));
     setStatus(encounter.status);
+    setTactics(encounter.tactics ?? '');
+    setTerrain(encounter.terrain ?? '');
+    setTreasure(encounter.treasure ?? '');
+    setHooks((encounter.hooks ?? []).join('\n'));
     setDirty(false);
   }, [encounter._id, encounter.updatedAt]);
 
@@ -50,6 +58,11 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const parsedHooks = hooks
+      .split('\n')
+      .map((h) => h.trim())
+      .filter(Boolean);
+
     updateEncounter.mutate(
       {
         name: name.trim(),
@@ -59,6 +72,10 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
         notes: notes.trim(),
         tags: parsedTags,
         status: status as EncounterStatus,
+        tactics: tactics.trim(),
+        terrain: terrain.trim(),
+        treasure: treasure.trim(),
+        hooks: parsedHooks,
       },
       {
         onSuccess: () => {
@@ -71,9 +88,10 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mkt-card mkt-card-mounted space-y-4 rounded-xl p-3">
       {renderTopFields()}
       {renderMiddleFields()}
+      {renderEncounterFields()}
       {renderBottomFields()}
       {renderSaveButton()}
     </div>
@@ -151,6 +169,60 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
           </select>
         </div>
       </div>
+    );
+  }
+
+  function renderEncounterFields() {
+    return (
+      <>
+        <div>
+          <label htmlFor="enc-tactics" className={labelClass}>Tactics</label>
+          <textarea
+            id="enc-tactics"
+            value={tactics}
+            onChange={(e) => { setTactics(e.target.value); markDirty(); }}
+            rows={3}
+            className={`${inputClass} resize-none`}
+            placeholder="Enemy strategy, positioning, priorities..."
+          />
+        </div>
+
+        <div>
+          <label htmlFor="enc-terrain" className={labelClass}>Terrain</label>
+          <textarea
+            id="enc-terrain"
+            value={terrain}
+            onChange={(e) => { setTerrain(e.target.value); markDirty(); }}
+            rows={2}
+            className={`${inputClass} resize-none`}
+            placeholder="Environmental hazards, cover, difficult terrain..."
+          />
+        </div>
+
+        <div>
+          <label htmlFor="enc-treasure" className={labelClass}>Treasure</label>
+          <textarea
+            id="enc-treasure"
+            value={treasure}
+            onChange={(e) => { setTreasure(e.target.value); markDirty(); }}
+            rows={2}
+            className={`${inputClass} resize-none`}
+            placeholder="Loot, rewards, items found..."
+          />
+        </div>
+
+        <div>
+          <label htmlFor="enc-hooks" className={labelClass}>Story Hooks (one per line)</label>
+          <textarea
+            id="enc-hooks"
+            value={hooks}
+            onChange={(e) => { setHooks(e.target.value); markDirty(); }}
+            rows={2}
+            className={`${inputClass} resize-none`}
+            placeholder="Plot threads, clues, revelations..."
+          />
+        </div>
+      </>
     );
   }
 

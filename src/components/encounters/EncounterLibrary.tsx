@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Loader2, Trash2, Swords } from 'lucide-react';
+import { Plus, Loader2, Trash2, Swords, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useEncounters, useCreateEncounter, useDeleteEncounter } from '@/hooks/useEncounters';
 import type { Encounter, EncounterDifficulty } from '@/types/encounter';
 
@@ -29,6 +30,7 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
   const deleteEncounter = useDeleteEncounter(campaignId);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   function handleCreate() {
     if (!newName.trim()) return;
@@ -48,9 +50,13 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
 
   function handleDelete(e: React.MouseEvent, encounterId: string) {
     e.stopPropagation();
-    if (!confirm('Delete this encounter?')) return;
-    deleteEncounter.mutate(encounterId, {
-      onSuccess: () => toast.success('Encounter deleted'),
+    setDeleteConfirmId(encounterId);
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmId) return;
+    deleteEncounter.mutate(deleteConfirmId, {
+      onSuccess: () => { toast.success('Encounter deleted'); setDeleteConfirmId(null); },
       onError: () => toast.error('Failed to delete encounter'),
     });
   }
@@ -64,11 +70,23 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
   }
 
   return (
-    <div className="space-y-4">
-      {renderHeader()}
-      {renderNewForm()}
-      {renderEncounterGrid()}
-    </div>
+    <>
+      <div className="space-y-4">
+        {renderHeader()}
+        {renderNewForm()}
+        {renderEncounterGrid()}
+      </div>
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        title="Delete Encounter"
+        description="This encounter and all its creatures, tokens, and map data will be permanently removed."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+        isPending={deleteEncounter.isPending}
+      />
+    </>
   );
 
   function renderHeader() {
@@ -120,7 +138,7 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
   function renderEncounterGrid() {
     if (!encounters || encounters.length === 0) {
       return (
-        <div className="rounded-lg border-2 border-dashed border-gold/20 bg-card/20 p-12 text-center">
+        <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/20 p-12 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Swords className="h-6 w-6 text-primary/60" />
           </div>
@@ -139,10 +157,10 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
             key={enc._id}
             type="button"
             onClick={() => onSelect(enc)}
-            className="group relative rounded-lg border border-iron/30 bg-card/40 p-4 text-left transition-all hover:border-gold/40 hover:shadow-glow-sm texture-leather"
+            className="group mkt-card mkt-card-mounted relative rounded-xl border border-iron/35 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-glow-sm"
           >
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-['IM_Fell_English'] text-sm font-semibold text-foreground line-clamp-1">
+              <h3 className="font-['IM_Fell_English'] text-base font-semibold text-foreground text-carved line-clamp-1">
                 {enc.name}
               </h3>
               <button
@@ -155,7 +173,7 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
             </div>
 
             {enc.description && (
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{enc.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{enc.description}</p>
             )}
 
             <div className="mt-3 flex items-center gap-2">
@@ -175,6 +193,13 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
                   {enc.tokens.length} tokens
                 </span>
               )}
+            </div>
+
+            <div className="mt-3 flex justify-end">
+              <span className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-1.5 py-0.5 text-[10px] font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all group-hover:border-brass/55 group-hover:bg-brass/24">
+                Open
+                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </div>
           </button>
         ))}

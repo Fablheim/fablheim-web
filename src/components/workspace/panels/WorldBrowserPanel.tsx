@@ -4,10 +4,10 @@ interface WorldBrowserPanelProps {
   campaignId: string;
 }
 
-export function WorldBrowserPanel(_props: WorldBrowserPanelProps) {
+export function WorldBrowserPanel({ campaignId }: WorldBrowserPanelProps) {
   return (
     <div className="h-full overflow-y-auto">
-      <WorldPage />
+      <WorldPage campaignId={campaignId} />
     </div>
   );
 }

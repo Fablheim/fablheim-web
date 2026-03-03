@@ -25,6 +25,7 @@ export function useCreateSession() {
     mutationFn: (data: CreateSessionRequest) => sessionsApi.create(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['sessions', data.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
     },
   });
 }

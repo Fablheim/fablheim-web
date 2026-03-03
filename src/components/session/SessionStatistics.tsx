@@ -28,7 +28,7 @@ export function SessionStatistics({ statistics }: SessionStatisticsProps) {
           return (
             <div
               key={item.key}
-              className="flex flex-col items-center rounded-md bg-card p-3 texture-leather"
+              className="app-card flex flex-col items-center rounded-md p-3 texture-leather"
             >
               <Icon className="mb-1 h-4 w-4 text-brass/70" />
               <span className="text-lg font-bold text-foreground">{value}</span>

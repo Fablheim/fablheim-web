@@ -4,21 +4,22 @@ import {
   ArrowRight,
   BookOpenText,
   Check,
+  Coins,
   Compass,
-  Crown,
-  Layers,
   Map,
-  NotebookPen,
-  Radio,
+  MessageSquare,
   ScrollText,
   Sparkles,
-  Sword,
-  UserPlus,
+  Swords,
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
+import { SEO } from '@/components/seo/SEO';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { faqPageSchema, howToSchema } from '@/seo/schema';
+import { BILLING_CONFIG } from '@/config/billingConfig';
 
 type Track = 'gm' | 'player';
 
@@ -27,133 +28,106 @@ type Step = {
   body: string;
   bullets: string[];
   icon: ComponentType<{ className?: string }>;
-  comingSoon?: boolean;
 };
 
 const gmSteps: Step[] = [
   {
-    title: 'Create a Campaign',
-    body: 'Pick your system, set your table context, and get a playable foundation in minutes.',
+    title: 'Prep in the Campaign Hall',
+    body: 'Before session night, build what you need in one place instead of splitting prep across multiple apps.',
     bullets: [
-      'D&D 5e, Pathfinder 2e, Fate Core, Daggerheart, or Custom',
-      'Campaign hall starts with practical defaults',
-      'Built for speed, not setup marathons',
-    ],
-    icon: Crown,
-  },
-  {
-    title: 'Build Your World',
-    body: 'Locations, factions, NPCs, and quests stay connected so prep remains coherent over time.',
-    bullets: [
-      'Entity links keep lore usable at the table',
-      'DM-only and player-facing visibility controls',
-      'Search and filter across campaign knowledge',
-    ],
-    icon: Map,
-  },
-  {
-    title: 'Invite Players',
-    body: 'Bring players in quickly by link or email and move from planning to play fast.',
-    bullets: [
-      'Invite in minutes',
-      'Shared campaign context from day one',
-      'Co-DM support for trusted collaborators',
-    ],
-    icon: Users,
-  },
-  {
-    title: 'AI Tools (Optional)',
-    body: 'AI is a toolsmith, not a driver. Generate when needed, edit everything, keep narrative control.',
-    bullets: [
-      'NPCs, encounters, world details, and recaps',
-      'Results are editable before they land',
-      'AI assists. You decide.',
-    ],
-    icon: Sparkles,
-  },
-  {
-    title: 'Campaign Notebook',
-    body: 'Capture threads, clues, and follow-ups in one place that stays useful during prep and live play.',
-    bullets: [
-      'Session notes and plot threads stay organized',
-      'Context remains available when pressure is high',
-      'Works great with or without AI',
-    ],
-    icon: NotebookPen,
-  },
-  {
-    title: 'Run Live Sessions',
-    body: 'Your table command center for game night: synced tools, clear state, fewer interruptions.',
-    bullets: [
-      'Initiative, dice, chat, maps, and handouts',
-      'Live participants and room state visibility',
-      'Designed for confident pacing at the table',
-    ],
-    icon: Radio,
-  },
-  {
-    title: 'Coming Soon',
-    body: 'Carefully scoped additions in active design and validation.',
-    bullets: [
-      'AI battle map generation + map library',
-      'Expanded session recap controls',
-      'More panel preset workflows',
+      'Create and organize world entities, encounters, characters, and notes',
+      'Use stage flow (prep/live/recap) to keep campaign state clear',
+      'Invite players by link or email and assign campaign access',
     ],
     icon: Compass,
-    comingSoon: true,
+  },
+  {
+    title: 'Run the Session Cockpit',
+    body: 'When live starts, tools shift into a focused session view built for pace and clarity.',
+    bullets: [
+      'Initiative tracker, encounter controls, party status, chat, and dice',
+      'Battle map with configurable grid and token movement',
+      'Rules lookup and session notes available during play',
+    ],
+    icon: Swords,
+  },
+  {
+    title: 'Recap and Continue',
+    body: 'End session into recap and carry forward what happened without losing continuity.',
+    bullets: [
+      'Session recap view supports copy and regenerate actions',
+      'Campaign returns to prep with updated context',
+      'Notes and hooks are ready for next session planning',
+    ],
+    icon: ScrollText,
+  },
+  {
+    title: 'Use AI Only When Needed',
+    body: 'AI sits in an optional lane for fast support moments, not as a required workflow.',
+    bullets: [
+      'Tools include NPC, encounter, quest, lore, and rules assistant',
+      `Free tier has ${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits; paid tiers add monthly credits`,
+      'Credit costs and balance are visible inside the app',
+    ],
+    icon: Sparkles,
   },
 ];
 
 const playerSteps: Step[] = [
   {
-    title: 'Join a Campaign',
-    body: 'Get invited and enter the table quickly. No complex onboarding.',
+    title: 'Join Quickly',
+    body: 'Players join campaigns by invite and access table resources without a paid plan.',
     bullets: [
-      'Join via link or email invite',
-      'Players join free',
-      'Jump into active sessions fast',
+      'Join by invite link or email token',
+      'Players can participate on free accounts',
+      'Shared campaign context appears after joining',
     ],
-    icon: UserPlus,
+    icon: Users,
   },
   {
-    title: 'Create Your Character',
-    body: 'Build your character with a clear flow and campaign-aware context.',
+    title: 'Create and Use Character Data',
+    body: 'Character creation and updates stay in one account-linked place.',
     bullets: [
-      'Stats, identity, and system-specific details',
-      'Optional AI support for brainstorming',
-      'Final decisions stay with the player',
+      'Character wizard for guided setup',
+      'Character details available during active sessions',
+      'GM and players both see relevant party context',
     ],
-    icon: Crown,
+    icon: Map,
   },
   {
-    title: 'Participate Live',
-    body: 'Roll, chat, and track the action in real time with the rest of the group.',
+    title: 'Stay Synced During Play',
+    body: 'Live tools keep players aligned with session state as combat and story evolve.',
     bullets: [
-      'Live dice + session chat',
-      'Initiative and encounter visibility',
-      'Maps and shared handouts during play',
+      'Live chat and dice events',
+      'Initiative visibility and turn context',
+      'Battle map tokens and shared board state',
     ],
-    icon: Sword,
+    icon: MessageSquare,
   },
   {
-    title: 'Catch Up with Recaps',
-    body: 'Stay oriented between sessions without digging through disconnected notes.',
+    title: 'Catch Up Between Sessions',
+    body: 'Recap and notes make it easier to return to the campaign after breaks.',
     bullets: [
-      'Session summaries and campaign continuity',
-      'Key moments are easier to retain',
-      'Less re-explaining next session',
-    ],
-    icon: ScrollText,
-  },
-  {
-    title: 'Rules Lookup',
-    body: 'Quick rules reference keeps momentum high when questions appear mid-session.',
-    bullets: [
-      'Multi-system Rules Library',
-      'Fast lookup from one place',
-      'Supports table confidence under pressure',
+      'Recap access for session outcomes',
+      'Follow-up hooks stay tied to campaign context',
+      'Less repeated explanation at the next session start',
     ],
     icon: BookOpenText,
+  },
+];
+
+const howToFaq = [
+  {
+    question: 'Do I need AI to run a session with Fablheim?',
+    answer: 'No. Core prep, live session controls, and recap flow work without AI.',
+  },
+  {
+    question: 'What does live session mode include?',
+    answer: 'Initiative, chat, dice, encounters, notes, and optional map support.',
+  },
+  {
+    question: 'Does free tier include monthly AI credits?',
+    answer: `No. Free tier includes ${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits.`,
   },
 ];
 
@@ -186,17 +160,18 @@ function Hero({
       <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
         <div className="lg:pr-8">
           <p className="mkt-chip mb-4 inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]">
-            <Layers className="h-3.5 w-3.5" />
-            Prep. Play. Recap. Repeat.
+            <Compass className="h-3.5 w-3.5" />
+            Prep -&gt; Live -&gt; Recap
           </p>
 
           <h1 className="font-['IM_Fell_English'] text-4xl leading-[1.05] text-[color:var(--mkt-text)] sm:text-5xl lg:text-6xl">
             How Fablheim Works
-            <span className="gold-forged block">High ritual mood, low cognitive load</span>
+            <span className="gold-forged block">Campaign Hall to Session Cockpit</span>
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[color:var(--mkt-muted)] sm:text-lg">
-            A practical flow for Game Masters and players: one forged workspace from session prep to live play to recap.
+            The product follows actual table rhythm: prep what matters, run live with fewer interruptions, then recap
+            into the next session.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -216,18 +191,18 @@ function Hero({
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
               <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Prep</p>
-              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">World, encounters, notebook</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">World, encounters, notes</p>
             </div>
             <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
               <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Live</p>
-              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Initiative, dice, chat, maps</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Initiative, dice, chat, map</p>
             </div>
             <div className="rounded-lg border border-[color:var(--mkt-border)] bg-black/25 p-3">
               <p className="font-[Cinzel] text-sm text-[color:var(--mkt-text)]">Recap</p>
-              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Summary, follow-ups, next hooks</p>
+              <p className="mt-1 text-xs text-[color:var(--mkt-muted)]">Summary + next hooks</p>
             </div>
           </div>
-          <p className="mt-4 text-sm text-[color:var(--mkt-muted)]">AI assists where useful, but narrative authority always stays with the GM.</p>
+          <p className="mt-4 text-sm text-[color:var(--mkt-muted)]">AI tools exist for fast support moments, but the workflow still works fully without AI.</p>
         </article>
       </div>
     </section>
@@ -235,38 +210,29 @@ function Hero({
 }
 
 function StageWorkflow() {
-  const stages = [
-    {
-      title: 'Prep',
-      body: 'Build encounters, review notes, and arrange your panel layout before players arrive.',
-    },
-    {
-      title: 'Live',
-      body: 'Run initiative, dice, chat, maps, and handouts from one synchronized command view.',
-    },
-    {
-      title: 'Recap',
-      body: 'Capture outcomes, polish summaries, and prepare the next session with continuity intact.',
-    },
-  ];
-
   return (
     <section className="mkt-section mkt-section-surface px-4 py-18 sm:px-6 lg:px-8">
       <div className="rune-divider mx-auto mb-10 max-w-4xl" />
       <div className="mx-auto max-w-6xl">
         <SectionHeader
-          eyebrow="Stage Model"
-          title="Prep. Play. Recap. Repeat."
-          body="Fablheim models how real tables run: preparation, live execution, and continuity after the session."
+          eyebrow="Session Stages"
+          title="Prep, run, and recap in one lifecycle"
+          body="Campaign stage is explicit in the product so the table always knows what mode it is in."
         />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3 items-stretch">
-          {stages.map((stage) => (
-            <article key={stage.title} className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
-              <p className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">{stage.title}</p>
-              <p className="mt-3 flex-1 text-sm text-[color:var(--mkt-muted)]">{stage.body}</p>
-            </article>
-          ))}
+        <div className="mt-8 grid items-stretch gap-4 md:grid-cols-3">
+          <article className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
+            <p className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">Prep</p>
+            <p className="mt-3 text-sm text-[color:var(--mkt-muted)]">Build encounters, adjust world context, and organize notes before players arrive.</p>
+          </article>
+          <article className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
+            <p className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">Live</p>
+            <p className="mt-3 text-sm text-[color:var(--mkt-muted)]">Switch to session runner with initiative, combat controls, chat, dice, and map tools.</p>
+          </article>
+          <article className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
+            <p className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">Recap</p>
+            <p className="mt-3 text-sm text-[color:var(--mkt-muted)]">Close the session, review recap output, and carry forward key moments to next prep.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -281,11 +247,11 @@ function Tracks({ activeTrack, setActiveTrack }: { activeTrack: Track; setActive
       <div className="mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Role Paths"
-          title={activeTrack === 'gm' ? 'Game Master Track' : 'Player Track'}
+          title={activeTrack === 'gm' ? 'Game Master Path' : 'Player Path'}
           body={
             activeTrack === 'gm'
-              ? 'From campaign setup to live operation, this is the practical flow for running table night with confidence.'
-              : 'From invite to recap, this is the path for players to stay engaged, informed, and ready each session.'
+              ? 'This path reflects the current GM workflow in the app today.'
+              : 'This path reflects what players currently do in invited campaigns.'
           }
         />
 
@@ -295,25 +261,22 @@ function Tracks({ activeTrack, setActiveTrack }: { activeTrack: Track; setActive
             onClick={() => setActiveTrack('gm')}
             className={`mkt-tab px-5 py-2.5 text-sm font-semibold ${activeTrack === 'gm' ? 'mkt-tab-active' : ''}`}
           >
-            Game Master Track
+            Game Master
           </button>
           <button
             type="button"
             onClick={() => setActiveTrack('player')}
             className={`mkt-tab px-5 py-2.5 text-sm font-semibold ${activeTrack === 'player' ? 'mkt-tab-active' : ''}`}
           >
-            Player Track
+            Player
           </button>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 items-stretch">
+        <div className="mt-8 grid items-stretch gap-4 md:grid-cols-2">
           {steps.map((step, idx) => {
             const Icon = step.icon;
             return (
-              <article
-                key={step.title}
-                className={`mkt-card rounded-xl p-5 h-full flex flex-col ${step.comingSoon ? 'border-dashed opacity-90' : 'mkt-card-mounted'}`}
-              >
+              <article key={step.title} className="mkt-card mkt-card-mounted rounded-xl p-5 h-full flex flex-col">
                 <div className="mb-4 flex items-start gap-3">
                   <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/25">
                     <Icon className="h-5 w-5 text-[color:var(--mkt-accent)]" />
@@ -342,74 +305,94 @@ function Tracks({ activeTrack, setActiveTrack }: { activeTrack: Track; setActive
   );
 }
 
-function WorkspaceAndLive() {
+function NoAiRequired() {
   return (
     <section className="mkt-section mkt-section-surface px-4 py-20 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
-        <div>
-          <SectionHeader
-            eyebrow="Differentiator"
-            title="Dynamic panel workspace"
-            body="Arrange the table your way: drag, resize, and save presets per campaign and stage."
-          />
-          <ul className="mt-5 space-y-3 text-sm text-[color:var(--mkt-muted)]">
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />21 panel types across Prep, Live, and Recap</li>
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Stage-aware defaults + custom presets for power users</li>
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Live session runner includes initiative, dice, chat, maps, and handouts</li>
+      <div className="mx-auto max-w-6xl">
+        <article className="mkt-card mkt-card-mounted rounded-xl border-medieval p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">No AI Required</p>
+          <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">Run full sessions without AI</h2>
+          <p className="mt-3 text-[color:var(--mkt-muted)]">
+            Core campaign and session runner features are available without AI usage. AI tools are optional helpers for
+            speed under pressure, especially for NPCs, encounters, quests, lore, rules questions, and recaps.
+          </p>
+          <ul className="mt-5 grid gap-3 text-sm text-[color:var(--mkt-muted)] md:grid-cols-2">
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Free tier includes {BILLING_CONFIG.freeMonthlyCredits} monthly AI credits</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Paid tiers add monthly AI credits</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Credit costs per tool are visible in-app</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />One-time {BILLING_CONFIG.creditPack.credits}-credit pack available for {BILLING_CONFIG.creditPack.price}</li>
           </ul>
-        </div>
-
-        <article className="mkt-card mkt-card-mounted iron-brackets rounded-xl p-5 sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--mkt-muted)]">Live Session Runner</p>
-          <div className="mt-4 grid grid-cols-6 gap-2">
-            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Initiative</div>
-            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Battle Map</div>
-            <div className="col-span-4 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Chat + Dice</div>
-            <div className="col-span-2 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Handouts</div>
-            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Rules Lookup</div>
-            <div className="col-span-3 rounded border border-[color:var(--mkt-border)] bg-black/25 px-2 py-2 text-xs text-[color:var(--mkt-muted)]">Notebook</div>
-          </div>
-          <p className="mt-4 text-sm text-[color:var(--mkt-muted)]">Mounted for game-night clarity: fewer context switches, better pacing.</p>
         </article>
       </div>
     </section>
   );
 }
 
-function AiStanceAndSoon() {
-  const soonItems = [
-    'Expanded recap controls and templates',
-    'Additional panel presets by play style',
-    'Deeper rules-reference workflows',
-  ];
-
+function PricingReality() {
   return (
-    <section className="mkt-section px-4 py-20 sm:px-6 lg:px-8">
+    <section id="pricing" className="mkt-section px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        <article className="mkt-card mkt-card-mounted rounded-xl border-medieval p-6 sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">AI Philosophy</p>
-          <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">AI as a Toolsmith, Not a Driver</h2>
-          <p className="mt-3 text-[color:var(--mkt-muted)]">
-            Optional assistance for prep and recap, with editable outputs and clear control boundaries. Fablheim is built
-            to respect GM authority first.
-          </p>
-          <ul className="mt-5 grid gap-3 text-sm text-[color:var(--mkt-muted)] md:grid-cols-2">
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Generate only when needed</li>
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Every result is editable</li>
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Transparent credit economy</li>
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />No AI-first workflow pressure</li>
-          </ul>
-        </article>
+        <SectionHeader
+          eyebrow="Pricing"
+          title="Current tiers and credits"
+          body="These values reflect current plan and credit behavior implemented in the codebase."
+        />
 
-        <div className="mt-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--mkt-muted)]">Coming Soon</p>
-          <div className="mt-3 grid gap-4 md:grid-cols-3 items-stretch">
-            {soonItems.map((item) => (
-              <article key={item} className="mkt-card rounded-lg border-dashed p-5 h-full">
-                <p className="text-sm leading-relaxed text-[color:var(--mkt-muted)]">{item}</p>
-              </article>
-            ))}
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <article className="mkt-card mkt-card-mounted rounded-xl p-5">
+            <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Wanderer (Free)</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$0 / month</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.freeMonthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Core campaign + live session tools</p>
+          </article>
+          <article className="mkt-card rounded-xl p-5">
+            <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Hobbyist</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$5.99 / month</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.hobbyist.monthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Subscription credits expire after 90 days</p>
+          </article>
+          <article className="mkt-card mkt-card-mounted rounded-xl p-5">
+            <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Game Master</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$9.99 / month</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Subscription credits expire after 90 days</p>
+          </article>
+          <article className="mkt-card rounded-xl p-5">
+            <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Pro</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$19.99 / month</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.professional.monthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Subscription credits expire after 90 days</p>
+          </article>
+        </div>
+
+        <article className="mkt-card mt-4 rounded-xl p-5">
+          <div className="flex items-start gap-3">
+            <Coins className="mt-0.5 h-5 w-5 text-[color:var(--mkt-accent)]" />
+            <div>
+              <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">One-time credit pack</p>
+              <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.creditPack.price} for {BILLING_CONFIG.creditPack.credits} credits, purchasable without a subscription.</p>
+              <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">Subscribers get bonus pack credits: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.</p>
+              <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">Current implementation does not publish per-tier memory or storage caps in the pricing UI.</p>
+            </div>
           </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksFaq() {
+  return (
+    <section className="mkt-section mkt-section-surface px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">Workflow FAQ</h2>
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {howToFaq.map((item) => (
+            <article key={item.question} className="mkt-card rounded-xl p-5">
+              <p className="font-semibold text-[color:var(--mkt-text)]">{item.question}</p>
+              <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{item.answer}</p>
+            </article>
+          ))}
         </div>
       </div>
     </section>
@@ -427,7 +410,7 @@ function ClosingCta({ loggedIn, onPrimary, onRules }: { loggedIn: boolean; onPri
             Bring your table into one command hall
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[color:var(--mkt-muted)]">
-            Forge smoother session nights with a workflow that respects how GMs and players actually play.
+            Keep session flow practical, keep narrative control human, and use AI only when it helps.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
@@ -456,10 +439,30 @@ export default function HowItWorksPage() {
 
   return (
     <MarketingPage>
+      <SEO
+        title="How Fablheim Works | Prep, Live Session, Recap"
+        description="See how Fablheim runs tabletop campaigns with a Prep -> Live -> Recap workflow and optional credits-based AI tools."
+        canonicalPath="/how-it-works"
+      />
+      <JsonLd
+        data={howToSchema({
+          name: 'How to run a session in Fablheim',
+          path: '/how-it-works',
+          description: 'Prep campaign context, run live session tools, and recap for continuity.',
+          steps: [
+            { name: 'Prep campaign context', text: 'Create encounters, notes, and world entities before the session.' },
+            { name: 'Run live session cockpit', text: 'Use initiative, dice, chat, encounters, notes, and optional map support.' },
+            { name: 'Recap and continue', text: 'Close session with recap and carry forward hooks into next prep.' },
+          ],
+        })}
+      />
+      <JsonLd data={faqPageSchema('/how-it-works', howToFaq)} />
+
       <MarketingNavbar
         user={user}
         links={[
           { label: 'Home', to: '/' },
+          { label: 'Pricing', to: '/pricing' },
           { label: 'New to TTRPGs?', to: '/new-to-ttrpgs' },
           { label: 'Rules Library', to: '/srd' },
         ]}
@@ -468,8 +471,9 @@ export default function HowItWorksPage() {
       <Hero loggedIn={loggedIn} onPrimary={handlePrimary} onRules={() => navigate('/srd')} />
       <StageWorkflow />
       <Tracks activeTrack={activeTrack} setActiveTrack={setActiveTrack} />
-      <WorkspaceAndLive />
-      <AiStanceAndSoon />
+      <NoAiRequired />
+      <PricingReality />
+      <HowItWorksFaq />
       <ClosingCta loggedIn={loggedIn} onPrimary={handlePrimary} onRules={() => navigate('/srd')} />
 
       <MarketingFooter />

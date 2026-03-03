@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mosaic, MosaicWindow, getLeaves } from 'react-mosaic-component';
 import { toast } from 'sonner';
 import 'react-mosaic-component/react-mosaic-component.css';
@@ -12,9 +13,9 @@ import { getDefaultLayout } from '@/lib/default-layouts';
 import { useCampaignStage } from '@/hooks/useCampaignStage';
 import { useAuth } from '@/context/AuthContext';
 import { useSessions } from '@/hooks/useSessions';
-import { StageToolbar } from './StageToolbar';
+import { WorkspaceNav } from './WorkspaceNav';
 import { PanelRenderer } from './PanelRenderer';
-import { StageSidebar } from '@/components/sidebar/StageSidebar';
+import { PrepWorkspace } from './PrepWorkspace';
 
 interface CampaignWorkspaceProps {
   campaignId: string;
@@ -41,6 +42,7 @@ function saveTree(campaignId: string, stage: CampaignStage, tree: MosaicNode<Pan
 }
 
 export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspaceProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const {
     stage,
@@ -55,6 +57,13 @@ export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspacePro
 
   const { data: sessions } = useSessions(campaignId);
   const activeSession = sessions?.find((s) => s._id === activeSessionId);
+
+  // Redirect to session when campaign is live
+  useEffect(() => {
+    if (stage === 'live') {
+      navigate(`/app/campaigns/${campaignId}/session`, { replace: true });
+    }
+  }, [stage, campaignId, navigate]);
 
   // Track previous stage to detect transitions
   const prevStageRef = useRef(stage);
@@ -87,11 +96,16 @@ export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspacePro
         setTree(panelId);
         return;
       }
+      if (typeof tree === 'string') {
+        setTree({ direction: 'row', first: tree, second: panelId, splitPercentage: 60 });
+        return;
+      }
+      // Alternate direction to avoid all-horizontal layouts
       setTree({
-        direction: 'row',
+        direction: tree.direction === 'row' ? 'column' : 'row',
         first: tree,
         second: panelId,
-        splitPercentage: 70,
+        splitPercentage: 75,
       });
     },
     [tree],
@@ -156,36 +170,33 @@ export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspacePro
   );
 
   return (
-    <div className="flex h-full">
-      <StageSidebar
+    <div className="flex h-full flex-col">
+      <WorkspaceNav
         campaignId={campaignId}
-        campaign={campaign}
+        campaignName={campaign.name}
+        stage={stage}
+        isDM={isDM}
+        isTransitioning={isTransitioning}
         activePanelIds={activePanelIds}
+        currentTree={tree}
+        sessionStartedAt={activeSession?.startedAt}
+        onStartSession={handleStartSession}
+        onEndSession={handleEndSession}
+        onReturnToPrep={handleReturnToPrep}
         onAddPanel={handleAddPanel}
+        onLoadPreset={handleLoadPreset}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <StageToolbar
-          campaignId={campaignId}
-          stage={stage}
-          isDM={isDM}
-          isTransitioning={isTransitioning}
-          activePanelIds={activePanelIds}
-          currentTree={tree}
-          sessionStartedAt={activeSession?.startedAt}
-          onStartSession={handleStartSession}
-          onEndSession={handleEndSession}
-          onReturnToPrep={handleReturnToPrep}
-          onAddPanel={handleAddPanel}
-          onLoadPreset={handleLoadPreset}
-        />
-        <div className="relative flex-1">
+      <div className="relative flex-1">
+        {stage === 'prep' ? (
+          <PrepWorkspace campaign={campaign} isDM={isDM} />
+        ) : (
           <Mosaic<PanelId>
             renderTile={renderTile}
             value={tree}
             onChange={setTree}
             className="mosaic-fablheim"
           />
-        </div>
+        )}
       </div>
     </div>
   );

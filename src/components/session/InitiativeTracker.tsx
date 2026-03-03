@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Dices, Plus, X } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import {
   useInitiative,
@@ -17,6 +18,13 @@ import type {
   InitiativeUpdatedEvent,
   AddInitiativeEntryRequest,
 } from '@/types/live-session';
+
+const COMMON_CONDITIONS = [
+  'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled',
+  'Incapacitated', 'Invisible', 'Paralyzed', 'Petrified',
+  'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious',
+  'Concentrating', 'Exhaustion',
+] as const;
 
 interface InitiativeTrackerProps {
   campaignId: string;
@@ -40,7 +48,7 @@ const EMPTY_FORM: AddInitiativeEntryRequest = {
   initiativeBonus: 0,
 };
 
-function HpBar({ current, max }: { current: number; max: number }) {
+function HpBar({ current, max, hideNumbers }: { current: number; max: number; hideNumbers?: boolean }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
   let barColor = 'bg-green-500';
   if (pct < 25) barColor = 'bg-red-500';
@@ -54,9 +62,64 @@ function HpBar({ current, max }: { current: number; max: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs text-muted-foreground tabular-nums font-[Cinzel]">
-        {current}/{max}
-      </span>
+      {!hideNumbers && (
+        <span className="text-xs text-muted-foreground tabular-nums font-[Cinzel]">
+          {current}/{max}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function HealthDescriptor({ current, max }: { current: number; max: number }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
+  let label: string;
+  let className: string;
+  if (current <= 0) { label = 'Dead'; className = 'text-red-600'; }
+  else if (pct <= 25) { label = 'Near Death'; className = 'text-red-500'; }
+  else if (pct <= 50) { label = 'Bloodied'; className = 'text-orange-500'; }
+  else if (pct <= 75) { label = 'Wounded'; className = 'text-yellow-500'; }
+  else { label = 'Healthy'; className = 'text-green-500'; }
+
+  return <span className={`text-[10px] font-[Cinzel] uppercase tracking-wider ${className}`}>{label}</span>;
+}
+
+function ConditionPicker({
+  current,
+  onToggle,
+  onClose,
+}: {
+  current: string[];
+  onToggle: (condition: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-md border border-border bg-card p-2 shadow-warm-lg">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Conditions</span>
+        <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {COMMON_CONDITIONS.map((c) => {
+          const active = current.includes(c);
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onToggle(c)}
+              className={`rounded-full px-2 py-0.5 text-[10px] transition-colors ${
+                active
+                  ? 'bg-arcane/30 text-arcane ring-1 ring-arcane/50'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {c}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -75,9 +138,11 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
   const [form, setForm] = useState<AddInitiativeEntryRequest>({ ...EMPTY_FORM });
   const [editingHpId, setEditingHpId] = useState<string | null>(null);
   const [hpInput, setHpInput] = useState('');
+  const [conditionPickerEntryId, setConditionPickerEntryId] = useState<string | null>(null);
+  const [rollingInitiative, setRollingInitiative] = useState(false);
   const hpInputRef = useRef<HTMLInputElement>(null);
 
-  // Listen for WebSocket initiative updates
+  // Listen for WebSocket initiative updates and sync-response
   useEffect(() => {
     const socket = getSocket();
 
@@ -85,9 +150,24 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
       queryClient.setQueryData<Initiative>(['initiative', campaignId], event.initiative);
     }
 
+    // On sync-response, update initiative data only if it actually changed
+    function onSyncResponse(data: { initiative?: Initiative | null }) {
+      if (data.initiative) {
+        const current = queryClient.getQueryData<Initiative>(['initiative', campaignId]);
+        // Compare as strings to handle Date vs ISO-string mismatch from JSON serialization
+        const currentTs = current?.lastUpdatedAt ? String(current.lastUpdatedAt) : '';
+        const incomingTs = data.initiative.lastUpdatedAt ? String(data.initiative.lastUpdatedAt) : '';
+        if (!current || currentTs !== incomingTs) {
+          queryClient.setQueryData<Initiative>(['initiative', campaignId], data.initiative);
+        }
+      }
+    }
+
     socket.on('initiative-updated', onInitiativeUpdated);
+    socket.on('sync-response', onSyncResponse);
     return () => {
       socket.off('initiative-updated', onInitiativeUpdated);
+      socket.off('sync-response', onSyncResponse);
     };
   }, [campaignId, queryClient]);
 
@@ -132,6 +212,32 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
     },
     [hpInput, updateEntry],
   );
+
+  const handleToggleCondition = useCallback(
+    (entryId: string, condition: string) => {
+      const entry = initiative?.entries.find((e) => e.id === entryId);
+      if (!entry) return;
+      const current = entry.conditions ?? [];
+      const updated = current.includes(condition)
+        ? current.filter((c) => c !== condition)
+        : [...current, condition];
+      updateEntry.mutate({ entryId, body: { conditions: updated } });
+    },
+    [initiative?.entries, updateEntry],
+  );
+
+  const handleRollAll = useCallback(async () => {
+    if (!initiative?.entries.length) return;
+    setRollingInitiative(true);
+    try {
+      for (const entry of initiative.entries) {
+        const roll = Math.floor(Math.random() * 20) + 1 + (entry.initiativeBonus || 0);
+        await updateEntry.mutateAsync({ entryId: entry.id, body: { initiativeRoll: roll } });
+      }
+    } finally {
+      setRollingInitiative(false);
+    }
+  }, [initiative?.entries, updateEntry]);
 
   const sortedEntries = initiative
     ? [...initiative.entries].sort((a, b) => b.initiativeRoll - a.initiativeRoll)
@@ -193,6 +299,17 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                 End Combat
               </Button>
             </>
+          )}
+          {!initiative?.isActive && sortedEntries.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={rollingInitiative}
+              onClick={handleRollAll}
+            >
+              <Dices className="mr-1.5 h-3.5 w-3.5" />
+              {rollingInitiative ? 'Rolling...' : 'Roll All'}
+            </Button>
           )}
           <Button
             size="sm"
@@ -362,7 +479,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
             return (
               <div
                 key={entry.id}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 transition-all ${
+                className={`initiative-row flex items-center gap-2.5 rounded-md px-3 py-2 transition-all ${
                   isCurrent
                     ? 'border-l-4 border-primary bg-primary/8 shadow-[0_0_18px_hsla(38,90%,50%,0.18)] animate-candle'
                     : isMapSelected
@@ -400,22 +517,11 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                       </span>
                     )}
                   </div>
-                  {entry.conditions && entry.conditions.length > 0 && (
-                    <div className="mt-0.5 flex flex-wrap gap-1">
-                      {entry.conditions.map((c) => (
-                        <span
-                          key={c}
-                          className="rounded-full bg-arcane/20 px-2 py-0.5 text-xs text-arcane"
-                        >
-                          {c}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {renderConditions(entry, isDM, conditionPickerEntryId, setConditionPickerEntryId, handleToggleCondition)}
                 </div>
 
-                {/* AC badge */}
-                {entry.ac != null && (
+                {/* AC badge — hide from players for non-PC entries */}
+                {entry.ac != null && (isDM || entry.type === 'pc') && (
                   <span
                     className="flex-shrink-0 rounded border border-iron/30 bg-iron/20 px-1.5 py-0.5 text-xs tabular-nums text-iron font-[Cinzel]"
                     title="Armor Class"
@@ -424,35 +530,13 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                   </span>
                 )}
 
-                {/* HP bar / inline edit */}
+                {/* HP display — DM sees everything, players see descriptors for enemies */}
                 {entry.currentHp != null && entry.maxHp != null && (
                   <div className="flex-shrink-0">
-                    {isDM && editingHpId === entry.id ? (
-                      <input
-                        ref={hpInputRef}
-                        type="number"
-                        value={hpInput}
-                        onChange={(e) => setHpInput(e.target.value)}
-                        onBlur={() => handleHpSubmit(entry.id, entry.currentHp)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleHpSubmit(entry.id, entry.currentHp);
-                          if (e.key === 'Escape') setEditingHpId(null);
-                        }}
-                        className="w-16 input-carved rounded-sm border border-border bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isDM) return;
-                          setEditingHpId(entry.id);
-                          setHpInput(String(entry.currentHp ?? 0));
-                        }}
-                        className={isDM ? 'cursor-pointer' : 'cursor-default'}
-                        title={isDM ? 'Click to edit HP' : undefined}
-                      >
-                        <HpBar current={entry.currentHp} max={entry.maxHp} />
-                      </button>
+                    {isDM ? renderDMHp(entry, editingHpId, hpInput, hpInputRef, setEditingHpId, setHpInput, handleHpSubmit) : (
+                      entry.type === 'pc'
+                        ? <HpBar current={entry.currentHp} max={entry.maxHp} />
+                        : <HealthDescriptor current={entry.currentHp} max={entry.maxHp} />
                     )}
                   </div>
                 )}
@@ -491,5 +575,93 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
         </div>
       )}
     </div>
+  );
+}
+
+function renderConditions(
+  entry: InitiativeEntry,
+  isDM: boolean,
+  conditionPickerEntryId: string | null,
+  setConditionPickerEntryId: (id: string | null) => void,
+  handleToggleCondition: (entryId: string, condition: string) => void,
+) {
+  const conditions = entry.conditions ?? [];
+  const showPicker = isDM && conditionPickerEntryId === entry.id;
+
+  if (!isDM && conditions.length === 0) return null;
+
+  return (
+    <div className="relative mt-0.5 flex flex-wrap items-center gap-1">
+      {conditions.map((c) => (
+        <span
+          key={c}
+          className={`rounded-full bg-arcane/20 px-2 py-0.5 text-xs text-arcane ${
+            isDM ? 'cursor-pointer hover:bg-destructive/20 hover:text-destructive' : ''
+          }`}
+          onClick={isDM ? () => handleToggleCondition(entry.id, c) : undefined}
+          title={isDM ? `Remove ${c}` : c}
+        >
+          {c}
+        </span>
+      ))}
+      {isDM && (
+        <button
+          type="button"
+          onClick={() => setConditionPickerEntryId(showPicker ? null : entry.id)}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary/20 hover:text-primary"
+          title="Add condition"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      )}
+      {showPicker && (
+        <ConditionPicker
+          current={conditions}
+          onToggle={(c) => handleToggleCondition(entry.id, c)}
+          onClose={() => setConditionPickerEntryId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function renderDMHp(
+  entry: InitiativeEntry,
+  editingHpId: string | null,
+  hpInput: string,
+  hpInputRef: React.RefObject<HTMLInputElement | null>,
+  setEditingHpId: (id: string | null) => void,
+  setHpInput: (val: string) => void,
+  handleHpSubmit: (entryId: string, currentHp: number | undefined) => void,
+) {
+  if (editingHpId === entry.id) {
+    return (
+      <input
+        ref={hpInputRef}
+        type="number"
+        value={hpInput}
+        onChange={(e) => setHpInput(e.target.value)}
+        onBlur={() => handleHpSubmit(entry.id, entry.currentHp)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleHpSubmit(entry.id, entry.currentHp);
+          if (e.key === 'Escape') setEditingHpId(null);
+        }}
+        className="w-16 input-carved rounded-sm border border-border bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setEditingHpId(entry.id);
+        setHpInput(String(entry.currentHp ?? 0));
+      }}
+      className="cursor-pointer"
+      title="Click to edit HP"
+    >
+      <HpBar current={entry.currentHp!} max={entry.maxHp!} />
+    </button>
   );
 }

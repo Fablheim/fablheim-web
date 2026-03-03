@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Swords, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEncounters, useLoadEncounter } from '@/hooks/useEncounters';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { EncounterDifficulty } from '@/types/encounter';
 
 interface EncountersTabProps {
@@ -18,13 +20,13 @@ const DIFFICULTY_STYLES: Record<EncounterDifficulty, string> = {
 export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
   const { data: encounters, isLoading } = useEncounters(campaignId);
   const loadEncounter = useLoadEncounter(campaignId);
+  const [loadConfirmId, setLoadConfirmId] = useState<string | null>(null);
 
   function handleLoad(encounterId: string) {
-    if (!confirm('Load this encounter? Tokens will be copied to the battle map and NPCs added to initiative.')) return;
     loadEncounter.mutate(
       { encounterId, body: { addToInitiative: true, clearExistingMap: true } },
       {
-        onSuccess: () => toast.success('Encounter loaded'),
+        onSuccess: () => { toast.success('Encounter loaded'); setLoadConfirmId(null); },
         onError: () => toast.error('Failed to load encounter'),
       },
     );
@@ -56,6 +58,15 @@ export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
 
   return (
     <div className="p-3 space-y-2">
+      <ConfirmDialog
+        open={!!loadConfirmId}
+        title="Load Encounter?"
+        description="Tokens will be copied to the battle map and NPCs added to initiative. This will replace the current map contents."
+        confirmLabel="Load"
+        isPending={loadEncounter.isPending}
+        onConfirm={() => loadConfirmId && handleLoad(loadConfirmId)}
+        onCancel={() => setLoadConfirmId(null)}
+      />
       <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
         {encounters.length} encounter{encounters.length !== 1 ? 's' : ''} available
       </p>
@@ -84,7 +95,7 @@ export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
           {isDM && (
             <button
               type="button"
-              onClick={() => handleLoad(enc._id)}
+              onClick={() => setLoadConfirmId(enc._id)}
               disabled={loadEncounter.isPending}
               className="shrink-0 flex items-center gap-1 rounded-md border border-brass/40 bg-brass/10 px-2 py-1 text-[10px] text-brass hover:bg-brass/20 transition-colors font-[Cinzel] uppercase tracking-wider disabled:opacity-50 ml-2"
             >

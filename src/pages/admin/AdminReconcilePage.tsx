@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { AdminLayout } from './AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { useReconciliationReport, useFixReconciliation } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
 import type { ReconciliationDiscrepancy } from '@/api/admin';
 
 const SEVERITY_CLASSES: Record<string, string> = {
@@ -17,12 +16,11 @@ const SEVERITY_CLASSES: Record<string, string> = {
 export function AdminReconcilePage({ userId }: { userId: string }) {
   const { data: report, isLoading } = useReconciliationReport(userId);
   const fixMutation = useFixReconciliation();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
   const [showFixConfirm, setShowFixConfirm] = useState(false);
 
   function goBack() {
-    const path = '/app/admin/billing';
-    openTab({ title: 'Admin: Billing', path, content: resolveRouteContent(path, 'Admin: Billing') });
+    navigate('/app/admin/billing');
   }
 
   function handleFix() {

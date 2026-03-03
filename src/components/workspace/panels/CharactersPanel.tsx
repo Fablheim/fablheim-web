@@ -4,10 +4,10 @@ interface CharactersPanelProps {
   campaignId: string;
 }
 
-export function CharactersPanel(_props: CharactersPanelProps) {
+export function CharactersPanel({ campaignId }: CharactersPanelProps) {
   return (
     <div className="h-full overflow-y-auto">
-      <CharactersPage />
+      <CharactersPage campaignId={campaignId} mode="players-only" />
     </div>
   );
 }

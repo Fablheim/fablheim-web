@@ -3,10 +3,12 @@ import { type Page, expect } from '@playwright/test';
 export class AuthHelper {
   constructor(private page: Page) {}
 
-  /** Wait for the app shell to fully load (auth resolved, sidebar visible). */
+  /** Wait for the app shell to fully load (auth resolved, top nav visible). */
   private async waitForAppShell() {
-    // Wait for the loading spinner to disappear and the sidebar to render.
-    await expect(this.page.getByText('Sign Out')).toBeVisible({ timeout: 15_000 });
+    // The top nav "Campaigns" button is always visible when logged in on desktop.
+    await expect(
+      this.page.getByRole('button', { name: 'Campaigns' }),
+    ).toBeVisible({ timeout: 15_000 });
 
     // Dismiss the WelcomeTour modal if it appears (shows for first-time users).
     const skipTour = this.page.getByLabel('Skip tour');
@@ -36,12 +38,16 @@ export class AuthHelper {
   }
 
   async logout() {
+    // Open the user menu dropdown (aria-label="User menu"), then click Sign Out
+    await this.page.getByLabel('User menu').click();
     await this.page.getByText('Sign Out').click();
     await this.page.waitForURL('**/login', { timeout: 10_000 });
   }
 
   async expectLoggedIn() {
-    await expect(this.page.getByText('Sign Out')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      this.page.getByRole('button', { name: 'Campaigns' }),
+    ).toBeVisible({ timeout: 15_000 });
   }
 
   async expectLoggedOut() {
@@ -49,7 +55,7 @@ export class AuthHelper {
   }
 
   async expectAuthError() {
-    // Error container uses border-blood/30 styling
-    await expect(this.page.locator('.border-blood\\/30')).toBeVisible({ timeout: 5_000 });
+    // Error container uses border-red-400/30 styling
+    await expect(this.page.locator('.border-red-400\\/30')).toBeVisible({ timeout: 5_000 });
   }
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { MapPin, Loader2, Library } from 'lucide-react';
+import { MapPin, Loader2, Library, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAddEncounterToken, useUpdateEncounter } from '@/hooks/useEncounters';
+import { useCreateWorldEntity } from '@/hooks/useWorldEntities';
 import { SpawnEnemiesModal } from '@/components/enemies/SpawnEnemiesModal';
 import type { Encounter, EncounterNPC } from '@/types/encounter';
 import type { SpawnedEnemy } from '@/types/enemy-template';
@@ -19,7 +20,9 @@ const TOKEN_COLORS = [
 export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProps) {
   const addToken = useAddEncounterToken(campaignId, encounter._id);
   const updateEncounter = useUpdateEncounter(campaignId, encounter._id);
+  const createWorldEntity = useCreateWorldEntity();
   const [showSpawnModal, setShowSpawnModal] = useState(false);
+  const [savedNPCs, setSavedNPCs] = useState<Set<string>>(new Set());
 
   function placeNPC(npc: EncounterNPC, index: number) {
     const startX = 1 + (index * 2) % (encounter.gridWidth - 2);
@@ -90,8 +93,36 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
     );
   }
 
+  function saveToWorld(npc: EncounterNPC) {
+    createWorldEntity.mutate(
+      {
+        campaignId,
+        data: {
+          name: npc.name,
+          type: 'npc_minor',
+          description: npc.tactics ? `Tactics: ${npc.tactics}` : undefined,
+          tags: ['encounter-npc'],
+          typeData: {
+            hp: npc.hp,
+            ac: npc.ac,
+            cr: npc.cr,
+            initiativeBonus: npc.initiativeBonus,
+            statBlock: npc.statBlock,
+          },
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success(`${npc.name} saved to world`);
+          setSavedNPCs((prev) => new Set(prev).add(npc.name));
+        },
+        onError: () => toast.error(`Failed to save ${npc.name}`),
+      },
+    );
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="mkt-card mkt-card-mounted space-y-3 rounded-xl p-3">
       {renderHeader()}
       {encounter.npcs.length === 0 ? renderEmpty() : renderNPCCards()}
       <SpawnEnemiesModal
@@ -155,7 +186,7 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
         {encounter.npcs.map((npc, i) => (
           <div
             key={`${npc.name}-${i}`}
-            className="flex items-center justify-between rounded-md border border-iron/30 bg-background/40 px-3 py-2"
+            className="flex items-center justify-between rounded-md border border-iron/30 bg-background/30 px-3 py-2"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -173,15 +204,26 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
                 <span>Init +{npc.initiativeBonus}</span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => placeNPC(npc, i)}
-              disabled={addToken.isPending}
-              className="rounded p-1.5 text-muted-foreground hover:text-brass hover:bg-brass/10 transition-colors disabled:opacity-50"
-              title={`Place ${npc.name} on map`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => saveToWorld(npc)}
+                disabled={createWorldEntity.isPending || savedNPCs.has(npc.name)}
+                className="rounded p-1.5 text-muted-foreground hover:text-forest hover:bg-forest/10 transition-colors disabled:opacity-50"
+                title={savedNPCs.has(npc.name) ? `${npc.name} saved` : `Save ${npc.name} to world`}
+              >
+                <Globe className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => placeNPC(npc, i)}
+                disabled={addToken.isPending}
+                className="rounded p-1.5 text-muted-foreground hover:text-brass hover:bg-brass/10 transition-colors disabled:opacity-50"
+                title={`Place ${npc.name} on map`}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

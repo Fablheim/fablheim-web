@@ -1,13 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, Calendar, FileText, CheckCircle2, XCircle, Clock, Loader2, Dice5, Flame, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useSessions, useCreateSession } from '@/hooks/useSessions';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CampaignSelector } from '@/components/ui/CampaignSelector';
+import { AppEmptyState } from '@/components/app/AppEmptyState';
 import type { Session } from '@/types/campaign';
 
 type SessionFilter = 'all' | 'planned' | 'in_progress' | 'completed';
@@ -19,11 +19,24 @@ const STATUS_CONFIG: Record<Session['status'], { label: string; icon: typeof Clo
   cancelled:   { label: 'Cancelled',   icon: XCircle,      className: 'bg-muted text-muted-foreground' },
 };
 
-export function SessionsPage() {
-  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
-  const { openTab } = useTabs();
+interface SessionsPageProps {
+  initialCampaignId?: string;
+}
 
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+export function SessionsPage({ initialCampaignId }: SessionsPageProps = {}) {
+  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+  const navigate = useNavigate();
+
+  const [selectedCampaignId, setSelectedCampaignId] = useState(initialCampaignId ?? '');
+
+  // When campaigns load, validate the initial selection exists
+  useEffect(() => {
+    if (!campaigns || campaigns.length === 0) return;
+    if (selectedCampaignId && campaigns.some((c) => c._id === selectedCampaignId)) return;
+    if (initialCampaignId && campaigns.some((c) => c._id === initialCampaignId)) {
+      setSelectedCampaignId(initialCampaignId);
+    }
+  }, [campaigns, initialCampaignId, selectedCampaignId]);
   const [filter, setFilter] = useState<SessionFilter>('all');
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
@@ -60,7 +73,7 @@ export function SessionsPage() {
   async function handleStartSession() {
     if (!selectedCampaignId) return;
 
-    const nextNumber = (sessions?.length ?? 0) + 1;
+    const nextNumber = Math.max(...(sessions?.map((s) => s.sessionNumber) ?? [0])) + 1;
     try {
       await createSession.mutateAsync({
         campaignId: selectedCampaignId,
@@ -73,23 +86,13 @@ export function SessionsPage() {
       return;
     }
 
-    // Open the live session in the current tab
-    const path = `/app/campaigns/${selectedCampaignId}/live`;
-    openTab({
-      title: `Live: ${selectedCampaign?.name ?? 'Session'}`,
-      path,
-      content: resolveRouteContent(path, 'Live Session'),
-    });
+    // Navigate to the live session
+    navigate(`/app/campaigns/${selectedCampaignId}/session`);
   }
 
   function handleJoinSession() {
     if (!selectedCampaignId) return;
-    const path = `/app/campaigns/${selectedCampaignId}/live`;
-    openTab({
-      title: `Live: ${selectedCampaign?.name ?? 'Session'}`,
-      path,
-      content: resolveRouteContent(path, 'Live Session'),
-    });
+    navigate(`/app/campaigns/${selectedCampaignId}/session`);
   }
 
   function formatDate(dateStr: string): string {
@@ -146,16 +149,11 @@ export function SessionsPage() {
     >
       {/* No campaign selected */}
       {!selectedCampaignId && !campaignsLoading && (
-        <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
-          <div className="mx-auto max-w-sm">
-            <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
-              Choose a Campaign
-            </h3>
-            <p className="text-muted-foreground">
-              Select a campaign above to view its session chronicle
-            </p>
-          </div>
-        </div>
+        <AppEmptyState
+          icon={Calendar}
+          title="Choose a campaign"
+          reason="Select a campaign above to view its session chronicle and start or join live play."
+        />
       )}
 
       {/* Campaign selected */}
@@ -213,30 +211,26 @@ export function SessionsPage() {
 
           {/* Empty */}
           {!sessionsLoading && !sessionsError && filteredSessions.length === 0 && (
-            <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
-              <div className="mx-auto max-w-sm">
-                <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
-                  {filter !== 'all'
-                    ? `No ${filter.replace('_', ' ')} sessions`
-                    : 'No sessions yet'}
-                </h3>
-                <p className="mb-6 text-muted-foreground">
-                  {filter !== 'all'
-                    ? 'Try a different filter'
-                    : 'Begin your chronicle — start your first session!'}
-                </p>
-                {filter === 'all' && isDM && (
-                  <Button
-                    onClick={handleStartSession}
-                    disabled={createSession.isPending}
-                    className="shadow-glow"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Start First Session
-                  </Button>
-                )}
-              </div>
-            </div>
+            <AppEmptyState
+              icon={Clock}
+              title={filter !== 'all' ? `No ${filter.replace('_', ' ')} sessions` : 'No sessions yet'}
+              reason={filter !== 'all' ? 'No sessions match this filter yet.' : 'Begin your chronicle by starting your first session.'}
+              primaryAction={filter === 'all' && isDM ? (
+                <Button
+                  onClick={handleStartSession}
+                  disabled={createSession.isPending}
+                  className="shadow-glow"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  Start First Session
+                </Button>
+              ) : undefined}
+              secondaryAction={filter !== 'all' ? (
+                <Button variant="outline" onClick={() => setFilter('all')}>
+                  Show all sessions
+                </Button>
+              ) : undefined}
+            />
           )}
 
           {/* Session list */}
@@ -309,11 +303,11 @@ export function SessionsPage() {
 
                     {/* Expanded detail */}
                     {isViewing && (
-                      <div className="mt-1 rounded-b-lg border border-t-0 border-border bg-card p-5 texture-parchment">
+                      <div className="app-card mt-1 rounded-b-lg border border-t-0 border-border bg-card p-5 texture-parchment">
                         {session.summary && (
-                          <div className="mb-4">
-                            <p className="mb-1 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">Summary</p>
-                            <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground">
+                          <div className="mb-4 rounded-lg border border-[hsla(38,30%,35%,0.2)] bg-[hsla(24,16%,10%,0.45)] p-3">
+                            <p className="mb-1 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">Session Summary</p>
+                            <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground/95">
                               {session.summary}
                             </p>
                           </div>
@@ -330,7 +324,7 @@ export function SessionsPage() {
                         )}
 
                         {(session.aiRecap || session.aiSummary) && (
-                          <div className="mb-4">
+                          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
                             <div className="divider-ornate mb-3" />
                             <p className="mb-1 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
                               <span className="inline-flex items-center gap-1">
@@ -338,7 +332,7 @@ export function SessionsPage() {
                                 {session.aiRecap ? 'AI Recap' : 'AI Summary'}
                               </span>
                             </p>
-                            <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground">
+                            <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground/95">
                               {session.aiRecap || session.aiSummary}
                             </p>
                           </div>

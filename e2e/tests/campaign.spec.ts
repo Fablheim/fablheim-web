@@ -38,12 +38,14 @@ test.describe('Campaigns', () => {
     const campaign = generateCampaign();
     await form.createCampaign({ name: campaign.name, system: 'dnd5e' });
 
-    // Click on the campaign card to open it in a tab
+    // Click on the campaign card to open the workspace
     await page.getByText(campaign.name).click();
 
-    // Verify quick actions are visible in the campaign detail view
+    // Navigate to the Overview section to see Quick Actions
+    await nav.clickPrepSection('Overview');
+
+    // Verify quick actions are visible in the campaign overview
     await expect(page.getByText('Quick Actions')).toBeVisible({ timeout: 10_000 });
-    // Use exact match scoped to quick actions area to avoid sidebar/heading collisions
     await expect(page.getByText('Manage PCs and NPCs')).toBeVisible();
     await expect(page.getByText('Plan & prep encounters')).toBeVisible();
   });
@@ -68,10 +70,10 @@ test.describe('Campaigns', () => {
     const campaign = generateCampaign();
     await form.createCampaign({ name: campaign.name, system: 'dnd5e' });
 
-    // Click on the campaign to open detail in a tab
+    // Click on the campaign to open the workspace
     await page.getByText(campaign.name).click();
 
-    // Campaign detail should load with quick actions visible
-    await expect(page.getByText('Quick Actions')).toBeVisible({ timeout: 10_000 });
+    // Workspace should load — the prep sidebar is visible
+    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 });
   });
 });

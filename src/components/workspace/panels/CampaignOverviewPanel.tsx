@@ -8,7 +8,7 @@ interface CampaignOverviewPanelProps {
 
 export function CampaignOverviewPanel({ campaign }: CampaignOverviewPanelProps) {
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4 mkt-hero-stage">
       <CampaignOverview campaign={campaign} />
       <QuickActions campaignId={campaign._id} />
     </div>

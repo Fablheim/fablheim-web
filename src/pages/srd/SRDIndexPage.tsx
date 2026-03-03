@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import {
   BookOpenText,
@@ -14,8 +14,12 @@ import { useAuth } from '@/context/AuthContext';
 import { srdApi } from '@/api/srd';
 import { useSRDSystems } from '@/hooks/useSRD';
 import { quickStartConfigs } from './quickStartConfigs';
+import { rulesSystemPath } from './rulesRouting';
 import { Button } from '@/components/ui/Button';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
+import { SEO } from '@/components/seo/SEO';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { breadcrumbListSchema, collectionPageSchema } from '@/seo/schema';
 
 const SYSTEM_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   dnd5e: Swords,
@@ -69,11 +73,17 @@ function Hero() {
   );
 }
 
-export default function SRDIndexPage() {
+interface SRDIndexPageProps {
+  basePathOverride?: '/app/rules' | '/srd';
+}
+
+export default function SRDIndexPage({ basePathOverride }: SRDIndexPageProps = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const rulesPathContext = basePathOverride ?? location.pathname;
+  const inAppRules = rulesPathContext.startsWith('/app/rules');
   const { user } = useAuth();
   const { data, isLoading, error } = useSRDSystems();
-
   const systems = data?.systems ?? [];
   const [query, setQuery] = useState('');
   const [systemFilter, setSystemFilter] = useState<string>('all');
@@ -148,12 +158,41 @@ export default function SRDIndexPage() {
 
   return (
     <MarketingPage>
+      <SEO
+        title="TTRPG Rules Library | Fablheim SRD"
+        description="Browse public SRD rules for D&D 5e, Pathfinder 2e, Fate Core, and Daggerheart in one searchable library."
+        canonicalPath="/srd"
+        noindex={inAppRules}
+      />
+      <JsonLd
+        data={collectionPageSchema({
+          name: 'Fablheim Rules Library',
+          path: '/srd',
+          description: 'Public system reference library for tabletop RPG play and prep.',
+        })}
+      />
+      <JsonLd
+        data={breadcrumbListSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Rules Library', path: '/srd' },
+        ])}
+      />
+
       <MarketingNavbar
         user={user}
         links={[
-          { label: 'Home', to: '/' },
-          { label: 'How It Works', to: '/how-it-works' },
-          { label: 'New to TTRPGs?', to: '/new-to-ttrpgs' },
+          {
+            label: inAppRules ? 'Dashboard' : 'Home',
+            to: inAppRules ? '/app' : '/',
+          },
+          {
+            label: inAppRules ? 'Sessions' : 'How It Works',
+            to: inAppRules ? '/app/sessions' : '/how-it-works',
+          },
+          {
+            label: inAppRules ? 'Campaign Hall' : 'New to TTRPGs?',
+            to: inAppRules ? '/app/campaigns' : '/new-to-ttrpgs',
+          },
         ]}
       />
 
@@ -233,7 +272,7 @@ export default function SRDIndexPage() {
                       return (
                         <button
                           key={system.id}
-                          onClick={() => navigate(`/srd/${system.id}`)}
+                          onClick={() => navigate(rulesSystemPath(rulesPathContext, system.id))}
                           className="mkt-card mkt-card-mounted h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/40"
                         >
                           <div className="flex h-full flex-col">
@@ -271,7 +310,7 @@ export default function SRDIndexPage() {
                         <Button
                           variant="outline"
                           className="mt-4 self-start"
-                          onClick={() => navigate(`/srd/${system.id}`)}
+                          onClick={() => navigate(rulesSystemPath(rulesPathContext, system.id))}
                         >
                           Open guide
                         </Button>
@@ -307,7 +346,11 @@ export default function SRDIndexPage() {
                   {results.map((result) => (
                     <button
                       key={`${result.systemId}:${result.category}:${result.title}`}
-                      onClick={() => navigate(`/srd/${result.systemId}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`)}
+                      onClick={() =>
+                        navigate(
+                          `${rulesSystemPath(rulesPathContext, result.systemId)}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`,
+                        )
+                      }
                       className="mkt-card h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/45"
                     >
                       <div className="flex h-full flex-col">

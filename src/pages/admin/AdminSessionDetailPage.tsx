@@ -17,8 +17,7 @@ import {
   useSessionEvents,
   useResyncSession,
 } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
 import type { SampledEvent } from '@/api/admin';
 
 const EVENT_TYPE_FILTER_OPTIONS = [
@@ -45,15 +44,10 @@ export function AdminSessionDetailPage({
   const { data: events, isLoading: eventsLoading } =
     useSessionEvents(sessionId, eventTypeFilter || undefined);
   const resync = useResyncSession();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   function handleBackToSessions() {
-    const path = '/app/admin/sessions';
-    openTab({
-      title: 'Admin: Sessions',
-      path,
-      content: resolveRouteContent(path, 'Admin: Sessions'),
-    });
+    navigate('/app/admin/sessions');
   }
 
   function handleResync() {

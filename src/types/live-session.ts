@@ -43,6 +43,18 @@ export interface InitiativeUpdatedEvent {
   action: 'entry-added' | 'entry-updated' | 'entry-removed' | 'combat-started' | 'turn-advanced' | 'combat-ended';
   entryId?: string;
   initiative: Initiative;
+  stateVersion?: number;
+}
+
+// ── Sync / Reconnection ──────────────────────────────────────
+
+export interface SyncResponse {
+  connectedUsers: ConnectedUser[];
+  sessionState: { isActive: boolean; startedAt?: string; pausedAt?: string; currentTurn?: string; activeScene?: string };
+  initiative: Initiative | null;
+  missedMessages: import('@/types/campaign').ChatMessage[];
+  currentStateVersion: number;
+  desynced: boolean;
 }
 
 // ── Initiative ───────────────────────────────────────────────

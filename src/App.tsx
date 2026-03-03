@@ -10,6 +10,13 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import NewToTTRPGsPage from './pages/NewToTTRPGsPage';
+import PricingPage from './pages/PricingPage';
+import BlogIndexPage from './pages/BlogIndexPage';
+import RoadmapPage from './pages/RoadmapPage';
+import Dnd5ePage from './pages/systems/Dnd5ePage';
+import Pathfinder2ePage from './pages/systems/Pathfinder2ePage';
+import FateCorePage from './pages/systems/FateCorePage';
+import DaggerheartPage from './pages/systems/DaggerheartPage';
 import SRDIndexPage from './pages/srd/SRDIndexPage';
 import SRDQuickStartPage from './pages/srd/SRDQuickStartPage';
 import SRDSystemPage from './pages/srd/SRDSystemPage';
@@ -42,7 +49,14 @@ function App() {
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/blog" element={<BlogIndexPage />} />
+      <Route path="/roadmap" element={<RoadmapPage />} />
       <Route path="/new-to-ttrpgs" element={<NewToTTRPGsPage />} />
+      <Route path="/systems/dnd-5e" element={<Dnd5ePage />} />
+      <Route path="/systems/pathfinder-2e" element={<Pathfinder2ePage />} />
+      <Route path="/systems/fate-core" element={<FateCorePage />} />
+      <Route path="/systems/daggerheart" element={<DaggerheartPage />} />
       <Route path="/legal" element={<LegalPage />} />
       <Route path="/legal/terms" element={<TermsOfServicePage />} />
       <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />

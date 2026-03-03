@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { connectSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
+import type { SyncResponse } from '@/types/live-session';
 
 export function useSocket() {
   const [connected, setConnected] = useState(false);
@@ -41,6 +42,17 @@ export interface SessionRoomState {
   connectedUsers: ConnectedUser[];
   joined: boolean;
   error: string | null;
+  desynced: boolean;
+  syncData: SyncResponse | null;
+}
+
+/** Shallow-compare two ConnectedUser arrays to avoid unnecessary re-renders. */
+function usersEqual(a: ConnectedUser[], b: ConnectedUser[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].userId !== b[i].userId || a[i].socketId !== b[i].socketId) return false;
+  }
+  return true;
 }
 
 export function useSessionRoom(campaignId: string | null) {
@@ -50,7 +62,14 @@ export function useSessionRoom(campaignId: string | null) {
     connectedUsers: [],
     joined: false,
     error: null,
+    desynced: false,
+    syncData: null,
   });
+
+  // Track stateVersion and lastMessageTimestamp across events
+  const stateVersionRef = useRef<number>(0);
+  const lastMessageTimestampRef = useRef<string | undefined>(undefined);
+  const hadPreviousConnectionRef = useRef(false);
 
   useEffect(() => {
     setState(prev => ({ ...prev, connected }));
@@ -59,9 +78,16 @@ export function useSessionRoom(campaignId: string | null) {
   useEffect(() => {
     if (!socket || !connected || !campaignId) return;
 
+    // Determine if this is a reconnection (not the very first connect)
+    const isReconnect = hadPreviousConnectionRef.current;
+    hadPreviousConnectionRef.current = true;
+
     // Join session room
     socket.emit('join-session', { campaignId }, (response: any) => {
       if (response.success) {
+        if (response.stateVersion !== undefined) {
+          stateVersionRef.current = response.stateVersion;
+        }
         setState(prev => ({
           ...prev,
           joined: true,
@@ -73,25 +99,95 @@ export function useSessionRoom(campaignId: string | null) {
       }
     });
 
-    // Listen for user joins/leaves
-    function onUserJoined(data: { userId: string; username: string; role: string; connectedUsers: ConnectedUser[] }) {
-      setState(prev => ({ ...prev, connectedUsers: data.connectedUsers }));
+    // On reconnect, also send an explicit sync-request with last known state
+    if (isReconnect) {
+      socket.emit('sync-request', {
+        campaignId,
+        lastStateVersion: stateVersionRef.current,
+        lastMessageTimestamp: lastMessageTimestampRef.current,
+      });
     }
-    function onUserLeft(data: { userId: string; username: string; connectedUsers: ConnectedUser[] }) {
-      setState(prev => ({ ...prev, connectedUsers: data.connectedUsers }));
+
+    // Listen for user joins/leaves (now include stateVersion tracking)
+    function onUserJoined(data: { userId: string; username: string; role: string; connectedUsers: ConnectedUser[]; stateVersion?: number }) {
+      if (data.stateVersion !== undefined) {
+        stateVersionRef.current = data.stateVersion;
+      }
+      setState(prev =>
+        usersEqual(prev.connectedUsers, data.connectedUsers)
+          ? prev
+          : { ...prev, connectedUsers: data.connectedUsers },
+      );
+    }
+    function onUserLeft(data: { userId: string; username: string; connectedUsers: ConnectedUser[]; stateVersion?: number }) {
+      if (data.stateVersion !== undefined) {
+        stateVersionRef.current = data.stateVersion;
+      }
+      setState(prev =>
+        usersEqual(prev.connectedUsers, data.connectedUsers)
+          ? prev
+          : { ...prev, connectedUsers: data.connectedUsers },
+      );
+    }
+
+    // Listen for sync-response (sent on join, reconnect, or explicit sync-request)
+    function onSyncResponse(data: SyncResponse) {
+      stateVersionRef.current = data.currentStateVersion;
+      setState(prev => {
+        const sameUsers = usersEqual(prev.connectedUsers, data.connectedUsers);
+        const sameDesync = prev.desynced === data.desynced;
+        if (sameUsers && sameDesync) return prev;
+        return {
+          ...prev,
+          connectedUsers: sameUsers ? prev.connectedUsers : data.connectedUsers,
+          desynced: data.desynced,
+          syncData: data,
+        };
+      });
+    }
+
+    // Track lastMessageTimestamp from chat messages for reconnection sync
+    function onChatMessage(msg: { createdAt?: string }) {
+      if (msg.createdAt) {
+        lastMessageTimestampRef.current = msg.createdAt;
+      }
     }
 
     socket.on('user-joined', onUserJoined);
     socket.on('user-left', onUserLeft);
+    socket.on('sync-response', onSyncResponse);
+    socket.on('chat:message', onChatMessage);
 
     return () => {
       socket.emit('leave-session', { campaignId });
       socket.off('user-joined', onUserJoined);
       socket.off('user-left', onUserLeft);
+      socket.off('sync-response', onSyncResponse);
+      socket.off('chat:message', onChatMessage);
     };
   }, [socket, connected, campaignId]);
 
-  return state;
+  /** Update stateVersion from external events (initiative-updated, hp:changed, etc.) */
+  const updateStateVersion = useCallback((version: number) => {
+    stateVersionRef.current = version;
+  }, []);
+
+  /** Track the latest message timestamp for reconnection sync */
+  const updateLastMessageTimestamp = useCallback((timestamp: string) => {
+    lastMessageTimestampRef.current = timestamp;
+  }, []);
+
+  /** Dismiss the desynced banner */
+  const dismissDesync = useCallback(() => {
+    setState(prev => ({ ...prev, desynced: false }));
+  }, []);
+
+  return {
+    ...state,
+    updateStateVersion,
+    updateLastMessageTimestamp,
+    dismissDesync,
+  };
 }
 
 /** Subscribe to a socket event. The callback is stable via ref so it won't cause re-subscriptions. */

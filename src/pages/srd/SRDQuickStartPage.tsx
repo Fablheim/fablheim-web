@@ -1,18 +1,20 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, FolderOpen, Loader2, Search, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useSRDSearch } from '@/hooks/useSRD';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 import { quickStartConfigs } from './quickStartConfigs';
+import SRDSystemPage from './SRDSystemPage';
+import { rulesBrowsePath, rulesEntryPath, rulesIndexPath } from './rulesRouting';
 import type { QuickStartLink, QuickStartSection } from './quickStartConfigs';
 
-function buildLinkUrl(system: string, link: QuickStartLink): string {
+function buildLinkUrl(pathname: string, system: string, link: QuickStartLink): string {
   if (link.type === 'category') {
-    return `/srd/${system}/browse/${encodeURIComponent(link.category)}`;
+    return rulesBrowsePath(pathname, system, link.category);
   }
-  return `/srd/${system}/${encodeURIComponent(link.category)}/${encodeURIComponent(link.entry!)}`;
+  return rulesEntryPath(pathname, system, link.category, link.entry!);
 }
 
 function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
@@ -27,6 +29,7 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
 
 function renderSection(
   section: QuickStartSection,
+  pathname: string,
   system: string,
   navigate: ReturnType<typeof useNavigate>,
 ) {
@@ -47,7 +50,7 @@ function renderSection(
         {section.links.map((link) => (
           <li key={link.label}>
             <button
-              onClick={() => navigate(buildLinkUrl(system, link))}
+              onClick={() => navigate(buildLinkUrl(pathname, system, link))}
               className="mkt-tab flex w-full items-center gap-3 rounded-md px-3 py-2 text-left"
             >
               {link.type === 'category' ? (
@@ -69,10 +72,19 @@ function renderSection(
   );
 }
 
-export default function SRDQuickStartPage() {
+interface SRDQuickStartPageProps {
+  systemOverride?: string;
+  basePathOverride?: '/app/rules' | '/srd';
+}
+
+export default function SRDQuickStartPage({ systemOverride, basePathOverride }: SRDQuickStartPageProps = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const rulesPathContext = basePathOverride ?? location.pathname;
+  const inAppRules = rulesPathContext.startsWith('/app/rules');
   const { user } = useAuth();
-  const { system = '' } = useParams<{ system: string }>();
+  const params = useParams<{ system: string }>();
+  const system = systemOverride ?? params.system ?? '';
   const [query, setQuery] = useState('');
 
   const config = quickStartConfigs[system];
@@ -81,27 +93,8 @@ export default function SRDQuickStartPage() {
   const searchResults = useMemo(() => searchData?.results ?? [], [searchData]);
 
   if (!config) {
-    return (
-      <MarketingPage>
-        <MarketingNavbar
-          user={user}
-          links={[
-            { label: 'Rules Library', to: '/srd', icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
-            { label: 'Home', to: '/' },
-          ]}
-        />
-        <section className="mkt-section px-4 py-24 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl">
-            <article className="mkt-card rounded-xl p-8 text-center">
-              <h1 className="font-[Cinzel] text-3xl text-[color:var(--mkt-text)]">Rules guide not found</h1>
-              <p className="mt-3 text-[color:var(--mkt-muted)]">This system does not have a quick guide yet.</p>
-              <Button className="mt-5" variant="outline" onClick={() => navigate('/srd')}>Back to Rules Library</Button>
-            </article>
-          </div>
-        </section>
-        <MarketingFooter />
-      </MarketingPage>
-    );
+    // No quick-start guide for this system: fall back to full system browse.
+    return <SRDSystemPage systemOverride={system} basePathOverride={basePathOverride} />;
   }
 
   return (
@@ -109,8 +102,11 @@ export default function SRDQuickStartPage() {
       <MarketingNavbar
         user={user}
         links={[
-          { label: 'Rules Library', to: '/srd', icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
-          { label: 'How It Works', to: '/how-it-works' },
+          { label: 'Rules Library', to: rulesIndexPath(rulesPathContext), icon: <ChevronLeft className="mr-1 h-4 w-4" /> },
+          {
+            label: inAppRules ? 'Dashboard' : 'How It Works',
+            to: inAppRules ? '/app' : '/how-it-works',
+          },
         ]}
       />
 
@@ -127,7 +123,7 @@ export default function SRDQuickStartPage() {
           <p className="mt-2 max-w-3xl text-sm text-[color:var(--mkt-muted)]">System Reference Documents (SRDs), searchable by system.</p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="outline" onClick={() => navigate(`/srd/${system}/browse`)}>
+            <Button variant="outline" onClick={() => navigate(rulesBrowsePath(rulesPathContext, system))}>
               Browse full rules index
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -179,7 +175,7 @@ export default function SRDQuickStartPage() {
                   {searchResults.map((result) => (
                     <button
                       key={`${result.category}:${result.title}`}
-                      onClick={() => navigate(`/srd/${system}/${encodeURIComponent(result.category)}/${encodeURIComponent(result.title)}`)}
+                      onClick={() => navigate(rulesEntryPath(rulesPathContext, system, result.category, result.title))}
                       className="mkt-card h-full rounded-xl p-5 text-left transition-colors hover:border-[color:var(--mkt-accent)]/40"
                     >
                       <div className="flex h-full flex-col">
@@ -202,7 +198,7 @@ export default function SRDQuickStartPage() {
                 body="Start with common paths, then drill into full category browse as needed."
               />
               <div className="mt-6 grid gap-4 md:grid-cols-2 items-stretch">
-                {config.sections.map((section) => renderSection(section, system, navigate))}
+                {config.sections.map((section) => renderSection(section, rulesPathContext, system, navigate))}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react';
 import type { SpellSlots as SpellSlotsType, SpellSlotLevel } from '@/types/campaign';
 
 interface SpellSlotsProps {
-  spellSlots: SpellSlotsType;
+  spellSlots: SpellSlotsType | undefined;
   onConsume: (level: number) => void;
   onRestore: (level: number) => void;
   editable?: boolean;
@@ -20,6 +20,8 @@ export function SpellSlots({
   onRestore,
   editable = true,
 }: SpellSlotsProps) {
+  if (!spellSlots) return null;
+
   // Only show levels that have slots configured
   const activeLevels = SLOT_LEVELS.filter((level) => {
     const slot = getSlot(spellSlots, level);

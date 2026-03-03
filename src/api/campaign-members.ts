@@ -7,6 +7,8 @@ export interface CampaignMembership {
     name: string;
     description: string;
     status: string;
+    stage?: string;
+    system?: string;
   };
   userId: string;
   role: 'player' | 'co_dm';

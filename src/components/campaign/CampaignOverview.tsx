@@ -10,13 +10,13 @@ interface CampaignOverviewProps {
 
 function StatCard({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string | number }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-iron/30 bg-accent/20 px-4 py-3 texture-parchment">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-primary/10">
-        <Icon className="h-4 w-4 text-primary" />
+    <div className="mkt-card flex items-center gap-3 rounded-md border border-iron/30 px-4 py-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--mkt-border)] bg-black/25">
+        <Icon className="h-4.5 w-4.5 text-[color:var(--mkt-accent)]" />
       </div>
       <div>
-        <p className="font-[Cinzel] text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
-        <p className="font-[Cinzel] text-sm font-semibold text-foreground">{value}</p>
+        <p className="font-[Cinzel] text-[10px] uppercase tracking-widest text-[color:var(--mkt-muted)]">{label}</p>
+        <p className="font-[Cinzel] text-base font-semibold text-[color:var(--mkt-text)]">{value}</p>
       </div>
     </div>
   );
@@ -33,22 +33,25 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
   return (
     <div className="space-y-4">
       {/* Description & tags */}
-      <div className="rounded-lg border border-border bg-card p-5 tavern-card texture-parchment iron-brackets">
+      <div className="mkt-card mkt-card-mounted rounded-xl border border-border p-5 iron-brackets">
+        <p className="mkt-chip mb-3 inline-flex px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+          Campaign Snapshot
+        </p>
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="inline-flex items-center rounded-md bg-brass/20 px-2 py-0.5 text-xs font-medium text-brass">
+          <span className="inline-flex items-center rounded-md border border-brass/35 bg-brass/22 px-2 py-0.5 text-xs font-medium text-brass">
             {systemLabels[campaign.system]}
           </span>
-          <span className="inline-flex items-center rounded-md bg-forest/20 px-2 py-0.5 text-xs font-medium text-forest">
+          <span className="inline-flex items-center rounded-md border border-forest/35 bg-forest/20 px-2 py-0.5 text-xs font-medium text-[hsl(150,50%,60%)]">
             {statusLabels[campaign.status]}
           </span>
           {campaign.setting && (
-            <span className="inline-flex items-center rounded-md bg-arcane/15 px-2 py-0.5 text-xs text-arcane">
+            <span className="inline-flex items-center rounded-md border border-arcane/30 bg-arcane/15 px-2 py-0.5 text-xs text-arcane">
               {campaign.setting}
             </span>
           )}
         </div>
         {campaign.description && (
-          <p className="text-base text-muted-foreground font-['IM_Fell_English'] italic leading-relaxed">
+          <p className="text-base text-[color:var(--mkt-muted)] font-['IM_Fell_English'] italic leading-relaxed">
             {campaign.description}
           </p>
         )}

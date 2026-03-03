@@ -150,10 +150,9 @@ export interface CreateCharacterPayload {
     investigation: number;
   };
   systemData?: Record<string, any>;
-}
-
-export type UpdateCharacterPayload = Partial<Omit<CreateCharacterPayload, 'campaignId'>> & {
-  mechanicData?: Record<string, any>;
+  hp?: { current: number; max: number; temp: number };
+  ac?: number;
+  speed?: number;
   portrait?: {
     url: string;
     key: string;
@@ -161,6 +160,10 @@ export type UpdateCharacterPayload = Partial<Omit<CreateCharacterPayload, 'campa
     width: number;
     height: number;
   };
+}
+
+export type UpdateCharacterPayload = Partial<Omit<CreateCharacterPayload, 'campaignId'>> & {
+  mechanicData?: Record<string, any>;
 };
 
 // ── Roll Results ─────────────────────────────────────────
@@ -341,4 +344,5 @@ export interface UpdateSessionRequest {
   notes?: string;
   scheduledDate?: string;
   status?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  aiRecap?: string;
 }

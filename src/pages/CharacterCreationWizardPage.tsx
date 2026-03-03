@@ -337,6 +337,7 @@ function WizardContent({
     if (draft.backstory) backstoryParts.push(draft.backstory);
     const fullBackstory = backstoryParts.join('\n\n') || undefined;
 
+    const hpMax = draft.hpMax ?? 10;
     const payload = {
       campaignId,
       name: draft.name.trim(),
@@ -347,6 +348,9 @@ function WizardContent({
       ...(passiveScores ? { passiveScores } : {}),
       ...(Object.keys(draft.systemData).length > 0 ? { systemData: draft.systemData } : {}),
       backstory: fullBackstory,
+      hp: { current: hpMax, max: hpMax, temp: 0 },
+      ac: draft.ac ?? 10,
+      speed: draft.speed ?? 30,
       ...(portrait ? { portrait } : {}),
     };
 

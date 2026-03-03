@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Pencil, Trash2, Dice5 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -7,7 +7,6 @@ interface CharacterDetailPageProps {
   characterId?: string;
 }
 import { useAuth } from '@/context/AuthContext';
-import { useTabs } from '@/context/TabContext';
 import { useCharacter, useUpdateCharacter, useDeleteCharacter } from '@/hooks/useCharacters';
 import { useCampaign } from '@/hooks/useCampaigns';
 import { useSystemDefinition } from '@/hooks/useSystems';
@@ -21,7 +20,6 @@ import {
   useRollAttack,
   useRollAbility,
 } from '@/hooks/useCharacterCombat';
-import { resolveRouteContent } from '@/routes';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { EditableTextSection } from '@/components/characters/EditableTextSection';
@@ -48,7 +46,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const params = useParams<{ id: string }>();
   const id = characterId ?? params.id;
   const { user } = useAuth();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
   const { data: character, isLoading, error } = useCharacter(id!);
   const { data: campaign } = useCampaign(character?.campaignId ?? '');
   const { data: systemDef } = useSystemDefinition(campaign?.system ?? 'dnd5e');
@@ -72,11 +70,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const isOwner = character?.userId === user?._id;
 
   function handleBack() {
-    openTab({
-      title: 'Characters',
-      path: '/app/characters',
-      content: resolveRouteContent('/app/characters', 'Characters'),
-    });
+    navigate('/app/characters');
   }
 
   function saveField(field: string, value: string) {

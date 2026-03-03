@@ -1,5 +1,7 @@
 import type { PanelId } from '@/types/workspace';
 import type { Campaign } from '@/types/campaign';
+import { PanelProvider } from '@/context/PanelContext';
+import { useSessionRoom } from '@/hooks/useSocket';
 
 // Session components
 import { InitiativeTracker } from '@/components/session/InitiativeTracker';
@@ -13,6 +15,7 @@ import { AIToolsTab } from '@/components/session/AIToolsTab';
 import { PartyOverview } from '@/components/session/PartyOverview';
 import { QuickReference } from '@/components/session/QuickReference';
 import DiceRoller from '@/components/session/DiceRoller';
+import { LiveCharacterSheet } from '@/components/session/LiveCharacterSheet';
 
 // Page components used as panels
 import { AIToolsPage } from '@/pages/AIToolsPage';
@@ -28,6 +31,7 @@ import { NotebookPanel } from './panels/NotebookPanel';
 import { CharactersPanel } from './panels/CharactersPanel';
 import { SessionNotesRecapPanel } from './panels/SessionNotesRecapPanel';
 import { CampaignBrainPanel } from './panels/CampaignBrainPanel';
+import { RulesPanel } from './panels/RulesPanel';
 
 export interface PanelRendererProps {
   panelId: PanelId;
@@ -37,6 +41,19 @@ export interface PanelRendererProps {
 }
 
 export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRendererProps) {
+  return (
+    <PanelProvider>
+      {renderPanel(panelId, campaign, isDM, sessionId)}
+    </PanelProvider>
+  );
+}
+
+function ChatPanelConnected({ campaignId }: { campaignId: string }) {
+  const { connectedUsers } = useSessionRoom(campaignId);
+  return <ChatPanel campaignId={campaignId} connectedUsers={connectedUsers} />;
+}
+
+function renderPanel(panelId: PanelId, campaign: Campaign, isDM: boolean, sessionId?: string) {
   const campaignId = campaign._id;
 
   switch (panelId) {
@@ -55,6 +72,8 @@ export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRende
       return <AIToolsPage campaignId={campaignId} />;
     case 'campaign-brain':
       return <CampaignBrainPanel campaignId={campaignId} />;
+    case 'rules':
+      return <RulesPanel campaignId={campaignId} system={campaign.system} />;
 
     // ── Live ──────────────────────────────────────────────
     case 'initiative':
@@ -62,7 +81,7 @@ export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRende
     case 'map':
       return <MapTab campaignId={campaignId} isDM={isDM} />;
     case 'chat':
-      return <ChatPanel campaignId={campaignId} connectedUsers={[]} />;
+      return <ChatPanelConnected campaignId={campaignId} />;
     case 'session-notes':
       return <SessionNotesTab campaignId={campaignId} />;
     case 'encounters-live':
@@ -79,6 +98,8 @@ export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRende
       return <QuickReference campaignId={campaignId} />;
     case 'dice-roller':
       return <DiceRoller campaignId={campaignId} />;
+    case 'character-sheet':
+      return <LiveCharacterSheet campaignId={campaignId} isDM={isDM} />;
 
     // ── Recap ─────────────────────────────────────────────
     case 'session-recap':

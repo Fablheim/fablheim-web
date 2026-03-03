@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,11 +29,17 @@ const TAB_DEFAULT_TYPES: Partial<Record<WorldTab, WorldEntityType>> = {
   events: 'event',
 };
 
-export function WorldPage() {
+interface WorldPageProps {
+  campaignId?: string;
+}
+
+export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
   const queryClient = useQueryClient();
   const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+  const [searchParams] = useSearchParams();
+  const effectiveCampaignId = propCampaignId ?? (searchParams.get('campaign') ?? '');
 
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState(effectiveCampaignId);
   const [activeTab, setActiveTab] = useState<WorldTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -172,15 +179,17 @@ export function WorldPage() {
       actions={
         <div className="flex items-center gap-3">
           {/* Campaign Selector */}
-          <CampaignSelector
-            campaigns={campaigns ?? []}
-            value={selectedCampaignId}
-            onChange={(id) => {
-              setSelectedCampaignId(id);
-              setActiveTab('all');
-              setSearchQuery('');
-            }}
-          />
+          {!effectiveCampaignId && (
+            <CampaignSelector
+              campaigns={campaigns ?? []}
+              value={selectedCampaignId}
+              onChange={(id) => {
+                setSelectedCampaignId(id);
+                setActiveTab('all');
+                setSearchQuery('');
+              }}
+            />
+          )}
 
           {/* Search */}
           {selectedCampaignId && (
@@ -206,9 +215,9 @@ export function WorldPage() {
         </div>
       }
     >
-      {/* No campaign selected */}
+      {/* No campaign selected — only show when no campaign came from prop or URL */}
       {!selectedCampaignId && !campaignsLoading && (
-        <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+        <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
           <div className="mx-auto max-w-sm">
             <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
               Choose a Campaign
@@ -224,23 +233,23 @@ export function WorldPage() {
       {selectedCampaignId && (
         <>
           {/* Tabs */}
-          <div className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
+          <div className="mkt-card mb-6 flex gap-1 overflow-x-auto rounded-xl border-b border-border px-2 py-2">
             {WORLD_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                  className={`flex shrink-0 items-center gap-2 rounded-md border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
                     activeTab === tab.key
-                      ? 'border-brass text-brass'
-                      : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+                      ? 'border-brass bg-brass/10 text-brass'
+                      : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/35 hover:text-foreground'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {tab.label}
                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    activeTab === tab.key ? 'bg-brass/20 text-brass' : 'bg-muted text-muted-foreground'
+                    activeTab === tab.key ? 'bg-brass/25 text-brass' : 'bg-muted text-muted-foreground'
                   }`}>
                     {tabCounts[tab.key]}
                   </span>
@@ -265,7 +274,7 @@ export function WorldPage() {
               {entitiesLoading && (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="rounded-lg border border-border bg-card p-5 tavern-card texture-leather">
+                    <div key={i} className="mkt-card mkt-card-mounted rounded-lg p-5">
                       <div className="animate-pulse space-y-4">
                         <div className="h-5 w-3/4 rounded bg-muted" />
                         <div className="flex gap-2">
@@ -281,7 +290,7 @@ export function WorldPage() {
 
               {/* Error */}
               {entitiesError && (
-                <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
+                <div className="mkt-card rounded-lg border border-destructive/50 p-8 text-center">
                   <p className="font-medium text-destructive">Failed to load world entities</p>
                   <p className="mt-1 text-sm text-muted-foreground">{(entitiesError as Error).message}</p>
                 </div>
@@ -289,7 +298,7 @@ export function WorldPage() {
 
               {/* Empty */}
               {!entitiesLoading && !entitiesError && filteredEntities.length === 0 && (
-                <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+                <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
                   <div className="mx-auto max-w-sm">
                     <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
                       {searchQuery ? 'No results found' : emptyState.title}

@@ -16,6 +16,8 @@ import {
   BarChart3,
   SkipForward,
   Brain,
+  Library,
+  ScrollText,
 } from 'lucide-react';
 import type { PanelDefinition, PanelId, CampaignStage } from '@/types/workspace';
 
@@ -62,6 +64,12 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
     title: 'Campaign Brain',
     icon: Brain,
     stages: ['prep'],
+  },
+  'rules': {
+    id: 'rules',
+    title: 'Rules Library',
+    icon: Library,
+    stages: ['prep', 'live'],
   },
 
   // ── Live Stage ──────────────────────────────────────────
@@ -129,6 +137,12 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
     id: 'dice-roller',
     title: 'Dice Roller',
     icon: Dices,
+    stages: ['live'],
+  },
+  'character-sheet': {
+    id: 'character-sheet',
+    title: 'Character Sheet',
+    icon: ScrollText,
     stages: ['live'],
   },
 

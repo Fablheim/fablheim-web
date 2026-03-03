@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   useHandouts,
   useCreateHandout,
@@ -55,6 +56,7 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingHandout, setEditingHandout] = useState<Handout | null>(null);
   const [viewingHandout, setViewingHandout] = useState<Handout | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Create form state
   const [title, setTitle] = useState('');
@@ -147,11 +149,10 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
   }
 
   function handleDelete(handoutId: string) {
-    if (!confirm('Delete this handout?')) return;
     deleteHandout.mutate(
       { campaignId, handoutId },
       {
-        onSuccess: () => toast.success('Handout deleted'),
+        onSuccess: () => { toast.success('Handout deleted'); setDeleteConfirmId(null); },
         onError: () => toast.error('Failed to delete handout'),
       },
     );
@@ -175,6 +176,16 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
 
   return (
     <div className="p-4 space-y-4">
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        title="Delete Handout?"
+        description="This handout will be permanently deleted."
+        confirmLabel="Delete"
+        variant="destructive"
+        isPending={deleteHandout.isPending}
+        onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-['IM_Fell_English'] text-lg text-foreground">Handouts</h2>
@@ -349,7 +360,7 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(h._id)}
+                        onClick={() => setDeleteConfirmId(h._id)}
                         className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

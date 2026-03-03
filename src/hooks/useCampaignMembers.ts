@@ -89,7 +89,7 @@ export function useAccessibleCampaigns() {
   }, [dmCampaigns, memberships]);
 
   return {
-    data: campaigns.length > 0 ? campaigns : undefined,
+    data: campaigns,
     isLoading: dmLoading || memLoading,
   };
 }

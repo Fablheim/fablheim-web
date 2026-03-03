@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Eye, EyeOff, Shield } from 'lucide-react';
+import { Pencil, Trash2, Eye, EyeOff, Shield, ArrowRight } from 'lucide-react';
 import type { Character, WorldEntity } from '@/types/campaign';
 
 export type CharacterListItem =
@@ -58,7 +58,15 @@ function PCCard({
   return (
     <div
       onClick={onClick}
-      className="group relative cursor-pointer rounded-lg border border-border bg-card p-5 tavern-card texture-leather transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="group mkt-card mkt-card-mounted relative cursor-pointer rounded-lg border border-border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gold hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/70"
     >
       {/* Level badge — only shown for systems with levels */}
       {character.level != null && (
@@ -111,12 +119,14 @@ function PCCard({
           <Shield className="h-3 w-3" />
           Player Character
         </span>
-        {ownerName && (
-          <span className="font-[Cinzel] text-[10px] tracking-wider text-muted-foreground">
-            {ownerName}
-          </span>
-        )}
+        <div className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-1.5 py-0.5 text-[10px] font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all group-hover:border-brass/60 group-hover:bg-brass/24">
+          Details
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+        </div>
       </div>
+      {ownerName && (
+        <p className="mt-1 text-right font-[Cinzel] text-[10px] tracking-wider text-muted-foreground">{ownerName}</p>
+      )}
     </div>
   );
 }
@@ -140,7 +150,15 @@ function NPCCard({
   return (
     <div
       onClick={onClick}
-      className="group cursor-pointer rounded-lg border border-border bg-card p-5 tavern-card texture-leather transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="group mkt-card mkt-card-mounted cursor-pointer rounded-lg border border-border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gold hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/70"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -209,6 +227,13 @@ function NPCCard({
           )}
         </div>
       )}
+
+      <div className="mt-3 flex justify-end">
+        <span className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-1.5 py-0.5 text-[10px] font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all group-hover:border-brass/60 group-hover:bg-brass/24">
+          Details
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </div>
     </div>
   );
 }

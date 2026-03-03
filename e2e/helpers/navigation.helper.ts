@@ -3,46 +3,21 @@ import { type Page, expect } from '@playwright/test';
 export class NavigationHelper {
   constructor(private page: Page) {}
 
-  // --- Sidebar navigation ---
-  // Sidebar items are <button> elements that open tabs (no URL change).
-
-  private async clickSidebarItem(name: string) {
-    // Scope to the sidebar <nav> to avoid matching buttons elsewhere on the page.
-    // The sidebar nav has aria-label="Main navigation".
-    const sidebar = this.page.locator('nav[aria-label="Main navigation"]');
-    await sidebar.getByRole('button', { name }).first().click();
-  }
+  // --- Top-level page navigation (via URL) ---
 
   async goToDashboard() {
-    await this.clickSidebarItem('Dashboard');
+    await this.page.goto('/app');
+    await this.page.waitForLoadState('networkidle');
   }
 
   async goToCampaigns() {
-    await this.clickSidebarItem('Campaigns');
-  }
-
-  async goToSessions() {
-    await this.clickSidebarItem('Sessions');
-  }
-
-  async goToCharacters() {
-    await this.clickSidebarItem('Characters');
-  }
-
-  async goToWorld() {
-    await this.clickSidebarItem('World');
-  }
-
-  async goToNotebook() {
-    await this.clickSidebarItem('Notebook');
-  }
-
-  async goToAITools() {
-    await this.clickSidebarItem('AI Tools');
+    await this.page.goto('/app/campaigns');
+    await this.page.waitForLoadState('networkidle');
   }
 
   async goToEnemyLibrary() {
-    await this.clickSidebarItem('Enemy Library');
+    await this.page.goto('/app/enemies');
+    await this.page.waitForLoadState('networkidle');
   }
 
   // --- Direct navigation ---
@@ -57,7 +32,13 @@ export class NavigationHelper {
     await this.page.waitForLoadState('networkidle');
   }
 
-  // --- Quick Actions (on campaign detail page) ---
+  // --- Campaign workspace prep sidebar (icon buttons with title attributes) ---
+
+  async clickPrepSection(section: 'Overview' | 'World' | 'NPCs' | 'Encounters' | 'Notes' | 'AI Tools' | 'Rules') {
+    await this.page.getByRole('button', { name: section }).click();
+  }
+
+  // --- Quick Actions (on campaign overview section) ---
 
   async clickQuickAction(label: 'Characters' | 'World' | 'Notebook' | 'Encounters' | 'AI Tools') {
     await this.page.getByText(label, { exact: true }).click();

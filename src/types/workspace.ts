@@ -12,7 +12,8 @@ export type PrepPanelId =
   | 'notebook'
   | 'characters'
   | 'ai-tools'
-  | 'campaign-brain';
+  | 'campaign-brain'
+  | 'rules';
 
 export type LivePanelId =
   | 'initiative'
@@ -25,7 +26,8 @@ export type LivePanelId =
   | 'ai-tools-live'
   | 'party-overview'
   | 'quick-reference'
-  | 'dice-roller';
+  | 'dice-roller'
+  | 'character-sheet';
 
 export type RecapPanelId =
   | 'session-recap'
@@ -42,6 +44,25 @@ export interface PanelDefinition {
   title: string;
   icon: LucideIcon;
   stages: CampaignStage[];
+}
+
+// ── Prep Sections (sidebar nav) ──────────────────────────
+
+export type PrepSection =
+  | 'overview'
+  | 'world'
+  | 'players'
+  | 'npcs'
+  | 'encounters'
+  | 'notes'
+  | 'sessions'
+  | 'ai-tools'
+  | 'rules';
+
+export interface PrepSectionDef {
+  id: PrepSection;
+  label: string;
+  icon: LucideIcon;
 }
 
 // ── Workspace Preset ─────────────────────────────────────

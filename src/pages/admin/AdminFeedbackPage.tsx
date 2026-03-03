@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Bug, Lightbulb, MessageSquare, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AdminLayout } from './AdminLayout';
 import { useAdminFeedback } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
 import type { FeedbackItem } from '@/api/feedback';
 
 const STATUS_OPTIONS = [
@@ -58,7 +57,7 @@ export function AdminFeedbackPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [page, setPage] = useState(1);
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   const { data, isLoading } = useAdminFeedback({
     status: statusFilter || undefined,
@@ -71,12 +70,7 @@ export function AdminFeedbackPage() {
   const totalPages = data ? Math.ceil(data.total / 20) : 1;
 
   function openDetail(item: FeedbackItem) {
-    const path = `/app/admin/feedback/${item._id}`;
-    openTab({
-      title: `Feedback: ${item.title}`,
-      path,
-      content: resolveRouteContent(path, item.title),
-    });
+    navigate(`/app/admin/feedback/${item._id}`);
   }
 
   return (

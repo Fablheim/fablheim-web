@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, CheckCircle, Crown, Sparkles, Shield } from 'lucide-react';
 import { Button } from './Button';
 import { stripeApi } from '@/api/stripe';
+import { BILLING_CONFIG } from '@/config/billingConfig';
 
 interface UpgradeModalProps {
   currentTier: 'free' | 'hobbyist' | 'pro' | 'professional';
@@ -12,12 +13,12 @@ const tiers = [
   {
     id: 'hobbyist' as const,
     name: 'Hobbyist',
-    price: '$5.99',
+    price: BILLING_CONFIG.tiers.hobbyist.price,
     period: '/month',
-    credits: 100,
+    credits: BILLING_CONFIG.tiers.hobbyist.monthlyCredits,
     icon: Sparkles,
     features: [
-      '100 AI credits per month',
+      `${BILLING_CONFIG.tiers.hobbyist.monthlyCredits} AI credits per month`,
       'Credits expire after 90 days',
       'All campaign management features',
       'Community support',
@@ -26,13 +27,13 @@ const tiers = [
   {
     id: 'pro' as const,
     name: 'Game Master',
-    price: '$9.99',
+    price: BILLING_CONFIG.tiers.pro.price,
     period: '/month',
-    credits: 300,
+    credits: BILLING_CONFIG.tiers.pro.monthlyCredits,
     icon: Crown,
     badge: 'BEST VALUE',
     features: [
-      '300 AI credits per month',
+      `${BILLING_CONFIG.tiers.pro.monthlyCredits} AI credits per month`,
       'Credits expire after 90 days',
       'Priority access to new features',
       'Purchased credits never expire',
@@ -41,12 +42,12 @@ const tiers = [
   {
     id: 'professional' as const,
     name: 'Pro',
-    price: '$19.99',
+    price: BILLING_CONFIG.tiers.professional.price,
     period: '/month',
-    credits: 500,
+    credits: BILLING_CONFIG.tiers.professional.monthlyCredits,
     icon: Shield,
     features: [
-      '500 AI credits per month',
+      `${BILLING_CONFIG.tiers.professional.monthlyCredits} AI credits per month`,
       'Credits expire after 90 days',
       'Priority access to new features',
       'Purchased credits never expire',

@@ -1,8 +1,6 @@
 import { type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Users, Receipt, Radio } from 'lucide-react';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, MessageSquare, Users, Receipt, Radio, BarChart3 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/app/admin' },
@@ -10,19 +8,16 @@ const NAV_ITEMS = [
   { icon: Users, label: 'Users', path: '/app/admin/users' },
   { icon: Receipt, label: 'Billing', path: '/app/admin/billing' },
   { icon: Radio, label: 'Sessions', path: '/app/admin/sessions' },
+  { icon: BarChart3, label: 'Analytics', path: '/app/admin/analytics' },
 ];
 
 export function AdminLayout({ children, activePath: activePathProp }: { children: ReactNode; activePath?: string }) {
   const location = useLocation();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
   const activePath = activePathProp ?? location.pathname;
 
-  function handleNavClick(path: string, label: string) {
-    openTab({
-      title: `Admin: ${label}`,
-      path,
-      content: resolveRouteContent(path, `Admin: ${label}`),
-    });
+  function handleNavClick(path: string) {
+    navigate(path);
   }
 
   return (
@@ -40,7 +35,7 @@ export function AdminLayout({ children, activePath: activePathProp }: { children
               <button
                 key={item.path}
                 type="button"
-                onClick={() => handleNavClick(item.path, item.label)}
+                onClick={() => handleNavClick(item.path)}
                 className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   active
                     ? 'bg-primary/15 text-primary'

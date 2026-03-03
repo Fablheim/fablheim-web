@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ArrowLeft, Upload, Swords, FileText, Users, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useEncounter, useLoadEncounter } from '@/hooks/useEncounters';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -30,6 +31,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
   const [selectedCampaignId, setSelectedCampaignId] = useState(propCampaignId ?? '');
   const [selectedEncounterId, setSelectedEncounterId] = useState<string | null>(null);
   const [sideTab, setSideTab] = useState<SideTab>('details');
+  const [showLoadConfirm, setShowLoadConfirm] = useState(false);
 
   const campaignId = propCampaignId || selectedCampaignId;
   const selectedCampaign = campaigns?.find((c) => c._id === campaignId);
@@ -49,25 +51,34 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function handleLoad() {
     if (!encounter || !campaignId) return;
-    if (!confirm('Load this encounter into the live session? This will copy tokens to the battle map and add NPCs to initiative.')) return;
-
     loadEncounter.mutate(
       { encounterId: encounter._id, body: { addToInitiative: true, clearExistingMap: true } },
       {
-        onSuccess: () => toast.success('Encounter loaded into session'),
+        onSuccess: () => { toast.success('Encounter loaded into session'); setShowLoadConfirm(false); },
         onError: () => toast.error('Failed to load encounter'),
       },
     );
   }
 
   return (
-    <PageContainer
-      title="Encounter Prep"
-      subtitle="Plan and prepare encounters before game day"
-      actions={renderActions()}
-    >
-      {renderContent()}
-    </PageContainer>
+    <Fragment>
+      <PageContainer
+        title="Encounter Prep"
+        subtitle="Plan and prepare encounters before game day"
+        actions={renderActions()}
+      >
+        {renderContent()}
+      </PageContainer>
+      <ConfirmDialog
+        open={showLoadConfirm}
+        title="Load Encounter"
+        description="This will place all tokens on the map and add creatures to initiative. Continue?"
+        confirmLabel="Load"
+        onConfirm={handleLoad}
+        onCancel={() => setShowLoadConfirm(false)}
+        isPending={loadEncounter.isPending}
+      />
+    </Fragment>
   );
 
   function renderActions() {
@@ -111,7 +122,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function renderNoCampaign() {
     return (
-      <div className="rounded-lg border-2 border-dashed border-gold/20 bg-card/20 p-12 text-center texture-parchment">
+      <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/20 p-12 text-center">
         <div className="mx-auto max-w-sm">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shadow-glow-sm">
             <Swords className="h-6 w-6 text-primary" />
@@ -127,7 +138,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function renderNotDM() {
     return (
-      <div className="rounded-lg border-2 border-dashed border-gold/20 bg-card/20 p-12 text-center texture-parchment">
+      <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/20 p-12 text-center">
         <div className="mx-auto max-w-sm">
           <h3 className="mb-2 font-['IM_Fell_English'] text-lg text-foreground">GM Tools Only</h3>
           <p className="text-muted-foreground">
@@ -144,7 +155,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
     return (
       <div className="flex flex-col h-[calc(100vh-200px)]">
         {renderEditorHeader()}
-        <div className="flex flex-1 overflow-hidden rounded-lg border border-iron/30">
+        <div className="mkt-card mkt-card-mounted flex flex-1 overflow-hidden rounded-xl border border-iron/30">
           {renderMapPanel()}
           {renderSidePanel()}
         </div>
@@ -159,12 +170,12 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
           <button
             type="button"
             onClick={handleBack}
-            className="flex items-center gap-1 rounded-md border border-iron bg-accent px-2 py-1 text-xs text-muted-foreground hover:bg-accent/80 transition-colors font-[Cinzel] uppercase tracking-wider"
+            className="flex items-center gap-1 rounded-md border border-iron bg-accent/60 px-2 py-1 text-xs text-muted-foreground hover:bg-accent transition-colors font-[Cinzel] uppercase tracking-wider"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back
           </button>
-          <h2 className="font-['IM_Fell_English'] text-lg text-foreground">{encounter!.name}</h2>
+          <h2 className="font-['IM_Fell_English'] text-xl text-foreground text-carved">{encounter!.name}</h2>
           <span className={`rounded-md px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider ${
             encounter!.status === 'ready' ? 'bg-forest/20 text-[hsl(150,50%,55%)]' :
             encounter!.status === 'used' ? 'bg-accent text-muted-foreground' :
@@ -175,7 +186,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
         </div>
         <Button
           size="sm"
-          onClick={handleLoad}
+          onClick={() => setShowLoadConfirm(true)}
           disabled={loadEncounter.isPending}
         >
           <Upload className="mr-1.5 h-3.5 w-3.5" />
@@ -187,7 +198,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function renderMapPanel() {
     return (
-      <div className="flex-1 overflow-hidden bg-card/20">
+      <div className="flex-1 overflow-hidden bg-card/10">
         <EncounterMapEditor campaignId={campaignId!} encounter={encounter!} />
       </div>
     );
@@ -195,7 +206,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function renderSidePanel() {
     return (
-      <div className="w-[320px] xl:w-[360px] flex flex-col border-l border-[hsla(38,40%,30%,0.15)] bg-card/30">
+      <div className="w-[320px] xl:w-[360px] flex flex-col border-l border-[hsla(38,40%,30%,0.2)] bg-card/20">
         {renderSideTabs()}
         <div className="flex-1 overflow-y-auto p-3">
           {sideTab === 'details' && (
@@ -214,7 +225,7 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
 
   function renderSideTabs() {
     return (
-      <div className="flex border-b border-[hsla(38,40%,30%,0.15)] shrink-0">
+      <div className="flex border-b border-[hsla(38,40%,30%,0.2)] shrink-0">
         {SIDE_TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = sideTab === tab.id;
@@ -224,8 +235,8 @@ export function EncounterPrepPage({ campaignId: propCampaignId }: EncounterPrepP
               onClick={() => setSideTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-[Cinzel] uppercase tracking-wider transition-all border-b-2 ${
                 isActive
-                  ? 'border-primary text-primary bg-primary/5'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/30'
+                  ? 'border-primary text-primary bg-primary/10'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40'
               }`}
             >
               <Icon className="h-3 w-3" />

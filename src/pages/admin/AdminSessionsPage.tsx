@@ -1,20 +1,14 @@
 import { Loader2, Radio, AlertTriangle, Users, Swords } from 'lucide-react';
 import { AdminLayout } from './AdminLayout';
 import { useActiveSessions } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
 
 export function AdminSessionsPage() {
   const { data: sessions, isLoading } = useActiveSessions();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   function handleOpenSession(campaignId: string) {
-    const path = `/app/admin/sessions/${campaignId}`;
-    openTab({
-      title: `Session: ${campaignId.slice(-6)}`,
-      path,
-      content: resolveRouteContent(path, `Session: ${campaignId.slice(-6)}`),
-    });
+    navigate(`/app/admin/sessions/${campaignId}`);
   }
 
   return (

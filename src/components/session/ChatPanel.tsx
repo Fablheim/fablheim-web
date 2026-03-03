@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, EyeOff, MessageSquare } from 'lucide-react';
+import { ArrowDown, Send, EyeOff, MessageSquare } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/context/AuthContext';
 import type { ChatMessage } from '@/types/campaign';
@@ -43,18 +43,20 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
   >([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAtBottomRef = useRef(true);
 
-  // Track scroll position
+  // Track scroll position and clear unread when at bottom
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    isAtBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    isAtBottomRef.current = atBottom;
+    if (atBottom) setUnreadCount(0);
   }, []);
 
   // Scroll to bottom
@@ -86,9 +88,10 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
 
     function onMessage(msg: ChatMessage) {
       setMessages((prev) => [...prev, msg]);
-      // Auto-scroll if user is at bottom
       if (isAtBottomRef.current) {
         setTimeout(scrollToBottom, 50);
+      } else {
+        setUnreadCount((c) => c + 1);
       }
     }
 
@@ -106,12 +109,37 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
       });
     }
 
+    // Merge missed messages from sync-response on reconnection
+    function onSyncResponse(data: { missedMessages?: ChatMessage[] }) {
+      if (!data.missedMessages || data.missedMessages.length === 0) return;
+
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m._id));
+        const newMessages = data.missedMessages!.filter(
+          (m) => !existingIds.has(m._id),
+        );
+        if (newMessages.length === 0) return prev;
+
+        const merged = [...prev, ...newMessages].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        return merged;
+      });
+
+      if (isAtBottomRef.current) {
+        setTimeout(scrollToBottom, 50);
+      }
+    }
+
     socket.on('chat:message', onMessage);
     socket.on('chat:typing', onTyping);
+    socket.on('sync-response', onSyncResponse);
 
     return () => {
       socket.off('chat:message', onMessage);
       socket.off('chat:typing', onTyping);
+      socket.off('sync-response', onSyncResponse);
     };
   }, [scrollToBottom]);
 
@@ -183,7 +211,22 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {renderMessages()}
+      <div className="relative flex-1 min-h-0">
+        {renderMessages()}
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              scrollToBottom();
+              setUnreadCount(0);
+            }}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-full border border-primary/40 bg-card px-3 py-1 text-xs font-[Cinzel] text-primary shadow-lg hover:bg-accent/80 transition-all"
+          >
+            <ArrowDown className="h-3 w-3" />
+            {unreadCount} new {unreadCount === 1 ? 'message' : 'messages'}
+          </button>
+        )}
+      </div>
       {renderTypingIndicator()}
       {renderInput()}
     </div>
@@ -194,7 +237,7 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-3 space-y-1"
+        className="chat-message-list h-full overflow-y-auto p-3 space-y-1"
       >
         {hasMore && (
           <button
@@ -298,6 +341,7 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
             type="button"
             onClick={handleSend}
             disabled={sending || !input.trim() || (mode === 'whisper' && !recipientId)}
+            aria-label="Send message"
             className="rounded-sm bg-primary p-2 text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="h-4 w-4" />
@@ -326,7 +370,7 @@ function ChatBubble({
 
   if (isSystem) {
     return (
-      <div className="flex justify-center py-0.5">
+      <div className="chat-message-item flex justify-center py-0.5">
         <span className="text-[11px] text-muted-foreground italic font-['IM_Fell_English'] px-3 py-0.5 rounded-full bg-accent/30">
           {message.message}
         </span>
@@ -338,7 +382,7 @@ function ChatBubble({
   const isIC = message.type === 'ic';
 
   return (
-    <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+    <div className={`chat-message-item flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
       {/* Username + time */}
       <div className="flex items-center gap-1.5 px-1">
         <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-foreground/70">

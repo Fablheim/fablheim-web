@@ -23,25 +23,21 @@ test.describe('Encounter Prep', () => {
     const campaign = generateCampaign();
     await form.createCampaign({ name: campaign.name, system: 'dnd5e' });
 
-    // Open the campaign detail by clicking on it
+    // Open the campaign workspace — default section is "encounters"
     await page.getByText(campaign.name).click();
-    await expect(page.getByText('Quick Actions')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /new encounter/i })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('should access encounter prep from campaign quick actions', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-    // Encounter prep page loads — check for "New Encounter" button (unique to this page)
+  test('should access encounter prep from prep sidebar', async ({ page }) => {
+    // Already on encounters by default, verify the page is loaded
     await expect(page.getByRole('button', { name: /new encounter/i })).toBeVisible({ timeout: 10_000 });
   });
 
   test('should show empty encounter library initially', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
     await expect(page.getByText('No encounters yet')).toBeVisible({ timeout: 5_000 });
   });
 
   test('should create a new encounter', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-
     const encounter = generateEncounter();
     await form.createEncounter({
       name: encounter.name,
@@ -54,8 +50,6 @@ test.describe('Encounter Prep', () => {
   });
 
   test('should edit encounter details', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-
     const encounter = generateEncounter();
     await form.createEncounter({ name: encounter.name, difficulty: 'easy' });
 
@@ -75,8 +69,6 @@ test.describe('Encounter Prep', () => {
   });
 
   test('should change encounter status', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-
     const encounter = generateEncounter();
     await form.createEncounter({ name: encounter.name });
 
@@ -87,8 +79,6 @@ test.describe('Encounter Prep', () => {
   });
 
   test('should delete an encounter', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-
     const encounter = generateEncounter();
     await form.createEncounter({ name: encounter.name });
 
@@ -114,8 +104,6 @@ test.describe('Encounter Prep', () => {
   });
 
   test('should navigate back to encounter library', async ({ page }) => {
-    await nav.clickQuickAction('Encounters');
-
     const encounter = generateEncounter();
     await form.createEncounter({ name: encounter.name });
 

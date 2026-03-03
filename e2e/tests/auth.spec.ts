@@ -15,7 +15,8 @@ test.describe('Authentication', () => {
       await page.getByRole('button', { name: 'Begin Your Quest' }).click();
 
       await page.waitForURL('**/app', { timeout: 15_000 });
-      await expect(page.getByText('Sign Out')).toBeVisible({ timeout: 15_000 });
+      // Verify the app shell loaded (Campaigns button is always visible in top nav)
+      await expect(page.getByRole('button', { name: 'Campaigns' })).toBeVisible({ timeout: 15_000 });
     });
 
     test('should show error for duplicate email', async ({ page }) => {

@@ -63,8 +63,11 @@ test.describe('Enemy Library', () => {
       ac: template.ac,
     });
 
-    // Click on the template card to open edit modal (whole card is clickable)
+    // Click on the template card to navigate to the detail page
     await page.getByText(template.name).click();
+
+    // On the detail page, click the Edit button to open the edit modal
+    await page.getByRole('button', { name: 'Edit' }).click();
 
     // Expect edit modal with "Edit Enemy Template" title
     await expect(page.getByText('Edit Enemy Template')).toBeVisible({ timeout: 5_000 });
@@ -76,7 +79,7 @@ test.describe('Enemy Library', () => {
 
     await page.getByRole('button', { name: 'Save Changes' }).click();
 
-    // Verify updated name
+    // Verify updated name on the detail page
     await expect(page.getByText(template.name + ' Edited')).toBeVisible({ timeout: 5_000 });
   });
 
@@ -93,15 +96,12 @@ test.describe('Enemy Library', () => {
     // Accept the browser confirm dialog before triggering it
     page.on('dialog', (dialog) => dialog.accept());
 
-    // The delete button is inside the card, hidden until hover (opacity-0 → opacity-100).
-    // Hover over the card to reveal it, then click the second button (first is edit).
+    // The delete button is on the card, hidden until hover (opacity-0 → group-hover:opacity-100).
     const card = page.locator('.group').filter({ hasText: template.name });
     await card.hover();
 
-    // The card has two hover-revealed buttons: edit (Pencil) and delete (Trash2).
-    // Delete is the second one in the opacity container.
-    const hoverBtns = card.locator('.opacity-0 button, .group-hover\\:opacity-100 button');
-    const deleteBtn = hoverBtns.last();
+    // The delete button has opacity-0 class directly (not a child of .opacity-0).
+    const deleteBtn = card.locator('button.opacity-0');
     await deleteBtn.click({ force: true });
 
     // Verify template is gone

@@ -114,6 +114,8 @@ export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
 export function MarketingFooter({ links }: MarketingFooterProps) {
   const navigate = useNavigate();
   const footerLinks = links ?? [
+    { label: 'How It Works', to: '/how-it-works' },
+    { label: 'Pricing', to: '/how-it-works#pricing' },
     { label: 'Terms', to: '/legal/terms' },
     { label: 'Privacy', to: '/legal/privacy' },
     { label: 'Legal & Attributions', to: '/legal' },

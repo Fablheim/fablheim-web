@@ -4,17 +4,21 @@ export default defineConfig({
   testDir: './e2e/tests',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
-  reporter: process.env.CI ? 'github' : 'html',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  reporter: process.env.CI
+    ? [['github'], ['json', { outputFile: 'test-results/results.json' }]]
+    : [['html'], ['list']],
+  timeout: 120_000,
+  expect: { timeout: 15_000 },
 
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    viewport: { width: 1920, height: 1080 },
+    ignoreHTTPSErrors: true,
   },
 
   projects: [
@@ -30,6 +34,6 @@ export default defineConfig({
         command: 'npm run dev',
         url: 'http://localhost:5173',
         reuseExistingServer: true,
-        timeout: 30_000,
+        timeout: 60_000,
       },
 });

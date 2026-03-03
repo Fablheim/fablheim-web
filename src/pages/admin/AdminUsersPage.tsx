@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, RefreshCw, Loader2, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminLayout } from './AdminLayout';
 import { useAdminUsers, useUpdateUserRole } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
+import { GrantCreditsModal } from '@/components/admin/GrantCreditsModal';
 
 const TIER_OPTIONS = [
   { value: '', label: 'All Tiers' },
@@ -41,8 +41,9 @@ export function AdminUsersPage() {
     limit: 20,
   });
 
+  const [grantCreditsUser, setGrantCreditsUser] = useState<{ id: string; username: string } | null>(null);
   const updateRole = useUpdateUserRole();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
   const totalPages = data ? Math.ceil(data.total / 20) : 1;
 
   function handleToggleRole(userId: string, currentRole: 'user' | 'admin') {
@@ -57,6 +58,14 @@ export function AdminUsersPage() {
   }
 
   return (
+    <>
+    {grantCreditsUser && (
+      <GrantCreditsModal
+        userId={grantCreditsUser.id}
+        username={grantCreditsUser.username}
+        onClose={() => setGrantCreditsUser(null)}
+      />
+    )}
     <AdminLayout activePath="/app/admin/users">
       <div className="space-y-4">
         {/* Filters */}
@@ -140,13 +149,20 @@ export function AdminUsersPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const path = `/app/admin/billing/reconcile/${user._id}`;
-                            openTab({ title: `Reconcile: ${user.username}`, path, content: resolveRouteContent(path, `Reconcile: ${user.username}`) });
+                            navigate(`/app/admin/billing/reconcile/${user._id}`);
                           }}
                           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
                           title="Reconcile entitlements with Stripe"
                         >
                           <RefreshCw className="h-3.5 w-3.5" /> Reconcile
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGrantCreditsUser({ id: user._id, username: user.username })}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                          title="Grant AI credits"
+                        >
+                          <Coins className="h-3.5 w-3.5" /> Grant Credits
                         </button>
                       </div>
                     </td>
@@ -183,6 +199,7 @@ export function AdminUsersPage() {
         )}
       </div>
     </AdminLayout>
+    </>
   );
 
   function renderSelect(

@@ -11,6 +11,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       react: path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      'react-helmet-async': path.resolve(__dirname, './src/components/seo/helmetAsyncShim.tsx'),
     },
   },
 })

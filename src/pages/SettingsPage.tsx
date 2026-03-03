@@ -2,7 +2,7 @@ import { type FormEvent, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
-import { Crown, ExternalLink } from 'lucide-react';
+import { Crown, ExternalLink, KeyRound, Mail, ShieldCheck, TriangleAlert, UserCog } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +11,17 @@ import { stripeApi } from '@/api/stripe';
 import * as authApi from '@/api/auth';
 
 const inputClass =
-  'mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
+  'mt-1 block w-full rounded-md border border-input/85 bg-background/75 px-3 py-2.5 text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
+
+const sectionCardClass =
+  'app-card rounded-xl border border-[color:var(--mkt-border)]/80 bg-[linear-gradient(180deg,hsla(32,26%,15%,0.28)_0%,hsla(24,16%,8%,0.5)_100%)] p-6';
+
+const sectionHeaderClass = 'font-[Cinzel] text-lg font-semibold text-foreground';
+
+const feedbackClass = {
+  error: 'rounded-md border border-destructive/35 bg-destructive/10 p-3 text-sm text-destructive',
+  success: 'rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400',
+};
 
 function ChangePasswordSection() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -50,13 +60,20 @@ function ChangePasswordSection() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="text-lg font-semibold text-card-foreground">Change Password</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Update your password to keep your account secure.</p>
+    <section className={sectionCardClass}>
+      <header className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+          <KeyRound className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className={sectionHeaderClass}>Change Password</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Update your password to keep your account secure.</p>
+        </div>
+      </header>
 
       <form onSubmit={handleSubmit} className="mt-4 max-w-md space-y-4">
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-        {success && <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-500">{success}</div>}
+        {error && <div className={feedbackClass.error}>{error}</div>}
+        {success && <div className={feedbackClass.success}>{success}</div>}
 
         <div>
           <label htmlFor="currentPassword" className="block text-sm font-medium text-foreground">
@@ -109,7 +126,7 @@ function ChangePasswordSection() {
           {isSubmitting ? 'Changing...' : 'Change Password'}
         </Button>
       </form>
-    </div>
+    </section>
   );
 }
 
@@ -145,15 +162,22 @@ function ChangeEmailSection() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="text-lg font-semibold text-card-foreground">Change Email</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Current email: <span className="font-medium text-foreground">{user?.email}</span>
-      </p>
+    <section className={sectionCardClass}>
+      <header className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+          <Mail className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className={sectionHeaderClass}>Change Email</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Current email: <span className="font-medium text-foreground">{user?.email}</span>
+          </p>
+        </div>
+      </header>
 
       <form onSubmit={handleSubmit} className="mt-4 max-w-md space-y-4">
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-        {success && <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-500">{success}</div>}
+        {error && <div className={feedbackClass.error}>{error}</div>}
+        {success && <div className={feedbackClass.success}>{success}</div>}
 
         <div>
           <label htmlFor="newEmail" className="block text-sm font-medium text-foreground">
@@ -187,7 +211,7 @@ function ChangeEmailSection() {
           {isSubmitting ? 'Updating...' : 'Update Email'}
         </Button>
       </form>
-    </div>
+    </section>
   );
 }
 
@@ -220,11 +244,18 @@ function DeleteAccountSection() {
   }
 
   return (
-    <div className="rounded-lg border border-destructive/50 bg-card p-6">
-      <h2 className="text-lg font-semibold text-destructive">Danger Zone</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Permanently delete your account and all associated data. This action cannot be undone.
-      </p>
+    <section className="rounded-xl border border-destructive/45 bg-[linear-gradient(180deg,hsla(0,46%,22%,0.22)_0%,hsla(24,16%,9%,0.58)_100%)] p-6 shadow-[inset_0_1px_0_hsla(0,64%,72%,0.12)]">
+      <header className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-destructive/35 bg-destructive/10 text-destructive">
+          <TriangleAlert className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className="font-[Cinzel] text-lg font-semibold text-destructive">Danger Zone</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+        </div>
+      </header>
 
       {!showConfirm ? (
         <Button variant="destructive" className="mt-4" onClick={() => setShowConfirm(true)}>
@@ -232,7 +263,7 @@ function DeleteAccountSection() {
         </Button>
       ) : (
         <form onSubmit={handleDelete} className="mt-4 max-w-md space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && <div className={feedbackClass.error}>{error}</div>}
 
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
             This will permanently delete your account, all campaigns you own, your characters, and campaign
@@ -271,7 +302,7 @@ function DeleteAccountSection() {
           </div>
         </form>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -295,18 +326,30 @@ function SubscriptionSection() {
     try {
       const { url } = await stripeApi.createPortalSession();
       window.location.href = url;
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to open subscription portal');
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        toast.error(err.response?.data?.message || 'Failed to open subscription portal');
+      } else {
+        toast.error('Failed to open subscription portal');
+      }
       setPortalLoading(false);
     }
   };
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold text-card-foreground">Subscription</h2>
+      <section className={sectionCardClass}>
+        <header className="flex items-start gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+            <Crown className="h-4.5 w-4.5" />
+          </span>
+          <div>
+            <h2 className={sectionHeaderClass}>Subscription</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Manage plan tier, billing access, and credits flow.</p>
+          </div>
+        </header>
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Crown className={`h-5 w-5 ${isPaid ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -338,7 +381,7 @@ function SubscriptionSection() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {showUpgrade && (
         <UpgradeModal
@@ -369,23 +412,74 @@ export function SettingsPage() {
   }, [searchParams, setSearchParams]);
 
   return (
-    <PageContainer title="Settings" subtitle="Manage your account">
-      <div className="space-y-6">
-        <SubscriptionSection />
-
-        {isLocal && <ChangePasswordSection />}
-        {isLocal && <ChangeEmailSection />}
-
-        {!isLocal && (
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-card-foreground">Account</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              You signed in with Google. Password and email changes are managed through your Google account.
-            </p>
+    <PageContainer title="Settings" subtitle="Control your account, billing, and security">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <section className="app-card rounded-xl border border-[color:var(--mkt-border)]/85 bg-[linear-gradient(160deg,hsla(38,84%,56%,0.14)_0%,hsla(24,16%,11%,0.88)_46%,hsla(24,16%,7%,0.94)_100%)] px-5 py-5 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Account Command</p>
+              <h2 className="mt-1 font-[Cinzel] text-2xl text-foreground">Manage Access & Security</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Signed in as <span className="font-medium text-foreground">{user?.email}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-[color:var(--mkt-border)]/75 bg-black/25 px-3 py-2">
+              <UserCog className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">
+                {isLocal ? 'Local Account' : 'Google Account'}
+              </span>
+            </div>
           </div>
-        )}
+        </section>
 
-        {isLocal && <DeleteAccountSection />}
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="space-y-6">
+            <SubscriptionSection />
+            {isLocal && <ChangePasswordSection />}
+            {isLocal && <ChangeEmailSection />}
+          </div>
+
+          <div className="space-y-6">
+            <section className={sectionCardClass}>
+              <header className="flex items-start gap-3">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+                  <ShieldCheck className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <h2 className={sectionHeaderClass}>Security Notes</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Keep your account protected with strong credentials and regular password updates.
+                  </p>
+                </div>
+              </header>
+
+              <div className="mt-4 space-y-2.5 text-sm text-muted-foreground">
+                <p className="rounded-md border border-border/65 bg-accent/25 px-3 py-2.5">
+                  Use unique passwords for your Fablheim account.
+                </p>
+                <p className="rounded-md border border-border/65 bg-accent/25 px-3 py-2.5">
+                  Avoid sharing account access with other players.
+                </p>
+                {!isLocal && (
+                  <p className="rounded-md border border-border/65 bg-accent/25 px-3 py-2.5">
+                    Google-authenticated accounts manage password and email at Google.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {!isLocal && (
+              <section className={sectionCardClass}>
+                <h2 className={sectionHeaderClass}>Account Provider</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  You signed in with Google. Password and email changes are managed through your Google account settings.
+                </p>
+              </section>
+            )}
+
+            {isLocal && <DeleteAccountSection />}
+          </div>
+        </div>
       </div>
     </PageContainer>
   );

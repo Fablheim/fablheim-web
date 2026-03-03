@@ -1,25 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Coins, TrendingDown, Gift, Clock, Sparkles, ShoppingCart, Crown } from 'lucide-react';
+import { Coins, TrendingDown, Gift, Clock, Sparkles, ShoppingCart, ReceiptText, WandSparkles, ShieldCheck } from 'lucide-react';
+import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
-import { UpgradeModal } from '@/components/ui/UpgradeModal';
-import { useAuth } from '@/context/AuthContext';
 import { useCreditBalance, useCreditHistory, useCreditCosts } from '@/hooks/useCredits';
 import { stripeApi } from '@/api/stripe';
 import type { CreditTransaction } from '@/types/credits';
+import { BILLING_CONFIG } from '@/config/billingConfig';
 
-const FEATURE_LABELS: Record<string, string> = {
-  rule_questions: 'Rule Question',
-  plot_hooks: 'Plot Hooks',
-  npc_generation: 'NPC Generation',
-  character_creation: 'Character Suggestions',
-  backstory: 'Backstory',
-  world_building: 'World Building',
-  session_summary: 'Session Summary',
-  encounter_building: 'Encounter Builder',
-};
+const creditsCardClass =
+  'app-card rounded-xl border border-[color:var(--mkt-border)]/80 bg-[linear-gradient(180deg,hsla(32,26%,15%,0.28)_0%,hsla(24,16%,8%,0.5)_100%)] p-6';
 
 function CreditBalanceCard() {
   const { data: balance, isLoading } = useCreditBalance();
@@ -30,15 +22,19 @@ function CreditBalanceCard() {
     try {
       const { url } = await stripeApi.createCreditPurchaseCheckout();
       window.location.href = url;
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to start checkout');
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        toast.error(err.response?.data?.message || 'Failed to start checkout');
+      } else {
+        toast.error('Failed to start checkout');
+      }
       setBuyLoading(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 animate-pulse">
+      <div className={`${creditsCardClass} animate-pulse`}>
         <div className="h-20 bg-muted rounded" />
       </div>
     );
@@ -47,13 +43,19 @@ function CreditBalanceCard() {
   if (!balance) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="mb-4 font-['IM_Fell_English'] text-lg font-semibold text-card-foreground">
-        Credit Balance
-      </h2>
+    <section className={creditsCardClass}>
+      <header className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+          <Coins className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className="font-[Cinzel] text-lg font-semibold text-foreground">Credit Balance</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Track your available credits and purchase more instantly.</p>
+        </div>
+      </header>
 
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+      <div className="mb-6 mt-5 flex items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--mkt-border)] bg-primary/10">
           <Coins className="h-7 w-7 text-primary" />
         </div>
         <div>
@@ -62,15 +64,15 @@ function CreditBalanceCard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="rounded-md border border-border bg-background/50 p-3">
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        <div className="rounded-md border border-border/70 bg-background/50 p-3">
           <div className="flex items-center gap-2 mb-1">
             <Gift className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Subscription</span>
           </div>
           <p className="font-['Cinzel'] text-xl font-semibold text-foreground">{balance.subscription}</p>
         </div>
-        <div className="rounded-md border border-border bg-background/50 p-3">
+        <div className="rounded-md border border-border/70 bg-background/50 p-3">
           <div className="flex items-center gap-2 mb-1">
             <Coins className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Purchased</span>
@@ -86,9 +88,12 @@ function CreditBalanceCard() {
         className="w-full"
       >
         <ShoppingCart className="mr-2 h-4 w-4" />
-        {buyLoading ? 'Loading...' : 'Buy 150 Credits — $4.99'}
+        {buyLoading ? 'Loading...' : `Buy ${BILLING_CONFIG.creditPack.credits} Credits — ${BILLING_CONFIG.creditPack.price}`}
       </Button>
-    </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Subscriber bonus per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.
+      </p>
+    </section>
   );
 }
 
@@ -97,7 +102,7 @@ function CreditCostsCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 animate-pulse">
+      <div className={`${creditsCardClass} animate-pulse`}>
         <div className="h-40 bg-muted rounded" />
       </div>
     );
@@ -108,22 +113,31 @@ function CreditCostsCard() {
   const sortedEntries = Object.entries(costs).sort(([, a], [, b]) => a - b);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="mb-4 font-['IM_Fell_English'] text-lg font-semibold text-card-foreground">
-        Credit Costs
-      </h2>
+    <section className={creditsCardClass}>
+      <header className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+          <WandSparkles className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className="font-[Cinzel] text-lg font-semibold text-foreground">AI Credit Costs</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Per-action cost transparency across all generation tools.</p>
+        </div>
+      </header>
+
       <div className="space-y-2">
         {sortedEntries.map(([feature, cost]) => (
-          <div key={feature} className="flex items-center justify-between rounded-md bg-background/50 px-3 py-2">
+          <div key={feature} className="flex items-center justify-between rounded-md border border-border/65 bg-background/45 px-3 py-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary/60" />
-              <span className="text-sm text-foreground">{FEATURE_LABELS[feature] || feature}</span>
+              <span className="text-sm text-foreground">
+                {BILLING_CONFIG.aiActionLabels[feature as keyof typeof BILLING_CONFIG.aiActionLabels] || feature}
+              </span>
             </div>
             <span className="font-['Cinzel'] text-sm font-semibold text-primary">{cost} cr</span>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -143,24 +157,32 @@ function CreditHistoryCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 animate-pulse">
+      <div className={`${creditsCardClass} animate-pulse`}>
         <div className="h-60 bg-muted rounded" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="mb-4 font-['IM_Fell_English'] text-lg font-semibold text-card-foreground">
-        Transaction History
-      </h2>
+    <section className={creditsCardClass}>
+      <header className="mb-4 flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--mkt-border)] bg-black/20 text-primary">
+          <ReceiptText className="h-4.5 w-4.5" />
+        </span>
+        <div>
+          <h2 className="font-[Cinzel] text-lg font-semibold text-foreground">Transaction History</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Recent grants, consumption, and expiry events.</p>
+        </div>
+      </header>
 
       {!transactions?.length ? (
-        <p className="text-sm text-muted-foreground italic">No transactions yet.</p>
+        <p className="rounded-md border border-border/65 bg-background/45 p-3 text-sm italic text-muted-foreground">
+          No transactions yet.
+        </p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {transactions.map((tx) => (
-            <div key={tx._id} className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-background/50">
+            <div key={tx._id} className="flex items-center gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5 hover:bg-background/55">
               <TransactionIcon type={tx.type} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{tx.description}</p>
@@ -183,19 +205,28 @@ function CreditHistoryCard() {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
 export function CreditsPage() {
-  const { user } = useAuth();
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { data: recentTransactions } = useCreditHistory(20);
 
   useEffect(() => {
     const purchase = searchParams.get('purchase');
     if (purchase === 'success') {
-      toast.success('Credits purchased successfully! They have been added to your balance.');
+      if (!recentTransactions) return;
+      const latestPackGrant = recentTransactions.find(
+        (tx) =>
+          tx.type === 'grant' &&
+          tx.description.startsWith('Credits pack applied (includes subscriber bonus if eligible):'),
+      );
+      if (latestPackGrant) {
+        toast.success(`Credits pack applied (includes subscriber bonus if eligible): +${latestPackGrant.amount} credits`);
+      } else {
+        toast.success('Credits pack applied (includes subscriber bonus if eligible)');
+      }
       searchParams.delete('purchase');
       setSearchParams(searchParams, { replace: true });
     } else if (purchase === 'cancelled') {
@@ -203,35 +234,40 @@ export function CreditsPage() {
       searchParams.delete('purchase');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, recentTransactions]);
 
   return (
     <PageContainer
       title="Credits"
-      subtitle="Manage your arcane credit balance"
-      actions={
-        user?.subscriptionTier === 'free' ? (
-          <Button onClick={() => setShowUpgrade(true)}>
-            <Crown className="mr-2 h-4 w-4" />
-            Upgrade Plan
-          </Button>
-        ) : undefined
-      }
+      subtitle="Track usage, understand costs, and refill when needed"
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_2fr]">
-        <CreditBalanceCard />
-        <CreditCostsCard />
-        <div className="lg:col-span-2 xl:col-span-1">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <section className="app-card rounded-xl border border-[color:var(--mkt-border)]/85 bg-[linear-gradient(160deg,hsla(38,84%,56%,0.14)_0%,hsla(24,16%,11%,0.88)_46%,hsla(24,16%,7%,0.94)_100%)] px-5 py-5 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Credit Command</p>
+              <h2 className="mt-1 font-[Cinzel] text-2xl text-foreground">Transparent AI Usage</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Every generation spends credits based on tool complexity. Costs and history are always visible.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-[color:var(--mkt-border)]/75 bg-black/25 px-3 py-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">No hidden usage math</span>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <CreditBalanceCard />
+          <CreditCostsCard />
+        </div>
+
+        <div>
           <CreditHistoryCard />
         </div>
       </div>
 
-      {showUpgrade && (
-        <UpgradeModal
-          currentTier={user?.subscriptionTier ?? 'free'}
-          onClose={() => setShowUpgrade(false)}
-        />
-      )}
     </PageContainer>
   );
 }

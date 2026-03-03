@@ -4,10 +4,10 @@ interface NotebookPanelProps {
   campaignId: string;
 }
 
-export function NotebookPanel(_props: NotebookPanelProps) {
+export function NotebookPanel({ campaignId }: NotebookPanelProps) {
   return (
     <div className="h-full overflow-y-auto">
-      <NotebookPage />
+      <NotebookPage campaignId={campaignId} />
     </div>
   );
 }

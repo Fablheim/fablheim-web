@@ -42,13 +42,13 @@ export function SessionRecapModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-card shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+      <div className="app-card iron-brackets flex max-h-[88vh] w-full max-w-3xl flex-col rounded-xl texture-parchment shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border p-5">
+        <div className="flex items-center justify-between border-b border-[hsla(38,40%,30%,0.2)] p-5 texture-wood">
           <div>
-            <h2 className="font-['IM_Fell_English'] text-xl text-card-foreground">
-              Session Recap
+            <h2 className="font-['IM_Fell_English'] text-2xl text-card-foreground text-carved">
+              Recap Chronicle
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {sessionTitle}
@@ -62,7 +62,8 @@ export function SessionRecapModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Close recap modal"
+            className="app-focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -80,7 +81,7 @@ export function SessionRecapModal({
           )}
 
           {!isLoading && !recapData?.recap && (
-            <div className="py-12 text-center text-muted-foreground">
+            <div className="app-empty-state rounded-lg py-12 text-center text-muted-foreground">
               <p className="font-['IM_Fell_English'] text-sm">
                 No recap available yet. The AI is still writing the tale of your
                 adventure...
@@ -90,12 +91,12 @@ export function SessionRecapModal({
 
           {!isLoading && recapData?.recap && (
             <div className="space-y-5">
-              <div className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm leading-relaxed text-foreground/90">
+              <div className="rounded-lg border border-[hsla(38,30%,35%,0.22)] bg-[hsla(24,16%,10%,0.55)] p-4 whitespace-pre-wrap font-['IM_Fell_English'] text-sm leading-relaxed text-foreground/90">
                 {recapData.recap}
               </div>
 
               {recapData.generatedAt && (
-                <p className="text-[10px] text-muted-foreground/60">
+                <p className="app-chip inline-flex px-2 py-1 text-[10px] text-muted-foreground/80">
                   Generated{' '}
                   {new Date(recapData.generatedAt).toLocaleString()}
                 </p>
@@ -113,12 +114,12 @@ export function SessionRecapModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-border p-4">
+        <div className="flex items-center justify-between border-t border-[hsla(38,40%,30%,0.2)] p-4 texture-wood">
           <button
             type="button"
             onClick={handleRegenerate}
             disabled={regenerate.isPending || isLoading}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-accent px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors font-[Cinzel] uppercase tracking-wider"
+            className="app-focus-ring flex items-center gap-1.5 rounded-md border border-border bg-accent px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors font-[Cinzel] uppercase tracking-wider"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 ${regenerate.isPending ? 'animate-spin' : ''}`}
@@ -131,7 +132,7 @@ export function SessionRecapModal({
               type="button"
               onClick={handleCopy}
               disabled={!recapData?.recap}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-accent px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors font-[Cinzel] uppercase tracking-wider"
+              className="app-focus-ring flex items-center gap-1.5 rounded-md border border-border bg-accent px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors font-[Cinzel] uppercase tracking-wider"
             >
               <Copy className="h-3.5 w-3.5" />
               Copy
@@ -139,7 +140,7 @@ export function SessionRecapModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-brass/40 bg-brass/10 px-4 py-1.5 text-xs text-brass hover:bg-brass/20 transition-colors font-[Cinzel] uppercase tracking-wider"
+              className="app-focus-ring rounded-md border border-brass/40 bg-brass/10 px-4 py-1.5 text-xs text-brass hover:bg-brass/20 transition-colors font-[Cinzel] uppercase tracking-wider"
             >
               Close
             </button>

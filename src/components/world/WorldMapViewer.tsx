@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, type PointerEvent as ReactPoi
 import { Upload, ZoomIn, ZoomOut, Maximize, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { api } from '@/api/client';
 import type { Campaign } from '@/types/campaign';
 
@@ -20,6 +21,8 @@ export function WorldMapViewer({ campaign, isDM, onMapUpdated }: WorldMapViewerP
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const panStart = useRef({ x: 0, y: 0 });
   const translateStart = useRef({ x: 0, y: 0 });
@@ -78,15 +81,17 @@ export function WorldMapViewer({ campaign, isDM, onMapUpdated }: WorldMapViewerP
 
   async function handleRemoveMap() {
     if (!worldMap) return;
-    if (!confirm('Remove the world map?')) return;
-
+    setRemoving(true);
     try {
       await api.delete(`/files/${worldMap.key}`);
       await api.patch(`/campaigns/${campaign._id}`, { worldMap: null });
       toast.success('World map removed');
+      setShowRemoveConfirm(false);
       onMapUpdated();
     } catch {
       toast.error('Failed to remove world map');
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -241,7 +246,7 @@ export function WorldMapViewer({ campaign, isDM, onMapUpdated }: WorldMapViewerP
             </button>
             <button
               type="button"
-              onClick={handleRemoveMap}
+              onClick={() => setShowRemoveConfirm(true)}
               className="flex items-center gap-1 rounded-md border border-blood/40 bg-blood/10 px-2 py-1 text-[10px] text-[hsl(0,55%,55%)] hover:bg-blood/20 transition-colors font-[Cinzel] uppercase tracking-wider"
             >
               <Trash2 className="h-3 w-3" />
@@ -280,6 +285,16 @@ export function WorldMapViewer({ campaign, isDM, onMapUpdated }: WorldMapViewerP
           />
         </div>
       </div>
+      <ConfirmDialog
+        open={showRemoveConfirm}
+        title="Remove World Map"
+        description="The world map image will be deleted. You can upload a new one later."
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={handleRemoveMap}
+        onCancel={() => setShowRemoveConfirm(false)}
+        isPending={removing}
+      />
     </div>
   );
 }

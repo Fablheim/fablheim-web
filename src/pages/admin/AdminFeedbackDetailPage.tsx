@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { AdminLayout } from './AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { useAdminFeedbackById, useUpdateFeedback } from '@/hooks/useAdmin';
-import { useTabs } from '@/context/TabContext';
-import { resolveRouteContent } from '@/routes';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_OPTIONS = ['new', 'in_review', 'planned', 'in_progress', 'resolved', 'closed'];
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
@@ -19,7 +18,7 @@ const TYPE_ICONS: Record<string, typeof Bug> = {
 export function AdminFeedbackDetailPage({ feedbackId }: { feedbackId: string }) {
   const { data: item, isLoading } = useAdminFeedbackById(feedbackId);
   const updateFeedback = useUpdateFeedback();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
@@ -44,8 +43,7 @@ export function AdminFeedbackDetailPage({ feedbackId }: { feedbackId: string }) 
   }
 
   function goBack() {
-    const path = '/app/admin/feedback';
-    openTab({ title: 'Admin: Feedback', path, content: resolveRouteContent(path, 'Admin: Feedback') });
+    navigate('/app/admin/feedback');
   }
 
   if (isLoading || !item) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Save, Plus, Pin, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useNotebook, useCreateNote, useUpdateNote, useDeleteNote, useTogglePin } from '@/hooks/useNotebook';
 import type { NotebookEntry } from '@/types/notebook';
 
@@ -95,13 +96,23 @@ function NoteCard({
 }) {
   const togglePin = useTogglePin();
   const deleteNote = useDeleteNote();
-
-  function handleDelete() {
-    if (!confirm('Delete this note?')) return;
-    deleteNote.mutate({ campaignId, noteId: note._id });
-  }
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   return (
+    <>
+    <ConfirmDialog
+      open={showDeleteConfirm}
+      title="Delete Note?"
+      description="This note will be permanently deleted."
+      confirmLabel="Delete"
+      variant="destructive"
+      isPending={deleteNote.isPending}
+      onConfirm={() => {
+        deleteNote.mutate({ campaignId, noteId: note._id });
+        setShowDeleteConfirm(false);
+      }}
+      onCancel={() => setShowDeleteConfirm(false)}
+    />
     <div
       className={`group rounded-md border p-3 cursor-pointer transition-all hover:border-gold/30 hover:shadow-glow-sm ${
         note.isPinned ? 'border-primary/30 bg-primary/5' : 'border-iron/30 bg-accent/20'
@@ -132,7 +143,7 @@ function NoteCard({
             <Pin className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={handleDelete}
+            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
             className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Delete"
           >
@@ -141,6 +152,7 @@ function NoteCard({
         </div>
       </div>
     </div>
+    </>
   );
 }
 

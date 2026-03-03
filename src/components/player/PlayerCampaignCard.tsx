@@ -1,10 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { Play, Users, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useTabs } from '@/context/TabContext';
 import { useSessions } from '@/hooks/useSessions';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useCampaignMembers } from '@/hooks/useCampaignMembers';
-import { resolveRouteContent } from '@/routes';
 import { Button } from '@/components/ui/Button';
 import type { Character } from '@/types/campaign';
 
@@ -26,7 +25,7 @@ export function PlayerCampaignCard({
   onViewCharacter,
 }: PlayerCampaignCardProps) {
   const { user } = useAuth();
-  const { openTab } = useTabs();
+  const navigate = useNavigate();
 
   const { data: sessions } = useSessions(campaignId);
   const { data: characters } = useCharacters(campaignId);
@@ -37,12 +36,7 @@ export function PlayerCampaignCard({
   const memberCount = (members?.length ?? 0) + 1; // +1 for the DM
 
   function handleJoinSession() {
-    const path = `/app/campaigns/${campaignId}/live`;
-    openTab({
-      title: `Live: ${campaignName}`,
-      path,
-      content: resolveRouteContent(path, 'Live Session'),
-    });
+    navigate(`/app/campaigns/${campaignId}/session`);
   }
 
   const isActive = campaignStatus === 'active';

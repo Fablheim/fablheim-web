@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -52,10 +53,16 @@ const CATEGORY_ICONS: Record<NoteCategory, typeof BookOpen> = {
   general: FileText,
 };
 
-export function NotebookPage() {
-  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+interface NotebookPageProps {
+  campaignId?: string;
+}
 
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+export function NotebookPage({ campaignId: propCampaignId }: NotebookPageProps) {
+  const { data: campaigns, isLoading: campaignsLoading } = useAccessibleCampaigns();
+  const [searchParams] = useSearchParams();
+  const effectiveCampaignId = propCampaignId ?? (searchParams.get('campaign') ?? '');
+
+  const [selectedCampaignId, setSelectedCampaignId] = useState(effectiveCampaignId);
   const [activeTab, setActiveTab] = useState<NotebookTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -199,16 +206,18 @@ export function NotebookPage() {
       actions={
         <div className="flex items-center gap-3">
           {/* Campaign Selector */}
-          <CampaignSelector
-            campaigns={dmCampaigns}
-            value={selectedCampaignId}
-            onChange={(id) => {
-              setSelectedCampaignId(id);
-              setActiveTab('all');
-              setSearchQuery('');
-              setExpandedNoteId(null);
-            }}
-          />
+          {!effectiveCampaignId && (
+            <CampaignSelector
+              campaigns={dmCampaigns}
+              value={selectedCampaignId}
+              onChange={(id) => {
+                setSelectedCampaignId(id);
+                setActiveTab('all');
+                setSearchQuery('');
+                setExpandedNoteId(null);
+              }}
+            />
+          )}
 
           {/* Search */}
           {selectedCampaignId && (
@@ -236,7 +245,7 @@ export function NotebookPage() {
     >
       {/* No campaign selected */}
       {!selectedCampaignId && !campaignsLoading && (
-        <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+        <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
           <div className="mx-auto max-w-sm">
             <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
               Choose a Campaign
@@ -254,17 +263,17 @@ export function NotebookPage() {
       {selectedCampaignId && (
         <>
           {/* Tabs */}
-          <div className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
+          <div className="mkt-card mb-6 flex gap-1 overflow-x-auto rounded-xl border-b border-border px-2 py-2">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                  className={`flex shrink-0 items-center gap-2 rounded-md border-b-2 px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
                     activeTab === tab.key
-                      ? 'border-brass text-brass'
-                      : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+                      ? 'border-brass bg-brass/10 text-brass'
+                      : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/35 hover:text-foreground'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -289,7 +298,7 @@ export function NotebookPage() {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="rounded-lg border border-border bg-card p-5 tavern-card texture-leather"
+                  className="mkt-card mkt-card-mounted rounded-lg p-5"
                 >
                   <div className="animate-pulse space-y-3">
                     <div className="h-5 w-1/3 rounded bg-muted" />
@@ -303,7 +312,7 @@ export function NotebookPage() {
 
           {/* Error */}
           {notesError && (
-            <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
+            <div className="mkt-card rounded-lg border border-destructive/50 p-8 text-center">
               <p className="font-medium text-destructive">Failed to load notes</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {(notesError as Error).message}
@@ -313,7 +322,7 @@ export function NotebookPage() {
 
           {/* Empty */}
           {!notesLoading && !notesError && filteredNotes.length === 0 && (
-            <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-12 text-center texture-parchment">
+            <div className="mkt-card mkt-card-mounted rounded-xl border-2 border-dashed border-gold/30 p-12 text-center">
               <div className="mx-auto max-w-sm">
                 <h3 className="mb-2 text-lg font-semibold text-foreground font-['IM_Fell_English']">
                   {searchQuery ? 'No results found' : 'No Notes Yet'}
@@ -343,10 +352,10 @@ export function NotebookPage() {
                 return (
                   <div
                     key={note._id}
-                    className={`rounded-lg border bg-card tavern-card texture-leather transition-all ${
+                    className={`mkt-card mkt-card-mounted rounded-lg border transition-all ${
                       note.isPinned
-                        ? 'border-brass/40 shadow-[0_0_12px_hsla(38,80%,50%,0.08)]'
-                        : 'border-border'
+                        ? 'border-brass/45 shadow-[0_0_16px_hsla(38,80%,50%,0.12)]'
+                        : 'border-border hover:border-[color:var(--mkt-accent)]/35'
                     }`}
                   >
                     {/* Note header */}
@@ -364,7 +373,7 @@ export function NotebookPage() {
                       <div className="min-w-0 flex-1">
                         {/* Title row */}
                         <div className="flex items-center gap-2">
-                          <h3 className="truncate text-sm font-semibold text-foreground font-['IM_Fell_English'] text-base">
+                          <h3 className="truncate text-base font-semibold text-foreground font-['IM_Fell_English'] text-carved">
                             {note.title}
                           </h3>
                           {note.sessionNumber && (
@@ -375,7 +384,7 @@ export function NotebookPage() {
                         </div>
 
                         {/* Meta row */}
-                        <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1 font-[Cinzel] uppercase tracking-wider">
                             <CategoryIcon className="h-3 w-3" />
                             {categoryLabels[note.category]}
@@ -399,7 +408,7 @@ export function NotebookPage() {
 
                         {/* Preview (collapsed) */}
                         {!isExpanded && note.content && (
-                          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                          <p className="mt-2 line-clamp-2 text-base text-muted-foreground">
                             {note.content}
                           </p>
                         )}
