@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { liveSessionApi } from '@/api/live-session';
-import type { RollDiceRequest, AddInitiativeEntryRequest, UpdateInitiativeEntryRequest } from '@/types/live-session';
+import type {
+  RollDiceRequest,
+  AddInitiativeEntryRequest,
+  UpdateInitiativeEntryRequest,
+  UpdateDeathSavesRequest,
+} from '@/types/live-session';
+import type { CombatRulesProfile } from '@/types/combat-rules';
 
 export function useInitiative(campaignId: string) {
   return useQuery({
@@ -15,6 +21,15 @@ export function useDiceHistory(campaignId: string) {
     queryKey: ['dice-history', campaignId],
     queryFn: () => liveSessionApi.getDiceHistory(campaignId),
     enabled: !!campaignId,
+  });
+}
+
+export function useCombatRules(campaignId: string) {
+  return useQuery<CombatRulesProfile>({
+    queryKey: ['combat-rules', campaignId],
+    queryFn: () => liveSessionApi.getCombatRules(campaignId),
+    enabled: !!campaignId,
+    staleTime: Infinity,
   });
 }
 
@@ -55,6 +70,17 @@ export function useRemoveInitiativeEntry(campaignId: string) {
   return useMutation({
     mutationFn: (entryId: string) =>
       liveSessionApi.removeInitiativeEntry(campaignId, entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['initiative', campaignId] });
+    },
+  });
+}
+
+export function useUpdateDeathSaves(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, body }: { entryId: string; body: UpdateDeathSavesRequest }) =>
+      liveSessionApi.updateDeathSaves(campaignId, entryId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['initiative', campaignId] });
     },

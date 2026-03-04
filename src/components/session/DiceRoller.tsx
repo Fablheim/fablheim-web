@@ -20,7 +20,8 @@ interface DiceRollEvent {
   username: string;
   result: RollResult;
   purpose?: string;
-  timestamp: string;
+  timestamp?: string;
+  createdAt?: string;
 }
 
 interface DiceRollerProps {
@@ -34,9 +35,15 @@ const QUICK_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'] as const;
 
 // -- Helpers ----------------------------------------------------------------
 
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
+function formatTimestamp(value?: string): string {
+  if (!value) return '--:--';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '--:--';
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function eventTime(event: DiceRollEvent): string | undefined {
+  return event.timestamp ?? event.createdAt;
 }
 
 // -- Component --------------------------------------------------------------
@@ -281,7 +288,7 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
             </p>
           )}
           {history.map((event, idx) => (
-            <RollHistoryItem key={`${event.timestamp}-${idx}`} event={event} />
+            <RollHistoryItem key={`${eventTime(event) ?? 'no-time'}-${idx}`} event={event} />
           ))}
         </div>
       </div>
@@ -292,7 +299,8 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
 // -- Roll History Item ------------------------------------------------------
 
 function RollHistoryItem({ event }: { event: DiceRollEvent }) {
-  const { result, username, purpose, timestamp } = event;
+  const { result, username, purpose } = event;
+  if (!result) return null;
   const isCritSuccess = result.critical === 'success';
   const isCritFailure = result.critical === 'failure';
 
@@ -310,7 +318,7 @@ function RollHistoryItem({ event }: { event: DiceRollEvent }) {
       <div className="flex items-center justify-between">
         <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-foreground">{username}</span>
         <span className="text-xs text-muted-foreground">
-          {formatTimestamp(timestamp)}
+          {formatTimestamp(eventTime(event))}
         </span>
       </div>
 

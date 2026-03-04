@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dice5, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCharacters } from '@/hooks/useCharacters';
@@ -11,15 +11,17 @@ import {
   useRollDeathSave,
   useConsumeSpellSlot,
   useRestoreSpellSlot,
+  useUpdateAttacks,
 } from '@/hooks/useCharacterCombat';
 import { HPTracker } from '@/components/characters/HPTracker';
 import { CombatStats } from '@/components/characters/CombatStats';
 import { SpellSlots } from '@/components/characters/SpellSlots';
-import type { Character, AbilityRollResult } from '@/types/campaign';
+import type { Character, AbilityRollResult, CharacterAttack } from '@/types/campaign';
 
 interface LiveCharacterSheetProps {
   campaignId: string;
   isDM: boolean;
+  characterId?: string;
 }
 
 // ── Standard D&D 5e ability scores ───────────────────────
@@ -43,12 +45,13 @@ function formatMod(mod: number): string {
 
 // ── Component ────────────────────────────────────────────
 
-export function LiveCharacterSheet({ campaignId, isDM: _isDM }: LiveCharacterSheetProps) {
+export function LiveCharacterSheet({ campaignId, isDM, characterId }: LiveCharacterSheetProps) {
   const { user } = useAuth();
   const { data: characters, isLoading } = useCharacters(campaignId);
 
-  // Find the current user's character in this campaign
-  const myCharacter = characters?.find((c) => c.userId === user?._id);
+  const selectedCharacter = characterId
+    ? characters?.find((c) => c._id === characterId)
+    : characters?.find((c) => c.userId === user?._id);
 
   if (isLoading) {
     return (
@@ -58,20 +61,29 @@ export function LiveCharacterSheet({ campaignId, isDM: _isDM }: LiveCharacterShe
     );
   }
 
-  if (!myCharacter) {
+  if (!selectedCharacter) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
         <p className="font-['IM_Fell_English'] text-sm text-muted-foreground">
-          No character found in this campaign.
+          {characterId ? 'Selected character not found in this campaign.' : 'No character found in this campaign.'}
         </p>
         <p className="text-xs text-muted-foreground">
-          Ask your DM to create a character for you, or create one in the campaign prep phase.
+          {characterId
+            ? 'This participant may have been removed or is no longer available.'
+            : 'Ask your DM to create a character for you, or create one in the campaign prep phase.'}
         </p>
       </div>
     );
   }
 
-  return <CharacterSheetContent character={myCharacter} campaignId={campaignId} />;
+  return (
+    <CharacterSheetContent
+      character={selectedCharacter}
+      campaignId={campaignId}
+      isDM={isDM}
+      currentUserId={user?._id}
+    />
+  );
 }
 
 // ── Sheet Content (extracted to keep parent children count low for TS 5.9) ──
@@ -79,9 +91,13 @@ export function LiveCharacterSheet({ campaignId, isDM: _isDM }: LiveCharacterShe
 function CharacterSheetContent({
   character,
   campaignId,
+  isDM,
+  currentUserId,
 }: {
   character: Character;
   campaignId: string;
+  isDM: boolean;
+  currentUserId?: string;
 }) {
   const rollAttack = useRollAttack();
   const rollAbility = useRollAbility();
@@ -91,9 +107,16 @@ function CharacterSheetContent({
   const rollDeathSave = useRollDeathSave();
   const consumeSlot = useConsumeSpellSlot();
   const restoreSlot = useRestoreSpellSlot();
+  const updateAttacks = useUpdateAttacks();
 
   const [abilityResult, setAbilityResult] = useState<AbilityRollResult | null>(null);
   const [rollingAbility, setRollingAbility] = useState<string | null>(null);
+  const [attacksDraft, setAttacksDraft] = useState<CharacterAttack[]>(character.attacks ?? []);
+  const canEditAttacks = isDM || character.userId === currentUserId;
+
+  useEffect(() => {
+    setAttacksDraft(character.attacks ?? []);
+  }, [character._id, character.attacks]);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -102,6 +125,7 @@ function CharacterSheetContent({
         {renderHPSection(character)}
         {renderAbilityScores(character)}
         {renderCombatSection(character)}
+        {canEditAttacks && renderAttackEditor()}
         {renderSpellSlotSection(character)}
       </div>
     </div>
@@ -239,6 +263,125 @@ function CharacterSheetContent({
     );
   }
 
+  function renderAttackEditor() {
+    return (
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Manage Attacks</p>
+          <button
+            type="button"
+            onClick={() =>
+              setAttacksDraft([
+                ...attacksDraft,
+                {
+                  id: makeAttackId(),
+                  name: '',
+                  attackBonus: 0,
+                  damageBonus: 0,
+                  damageDice: '1d6',
+                  damageType: 'slashing',
+                  actionCost: 'action',
+                },
+              ])
+            }
+            className="rounded border border-primary/40 bg-primary/10 px-2 py-1 text-[10px] uppercase tracking-wider text-primary hover:bg-primary/20"
+          >
+            Add Attack
+          </button>
+        </div>
+        <div className="space-y-2">
+          {attacksDraft.map((attack, i) => (
+            <div key={attack.id || `${attack.name}-${i}`} className="rounded border border-border/60 bg-card/40 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={attack.name}
+                  onChange={(e) => updateAttack(i, { name: e.target.value })}
+                  placeholder="Name"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <input
+                  type="text"
+                  value={attack.damageDice}
+                  onChange={(e) => updateAttack(i, { damageDice: e.target.value })}
+                  placeholder="Damage dice"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <input
+                  type="number"
+                  value={attack.attackBonus}
+                  onChange={(e) => updateAttack(i, { attackBonus: parseInt(e.target.value, 10) || 0 })}
+                  placeholder="To-hit"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <input
+                  type="number"
+                  value={attack.damageBonus}
+                  onChange={(e) => updateAttack(i, { damageBonus: parseInt(e.target.value, 10) || 0 })}
+                  placeholder="Damage bonus"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <input
+                  type="text"
+                  value={attack.damageType}
+                  onChange={(e) => updateAttack(i, { damageType: e.target.value })}
+                  placeholder="Damage type"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <input
+                  type="text"
+                  value={attack.range ?? ''}
+                  onChange={(e) => updateAttack(i, { range: e.target.value })}
+                  placeholder="Range"
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                />
+                <select
+                  value={attack.actionCost ?? 'action'}
+                  onChange={(e) => updateAttack(i, { actionCost: e.target.value as CharacterAttack['actionCost'] })}
+                  className="rounded border border-input bg-input px-2 py-1 text-xs"
+                >
+                  <option value="action">Action</option>
+                  <option value="bonus">Bonus Action</option>
+                  <option value="reaction">Reaction</option>
+                  <option value="free">Free</option>
+                </select>
+              </div>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setAttacksDraft(attacksDraft.filter((_, idx) => idx !== i))}
+                  className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[10px] uppercase tracking-wider text-destructive hover:bg-destructive/20"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() =>
+              updateAttacks.mutate({
+                id: character._id,
+                attacks: sanitizeAttacks(attacksDraft),
+              })
+            }
+            className="rounded border border-primary/40 bg-primary/10 px-2 py-1 text-[10px] uppercase tracking-wider text-primary hover:bg-primary/20"
+          >
+            Save Attacks
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function updateAttack(index: number, patch: Partial<CharacterAttack>) {
+    setAttacksDraft(
+      attacksDraft.map((attack, i) => (i === index ? { ...attack, ...patch } : attack)),
+    );
+  }
+
   async function handleAbilityRoll(
     characterId: string,
     ability: string,
@@ -259,6 +402,30 @@ function CharacterSheetContent({
       setRollingAbility(null);
     }
   }
+}
+
+function sanitizeAttacks(attacks: CharacterAttack[]): CharacterAttack[] {
+  return attacks
+    .map((attack, i) => ({
+      ...attack,
+      id: attack.id || makeAttackId(i),
+      name: attack.name.trim(),
+      damageDice: attack.damageDice.trim(),
+      damageType: attack.damageType.trim(),
+      attackBonus: Number.isFinite(attack.attackBonus) ? attack.attackBonus : 0,
+      damageBonus: Number.isFinite(attack.damageBonus) ? attack.damageBonus : 0,
+      actionCost: attack.actionCost ?? 'action',
+      range: attack.range?.trim() || undefined,
+      description: attack.description?.trim() || undefined,
+    }))
+    .filter((attack) => attack.name.length > 0 && attack.damageDice.length > 0);
+}
+
+function makeAttackId(seed?: number): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `atk-${Date.now()}-${seed ?? Math.floor(Math.random() * 10000)}`;
 }
 
 // ── Ability Score Card ────────────────────────────────────

@@ -12,6 +12,7 @@ function useCharacterCombatMutation<TVariables>(
     mutationFn,
     onSuccess: (_data, variables) => {
       const id = (variables as Record<string, unknown>).id as string;
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
       queryClient.invalidateQueries({ queryKey: ['characters', 'detail', id] });
     },
   });

@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, ScrollText, User } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useInitiative } from '@/hooks/useLiveSession';
+import { useCharacters } from '@/hooks/useCharacters';
+import { ConcentrationBadge } from '@/components/session/ConcentrationBadge';
+import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
+import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import { LiveCharacterSheet } from '@/components/session/LiveCharacterSheet';
 import { SessionNotesTab } from '@/components/session/SessionNotesTab';
 import { QuickReference } from '@/components/session/QuickReference';
@@ -11,6 +17,9 @@ interface PlayerSidebarV2Props {
 }
 
 export default function PlayerSidebarV2({ campaignId }: PlayerSidebarV2Props) {
+  const { user } = useAuth();
+  const { data: initiative } = useInitiative(campaignId);
+  const { data: characters } = useCharacters(campaignId);
   const [activeTab, setActiveTab] = useState<PlayerTab>(() => {
     const saved = localStorage.getItem('fablheim:session-v2-player-tab');
     return (saved as PlayerTab) || 'character';
@@ -19,6 +28,11 @@ export default function PlayerSidebarV2({ campaignId }: PlayerSidebarV2Props) {
   useEffect(() => {
     localStorage.setItem('fablheim:session-v2-player-tab', activeTab);
   }, [activeTab]);
+
+  const myCharacter = characters?.find((character) => character.userId === user?._id);
+  const myEntry = myCharacter
+    ? initiative?.entries.find((entry) => entry.characterId === myCharacter._id)
+    : undefined;
 
   return (
     <div className="flex h-full flex-col">
@@ -35,7 +49,26 @@ export default function PlayerSidebarV2({ campaignId }: PlayerSidebarV2Props) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {activeTab === 'character' && <LiveCharacterSheet campaignId={campaignId} isDM={false} />}
+        {activeTab === 'character' && (
+          <>
+            {myEntry && (
+              <div className="mb-2 space-y-2 rounded border border-border/60 bg-background/30 p-2">
+                <ConcentrationBadge campaignId={campaignId} entry={myEntry} canEdit />
+                <DeathSavesTracker
+                  campaignId={campaignId}
+                  entry={myEntry}
+                  canEditPcDeathSaves
+                />
+                <DownedStatePanel
+                  campaignId={campaignId}
+                  entry={myEntry}
+                  canEdit={false}
+                />
+              </div>
+            )}
+            <LiveCharacterSheet campaignId={campaignId} isDM={false} />
+          </>
+        )}
         {activeTab === 'notes' && <SessionNotesTab campaignId={campaignId} />}
         {activeTab === 'rules' && <QuickReference campaignId={campaignId} />}
       </div>

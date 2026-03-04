@@ -6,18 +6,13 @@ import {
   Loader2,
   Lock,
   LogOut,
-  MessageCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
   RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useCampaign } from '@/hooks/useCampaigns';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
-import { useInitiative } from '@/hooks/useLiveSession';
+import { useEndCombat, useInitiative, useNextTurn } from '@/hooks/useLiveSession';
 import { useCampaignStage } from '@/hooks/useCampaignStage';
 import { useBattleMap } from '@/hooks/useBattleMap';
 import { useSessionRoom } from '@/hooks/useSocket';
@@ -25,12 +20,19 @@ import { useCombatSync } from '@/hooks/useCombatSync';
 import { Button } from '@/components/ui/Button';
 import { MapTab } from '@/components/session/MapTab';
 import { ChatPanel } from '@/components/session/ChatPanel';
-import InitiativeBanner from '@/components/session/InitiativeBanner';
-import { InitiativeTracker } from '@/components/session/InitiativeTracker';
 import DMMainContent from '@/components/session/DMMainContent';
-import DMSidebarV2 from '@/components/session/DMSidebarV2';
 import PlayerSidebarV2 from '@/components/session/PlayerSidebarV2';
 import DiceRollerToast from '@/components/session/DiceRollerToast';
+import DiceRoller from '@/components/session/DiceRoller';
+import { EventsFeed } from '@/components/session/EventsFeed';
+import { BottomDrawer } from '@/components/session/BottomDrawer';
+import SessionWorkspaceShell from '@/components/session/SessionWorkspaceShell';
+import { QuickActionBar } from '@/components/session/QuickActionBar';
+import {
+  SessionWorkspaceStateProvider,
+  useSessionWorkspaceState,
+} from '@/components/session/SessionWorkspaceState';
+import { FocusCard } from '@/components/session/FocusCard';
 
 function parseSessionParams(pathname: string): { campaignId: string } {
   const match = pathname.match(/\/campaigns\/([^/]+)\/session/);
@@ -56,15 +58,7 @@ export default function SessionRunnerShellV2() {
 
   const selectedCampaign = accessibleCampaigns?.find((c) => c._id === campaignId);
   const isDM = !!(campaign && user && campaign.dmId === user._id) || selectedCampaign?.role === 'co_dm';
-  const isCombatActive = !!initiative?.isActive;
-  const hasTacticalMap = !!battleMap?.backgroundImageUrl;
 
-  const [leftOpen, setLeftOpen] = useState(() =>
-    localStorage.getItem('fablheim:session-v2-left-open') !== '0',
-  );
-  const [rightOpen, setRightOpen] = useState(() =>
-    localStorage.getItem('fablheim:session-v2-right-open') !== '0',
-  );
   const [desyncDismissed, setDesyncDismissed] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [sessionEndedCountdown, setSessionEndedCountdown] = useState<number | null>(null);
@@ -72,20 +66,12 @@ export default function SessionRunnerShellV2() {
 
   const { endSession } = useCampaignStage(campaignId);
 
-  useEffect(() => {
-    localStorage.setItem('fablheim:session-v2-left-open', leftOpen ? '1' : '0');
-  }, [leftOpen]);
-
-  useEffect(() => {
-    localStorage.setItem('fablheim:session-v2-right-open', rightOpen ? '1' : '0');
-  }, [rightOpen]);
-
   // Reset desync dismissed when a new desync occurs
   useEffect(() => {
     if (desynced) setDesyncDismissed(false);
   }, [desynced]);
 
-  // Detect when session ends (stage transitions from live → non-live)
+  // Detect when session ends (stage transitions from live -> non-live)
   useEffect(() => {
     const prev = prevStageRef.current;
     prevStageRef.current = campaign?.stage;
@@ -173,151 +159,24 @@ export default function SessionRunnerShellV2() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="session-top-bar flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-[hsla(38,50%,40%,0.22)] px-4">
-        <div className="session-top-brand flex items-center gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-[Cinzel] uppercase tracking-[0.12em] text-muted-foreground">Live Session</p>
-            <h1 className="truncate font-[Cinzel] text-base font-semibold text-foreground text-embossed">
-              {campaignName}
-            </h1>
-          </div>
-          {/* Connection status indicator */}
-          <div className="flex items-center gap-1.5" title={connected ? 'Connected' : 'Reconnecting...'}>
-            <div className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
-            {!connected && (
-              <span className="text-[10px] text-yellow-500">Reconnecting...</span>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {hasTacticalMap && (
-            <>
-              <Button variant="outline" onClick={() => setLeftOpen((prev) => !prev)}>
-                {leftOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-                <span className="ml-2 hidden sm:inline">Tools</span>
-              </Button>
-              <Button variant="outline" onClick={() => setRightOpen((prev) => !prev)}>
-                {rightOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                <span className="ml-2 hidden sm:inline">Chat</span>
-              </Button>
-            </>
-          )}
-          {isDM ? (
-            <Button variant="destructive" size="sm" onClick={() => setShowEndConfirm(true)}>
-              <LogOut className="mr-1.5 h-3.5 w-3.5" />
-              End Session
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/app/campaigns/${campaignId}`)}>
-              <LogOut className="mr-1.5 h-3.5 w-3.5" />
-              Leave
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* Desync warning banner */}
-      {desynced && !desyncDismissed && (
-        <div className="flex shrink-0 items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            <span className="font-[Cinzel] text-xs font-medium text-foreground">Session out of sync</span>
-            <span className="text-[10px] text-muted-foreground">Your view may not match other participants.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                window.location.reload();
-              }}
-            >
-              <RefreshCw className="mr-1.5 h-3 w-3" />
-              Reload
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                dismissDesync();
-                setDesyncDismissed(true);
-              }}
-            >
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {isCombatActive && (
-        <InitiativeBanner campaignId={campaignId} isDM={!!isDM} />
-      )}
-
-      {hasTacticalMap ? (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          {leftOpen && (
-            <aside className="h-full w-[280px] flex-shrink-0 border-r border-border/70 bg-card/70">
-              {isDM ? (
-                <DMSidebarV2 campaignId={campaignId} isDM={!!isDM} />
-              ) : (
-                <PlayerSidebarV2 campaignId={campaignId} />
-              )}
-            </aside>
-          )}
-
-          <main className="relative min-h-0 flex-1 overflow-hidden">
-            <MapTab campaignId={campaignId} isDM={!!isDM} />
-          </main>
-
-          {rightOpen && (
-            <aside className="h-full w-[320px] flex-shrink-0 border-l border-border/70 bg-card/70">
-              <ChatPanel campaignId={campaignId} connectedUsers={connectedUsers || []} />
-            </aside>
-          )}
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <main className="min-h-0 flex-1 overflow-hidden">
-            {isDM ? (
-              <DMMainContent campaignId={campaignId} isDM={!!isDM} />
-            ) : (
-              <div className="flex h-full min-h-0 overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <PlayerSidebarV2 campaignId={campaignId} />
-                </div>
-                {isCombatActive && (
-                  <div className="h-full w-[320px] flex-shrink-0 border-l border-border/70 overflow-y-auto">
-                    <InitiativeTracker campaignId={campaignId} isDM={false} />
-                  </div>
-                )}
-              </div>
-            )}
-          </main>
-
-          <aside className="h-full w-[25%] min-w-[320px] max-w-[400px] flex-shrink-0 border-l border-border/70 bg-card/70">
-            <ChatPanel campaignId={campaignId} connectedUsers={connectedUsers || []} />
-          </aside>
-        </div>
-      )}
-
-      <div className="fixed bottom-4 right-4 z-50">
-        {hasTacticalMap && (
-          <div className="mb-2 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setRightOpen((prev) => !prev)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg hover:text-foreground"
-              aria-label="Toggle chat sidebar"
-              title="Toggle chat"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-        <DiceRollerToast campaignId={campaignId} />
-      </div>
+    <SessionWorkspaceStateProvider initiative={initiative}>
+      <SessionWorkspaceContent
+        campaignId={campaignId}
+        campaignName={campaignName}
+        isDM={!!isDM}
+        connected={connected}
+        connectedUsers={connectedUsers || []}
+        desynced={desynced}
+        desyncDismissed={desyncDismissed}
+        dismissDesync={() => {
+          dismissDesync();
+          setDesyncDismissed(true);
+        }}
+        initiative={initiative}
+        battleMap={battleMap}
+        onLeave={() => navigate(`/app/campaigns/${campaignId}`)}
+        onOpenEndConfirm={() => setShowEndConfirm(true)}
+      />
 
       {sessionEndedCountdown !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -361,6 +220,254 @@ export default function SessionRunnerShellV2() {
           </div>
         </div>
       )}
+    </SessionWorkspaceStateProvider>
+  );
+}
+
+function SessionWorkspaceContent({
+  campaignId,
+  campaignName,
+  isDM,
+  connected,
+  connectedUsers,
+  desynced,
+  desyncDismissed,
+  dismissDesync,
+  initiative,
+  battleMap,
+  onLeave,
+  onOpenEndConfirm,
+}: {
+  campaignId: string;
+  campaignName: string;
+  isDM: boolean;
+  connected: boolean;
+  connectedUsers: Array<{ userId: string; username: string; socketId: string; role: 'dm' | 'player'; connectedAt: string; lastActivity: string }>;
+  desynced: boolean;
+  desyncDismissed: boolean;
+  dismissDesync: () => void;
+  initiative: ReturnType<typeof useInitiative>['data'];
+  battleMap: ReturnType<typeof useBattleMap>['data'];
+  onLeave: () => void;
+  onOpenEndConfirm: () => void;
+}) {
+  const {
+    selectedEntryId,
+    focusedEntryId,
+    selectEntry,
+  } = useSessionWorkspaceState();
+
+  const nextTurn = useNextTurn(campaignId);
+  const endCombat = useEndCombat(campaignId);
+
+  const isCombatActive = !!initiative?.isActive;
+  const hasTacticalMap = !!(
+    battleMap?.isActive ||
+    (battleMap?.tokens?.length ?? 0) > 0 ||
+    !!battleMap?.backgroundImageUrl
+  );
+
+  const focusedEntry = focusedEntryId
+    ? initiative?.entries.find((entry) => entry.id === focusedEntryId) ?? null
+    : null;
+  const activeTurnEntry =
+    initiative?.isActive && initiative.entries[initiative.currentTurn]
+      ? initiative.entries[initiative.currentTurn]
+      : null;
+  const entryToDisplay = focusedEntry ?? activeTurnEntry;
+  const initiativeOrder = initiative ? [...initiative.entries] : [];
+
+  useEffect(() => {
+    if (!selectedEntryId || !initiative) return;
+    const exists = initiative.entries.some((entry) => entry.id === selectedEntryId);
+    if (!exists) {
+      selectEntry(null, { pin: true });
+    }
+  }, [initiative, selectedEntryId, selectEntry]);
+
+  const header = (
+    <>
+      <header className="session-top-bar flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-[hsla(38,50%,40%,0.22)] px-4">
+        <div className="session-top-brand flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-[Cinzel] uppercase tracking-[0.12em] text-muted-foreground">Live Session</p>
+            <h1 className="truncate font-[Cinzel] text-base font-semibold text-foreground text-embossed">
+              {campaignName}
+            </h1>
+          </div>
+          <div className="flex items-center gap-1.5" title={connected ? 'Connected' : 'Reconnecting...'}>
+            <div className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+            {!connected && (
+              <span className="text-[10px] text-yellow-500">Reconnecting...</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isDM ? (
+            <Button variant="destructive" size="sm" onClick={onOpenEndConfirm}>
+              <LogOut className="mr-1.5 h-3.5 w-3.5" />
+              End Session
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={onLeave}>
+              <LogOut className="mr-1.5 h-3.5 w-3.5" />
+              Leave
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {desynced && !desyncDismissed && (
+        <div className="flex shrink-0 items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <span className="font-[Cinzel] text-xs font-medium text-foreground">Session out of sync</span>
+            <span className="text-[10px] text-muted-foreground">Your view may not match other participants.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCw className="mr-1.5 h-3 w-3" />
+              Reload
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dismissDesync}>
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isCombatActive && (
+        <div className="flex items-center gap-2 border-b border-[hsla(38,50%,40%,0.22)] px-4 py-2">
+          <span className="shrink-0 text-[10px] font-[Cinzel] uppercase tracking-[0.12em] text-muted-foreground">
+            Round {initiative?.round ?? '-'}
+          </span>
+          <div className="min-w-0 flex flex-1 items-center gap-1 overflow-x-auto pb-0.5">
+            {initiativeOrder.map((entry) => {
+              const isCurrent = activeTurnEntry?.id === entry.id;
+              const isFocused = focusedEntryId === entry.id;
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => selectEntry(entry.id, { pin: true })}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-[10px] ${
+                    isCurrent
+                      ? 'border-primary/60 bg-primary/20 text-primary'
+                      : isFocused
+                        ? 'border-blue-400/60 bg-blue-500/15 text-blue-300'
+                        : 'border-border/60 bg-card/60 text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-background/60 text-[9px] font-semibold">
+                    {entry.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="max-w-[120px] truncate">{entry.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const leftPanel = isDM ? (
+    <div className="flex h-full flex-col gap-3 p-3">
+      <div className="rounded border border-border/60 bg-background/30 p-2">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Round</p>
+        <p className="text-sm font-semibold text-foreground">{initiative?.isActive ? initiative.round : '-'}</p>
+      </div>
+
+      <div className="rounded border border-border/60 bg-background/30 p-2">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Turn</p>
+        <p className="truncate text-sm font-semibold text-foreground">
+          {activeTurnEntry?.name ?? 'No active turn'}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => nextTurn.mutate()}
+          disabled={!isCombatActive || nextTurn.isPending}
+        >
+          Next Turn
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => endCombat.mutate()}
+          disabled={!isCombatActive || endCombat.isPending}
+        >
+          End Combat
+        </Button>
+      </div>
+
+      <QuickActionBar
+        campaignId={campaignId}
+        focusedEntry={entryToDisplay}
+        onEndTurn={() => nextTurn.mutate()}
+        onSpawnToken={() => {
+          window.dispatchEvent(new CustomEvent('fablheim:spawn-token', {
+            detail: {
+              name: entryToDisplay?.name ?? 'Token',
+              type: entryToDisplay?.type ?? 'other',
+            },
+          }));
+        }}
+        disableEndTurn={!isCombatActive || nextTurn.isPending}
+        layout="vertical"
+      />
     </div>
+  ) : (
+    <PlayerSidebarV2 campaignId={campaignId} />
+  );
+
+  const centerStage = hasTacticalMap ? (
+    <MapTab
+      campaignId={campaignId}
+      isDM={isDM}
+      onTokenSelect={(initiativeEntryId) => selectEntry(initiativeEntryId ?? null, { pin: true })}
+      selectedEntryId={focusedEntryId}
+    />
+  ) : (
+    isDM ? (
+      <DMMainContent campaignId={campaignId} isDM={isDM} />
+    ) : (
+      <PlayerSidebarV2 campaignId={campaignId} />
+    )
+  );
+
+  const drawer = (
+    <BottomDrawer
+      mapMode={hasTacticalMap}
+      chat={<ChatPanel campaignId={campaignId} connectedUsers={connectedUsers} />}
+      events={<EventsFeed campaignId={campaignId} />}
+      dice={<div className="h-full overflow-y-auto p-2"><DiceRoller campaignId={campaignId} /></div>}
+    />
+  );
+
+  const rightPanel = isDM ? (
+    <div className="h-full min-h-0">
+      <FocusCard campaignId={campaignId} isDM={isDM} entryOverride={entryToDisplay} />
+    </div>
+  ) : undefined;
+
+  return (
+    <>
+      <SessionWorkspaceShell
+        header={header}
+        leftPanel={leftPanel}
+        centerStage={centerStage}
+        rightPanel={rightPanel}
+        mapOverlay={hasTacticalMap ? <DiceRollerToast campaignId={campaignId} /> : undefined}
+        bottomDrawer={drawer}
+        defaultLeftOpen
+        defaultRightOpen
+        mapMode={hasTacticalMap}
+      />
+    </>
   );
 }

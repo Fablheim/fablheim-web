@@ -24,11 +24,20 @@ const MODE_COLORS: Record<ChatMode, string> = {
   whisper: 'border-purple-500/50 text-purple-400',
 };
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+function formatTime(value?: string): string {
+  if (!value) return '--:--';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function toMillis(value?: string): number {
+  if (!value) return 0;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
 export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
@@ -121,8 +130,7 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
         if (newMessages.length === 0) return prev;
 
         const merged = [...prev, ...newMessages].sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          (a, b) => toMillis(a.createdAt) - toMillis(b.createdAt),
         );
         return merged;
       });

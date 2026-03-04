@@ -2,6 +2,7 @@ export interface EnemyAttack {
   name: string;
   bonus: number;
   damage: string;
+  actionCost?: 'action' | 'bonus' | 'reaction' | 'free';
   range?: string;
   description?: string;
 }

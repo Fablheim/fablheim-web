@@ -20,8 +20,11 @@ function isEventType(type: ChatMessageType): boolean {
   return EVENT_TYPES.includes(type);
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+function formatTime(value?: string): string {
+  if (!value) return '--:--:--';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '--:--:--';
+  return d.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

@@ -4,9 +4,10 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { useCreateCharacter, useUpdateCharacter } from '@/hooks/useCharacters';
+import { useUpdateAttacks } from '@/hooks/useCharacterCombat';
 import { useSystemDefinition } from '@/hooks/useSystems';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import type { Character, CampaignSystem } from '@/types/campaign';
+import type { Character, CampaignSystem, CharacterAttack } from '@/types/campaign';
 import type { SystemDefinition, CustomFieldDefinition } from '@/types/system';
 
 interface CharacterFormModalProps {
@@ -344,10 +345,12 @@ export function CharacterFormModal({
   const [stats, setStats] = useState<Record<string, number>>({});
   const [passiveScores, setPassiveScoresState] = useState<Record<string, number>>({});
   const [systemData, setSystemData] = useState<Record<string, unknown>>({});
+  const [attacks, setAttacks] = useState<CharacterAttack[]>([]);
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
 
   const createCharacter = useCreateCharacter();
   const updateCharacter = useUpdateCharacter();
+  const updateAttacks = useUpdateAttacks();
   const { uploadPortrait, progress: uploadProgress } = useFileUpload();
 
   // Initialize defaults when system definition loads
@@ -382,6 +385,7 @@ export function CharacterFormModal({
           : defaultPassiveScores,
       );
       setSystemData(character.systemData || defaultSystemData);
+      setAttacks(character.attacks ?? []);
     } else {
       resetForm();
     }
@@ -398,6 +402,7 @@ export function CharacterFormModal({
     setStats(defaultStats);
     setPassiveScoresState(defaultPassiveScores);
     setSystemData(defaultSystemData);
+    setAttacks([]);
     setPortraitFile(null);
   }
 
@@ -460,14 +465,23 @@ export function CharacterFormModal({
       ...(portrait ? { portrait } : {}),
     };
 
+    let savedCharacter: Character;
     if (isEdit && character) {
-      await updateCharacter.mutateAsync({
+      savedCharacter = await updateCharacter.mutateAsync({
         id: character._id,
         campaignId,
         data: payload,
       });
     } else {
-      await createCharacter.mutateAsync({ campaignId, ...payload });
+      savedCharacter = await createCharacter.mutateAsync({ campaignId, ...payload });
+    }
+
+    const sanitizedAttacks = sanitizeAttacks(attacks);
+    if (sanitizedAttacks.length > 0 || isEdit) {
+      await updateAttacks.mutateAsync({
+        id: savedCharacter._id,
+        attacks: sanitizedAttacks,
+      });
     }
     handleClose();
   }
@@ -511,12 +525,156 @@ export function CharacterFormModal({
           {renderStatInputs(systemDef, stats, updateStat)}
           {renderPassiveScores(systemDef, passiveScores, updatePassiveScore)}
           {renderCustomFields(systemDef, systemData, updateSystemField)}
+          {renderAttacksEditor(attacks, setAttacks)}
           {renderBackstory(backstory, setBackstory)}
           {renderActions(isEdit, isPending, handleClose)}
         </form>
       </div>
     </div>
   );
+}
+
+function renderAttacksEditor(
+  attacks: CharacterAttack[],
+  setAttacks: (attacks: CharacterAttack[]) => void,
+) {
+  function updateAttack(index: number, patch: Partial<CharacterAttack>) {
+    setAttacks(
+      attacks.map((attack, i) => (i === index ? { ...attack, ...patch } : attack)),
+    );
+  }
+
+  function addAttack() {
+    setAttacks([
+      ...attacks,
+      {
+        id: makeAttackId(),
+        name: '',
+        attackBonus: 0,
+        damageBonus: 0,
+        damageDice: '1d6',
+        damageType: 'slashing',
+        actionCost: 'action',
+      },
+    ]);
+  }
+
+  function removeAttack(index: number) {
+    setAttacks(attacks.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div>
+      <div className="divider-ornate mb-3" />
+      <div className="mb-2 flex items-center justify-between">
+        <p className={labelClass}>Attacks</p>
+        <button
+          type="button"
+          onClick={addAttack}
+          className="rounded border border-primary/40 bg-primary/10 px-2 py-1 text-[10px] uppercase tracking-wider text-primary hover:bg-primary/20"
+        >
+          Add Attack
+        </button>
+      </div>
+      {attacks.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No attacks yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {attacks.map((attack, index) => (
+            <div key={attack.id || `${attack.name}-${index}`} className="rounded border border-border/60 bg-background/30 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={attack.name}
+                  onChange={(e) => updateAttack(index, { name: e.target.value })}
+                  placeholder="Attack name"
+                  className={`${inputClass} mt-0`}
+                />
+                <input
+                  type="text"
+                  value={attack.damageDice}
+                  onChange={(e) => updateAttack(index, { damageDice: e.target.value })}
+                  placeholder="Damage dice (e.g. 1d8)"
+                  className={`${inputClass} mt-0`}
+                />
+                <input
+                  type="number"
+                  value={attack.attackBonus}
+                  onChange={(e) => updateAttack(index, { attackBonus: parseInt(e.target.value, 10) || 0 })}
+                  placeholder="To-hit bonus"
+                  className={`${inputClass} mt-0`}
+                />
+                <input
+                  type="number"
+                  value={attack.damageBonus}
+                  onChange={(e) => updateAttack(index, { damageBonus: parseInt(e.target.value, 10) || 0 })}
+                  placeholder="Damage bonus"
+                  className={`${inputClass} mt-0`}
+                />
+                <input
+                  type="text"
+                  value={attack.damageType}
+                  onChange={(e) => updateAttack(index, { damageType: e.target.value })}
+                  placeholder="Damage type"
+                  className={`${inputClass} mt-0`}
+                />
+                <input
+                  type="text"
+                  value={attack.range ?? ''}
+                  onChange={(e) => updateAttack(index, { range: e.target.value })}
+                  placeholder="Range (optional)"
+                  className={`${inputClass} mt-0`}
+                />
+                <select
+                  value={attack.actionCost ?? 'action'}
+                  onChange={(e) => updateAttack(index, { actionCost: e.target.value as CharacterAttack['actionCost'] })}
+                  className={`${inputClass} mt-0`}
+                >
+                  <option value="action">Action</option>
+                  <option value="bonus">Bonus Action</option>
+                  <option value="reaction">Reaction</option>
+                  <option value="free">Free</option>
+                </select>
+              </div>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => removeAttack(index)}
+                  className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[10px] uppercase tracking-wider text-destructive hover:bg-destructive/20"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function sanitizeAttacks(attacks: CharacterAttack[]): CharacterAttack[] {
+  return attacks
+    .map((attack, i) => ({
+      ...attack,
+      id: attack.id || makeAttackId(i),
+      name: attack.name.trim(),
+      damageDice: attack.damageDice.trim(),
+      damageType: attack.damageType.trim(),
+      attackBonus: Number.isFinite(attack.attackBonus) ? attack.attackBonus : 0,
+      damageBonus: Number.isFinite(attack.damageBonus) ? attack.damageBonus : 0,
+      actionCost: attack.actionCost ?? 'action',
+      range: attack.range?.trim() || undefined,
+      description: attack.description?.trim() || undefined,
+    }))
+    .filter((attack) => attack.name.length > 0 && attack.damageDice.length > 0);
+}
+
+function makeAttackId(seed?: number): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `atk-${Date.now()}-${seed ?? Math.floor(Math.random() * 10000)}`;
 }
 
 function renderHeader(isEdit: boolean, handleClose: () => void) {

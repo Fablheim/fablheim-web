@@ -73,6 +73,7 @@ export interface CharacterAttack {
   damageBonus: number;
   damageDice: string;
   damageType: string;
+  actionCost?: 'action' | 'bonus' | 'reaction' | 'free';
   range?: string;
   description?: string;
 }

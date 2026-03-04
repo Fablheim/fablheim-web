@@ -73,6 +73,17 @@ export interface InitiativeEntry {
   characterId?: string;
   isHidden?: boolean;
   imageUrl?: string;
+  tempHp?: number;
+  resistances?: string[];
+  vulnerabilities?: string[];
+  immunities?: string[];
+  isConcentrating?: boolean;
+  concentrationSpell?: string;
+  deathSaves?: {
+    successes: number;
+    failures: number;
+  } | null;
+  systemData?: Record<string, any>;
 }
 
 export interface AddInitiativeEntryRequest {
@@ -88,15 +99,30 @@ export interface AddInitiativeEntryRequest {
   characterId?: string;
   isHidden?: boolean;
   imageUrl?: string;
+  systemData?: Record<string, any>;
 }
 
 export interface UpdateInitiativeEntryRequest {
   initiativeRoll?: number;
   currentHp?: number;
   maxHp?: number;
+  tempHp?: number;
+  ac?: number;
   conditions?: string[];
   notes?: string;
+  resistances?: string[];
+  vulnerabilities?: string[];
+  immunities?: string[];
+  isConcentrating?: boolean;
+  concentrationSpell?: string;
   isHidden?: boolean;
+  systemData?: Record<string, any>;
+}
+
+export interface UpdateDeathSavesRequest {
+  successes?: number;
+  failures?: number;
+  clear?: boolean;
 }
 
 export interface Initiative {
@@ -134,10 +160,17 @@ export interface BattleMap {
   campaignId: string;
   name: string;
   backgroundImageUrl?: string;
+  sourceEncounterId?: string;
+  sourceEncounterName?: string;
   gridWidth: number;
   gridHeight: number;
   gridSquareSizeFt: number;
+  gridOpacity?: number;
+  snapToGrid?: boolean;
+  gridOffsetX?: number;
+  gridOffsetY?: number;
   tokens: MapToken[];
+  aoeOverlays: import('@/types/combat-rules').AoEOverlay[];
   isActive: boolean;
 }
 

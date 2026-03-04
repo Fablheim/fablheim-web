@@ -117,6 +117,10 @@ export interface SaveAIEncounterRequest {
 export interface LoadEncounterRequest {
   addToInitiative?: boolean;
   clearExistingMap?: boolean;
+  clearExisting?: boolean;
+  spawnTokens?: boolean;
+  autoRollInitiative?: boolean;
+  startCombat?: boolean;
 }
 
 export interface LoadEncounterResult {

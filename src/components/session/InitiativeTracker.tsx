@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dices, Plus, X } from 'lucide-react';
+import { Dices, Plus, X, Zap, Skull } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
+import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
+import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import {
   useInitiative,
   useAddInitiativeEntry,
@@ -10,8 +12,10 @@ import {
   useStartCombat,
   useNextTurn,
   useEndCombat,
+  useCombatRules,
 } from '@/hooks/useLiveSession';
 import { Button } from '@/components/ui/Button';
+import type { EnemyAttack } from '@/types/enemy-template';
 import type {
   Initiative,
   InitiativeEntry,
@@ -19,7 +23,7 @@ import type {
   AddInitiativeEntryRequest,
 } from '@/types/live-session';
 
-const COMMON_CONDITIONS = [
+const FALLBACK_CONDITIONS = [
   'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled',
   'Incapacitated', 'Invisible', 'Paralyzed', 'Petrified',
   'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious',
@@ -30,6 +34,7 @@ interface InitiativeTrackerProps {
   campaignId: string;
   isDM: boolean;
   selectedEntryId?: string | null;
+  onSelectEntryId?: (entryId: string) => void;
 }
 
 const TYPE_BADGES: Record<InitiativeEntry['type'], { label: string; className: string }> = {
@@ -47,6 +52,8 @@ const EMPTY_FORM: AddInitiativeEntryRequest = {
   initiativeRoll: 0,
   initiativeBonus: 0,
 };
+
+const NPC_CUSTOM_ATTACKS_STORAGE_KEY = 'fablheim:npc-custom-attacks';
 
 function HpBar({ current, max, hideNumbers }: { current: number; max: number; hideNumbers?: boolean }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
@@ -88,21 +95,25 @@ function ConditionPicker({
   current,
   onToggle,
   onClose,
+  conditionLabels,
 }: {
   current: string[];
   onToggle: (condition: string) => void;
   onClose: () => void;
+  conditionLabels: string[];
 }) {
   return (
-    <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-md border border-border bg-card p-2 shadow-warm-lg">
+    <div className="absolute right-0 top-full z-20 mt-1 w-56 max-w-[calc(100vw-3rem)] rounded-md border border-border bg-card p-2 shadow-warm-lg">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Conditions</span>
         <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="h-3 w-3" />
         </button>
       </div>
-      <div className="flex flex-wrap gap-1">
-        {COMMON_CONDITIONS.map((c) => {
+      <p className="mb-1 text-[10px] text-muted-foreground">Click to toggle conditions</p>
+      <div className="max-h-40 overflow-y-auto pr-0.5">
+        <div className="flex flex-wrap gap-1">
+        {conditionLabels.map((c) => {
           const active = current.includes(c);
           return (
             <button
@@ -119,14 +130,16 @@ function ConditionPicker({
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );
 }
 
-export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: InitiativeTrackerProps) {
+export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectEntryId }: InitiativeTrackerProps) {
   const queryClient = useQueryClient();
   const { data: initiative } = useInitiative(campaignId);
+  const { data: rules } = useCombatRules(campaignId);
   const addEntry = useAddInitiativeEntry(campaignId);
   const updateEntry = useUpdateInitiativeEntry(campaignId);
   const removeEntry = useRemoveInitiativeEntry(campaignId);
@@ -134,12 +147,15 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
   const nextTurn = useNextTurn(campaignId);
   const endCombat = useEndCombat(campaignId);
 
+  const conditionLabels = rules?.conditions?.map((c) => c.label) ?? [...FALLBACK_CONDITIONS];
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState<AddInitiativeEntryRequest>({ ...EMPTY_FORM });
   const [editingHpId, setEditingHpId] = useState<string | null>(null);
   const [hpInput, setHpInput] = useState('');
   const [conditionPickerEntryId, setConditionPickerEntryId] = useState<string | null>(null);
   const [rollingInitiative, setRollingInitiative] = useState(false);
+  const [draftAttacks, setDraftAttacks] = useState<EnemyAttack[]>([]);
   const hpInputRef = useRef<HTMLInputElement>(null);
 
   // Listen for WebSocket initiative updates and sync-response
@@ -181,22 +197,30 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
 
   const handleAddEntry = useCallback(() => {
     if (!form.name.trim() || form.initiativeRoll === undefined) return;
+    const trimmedName = form.name.trim();
     addEntry.mutate(
       {
         ...form,
-        name: form.name.trim(),
+        name: trimmedName,
         currentHp: form.currentHp || undefined,
         maxHp: form.maxHp || undefined,
         ac: form.ac || undefined,
       },
       {
         onSuccess: () => {
+          if (form.type !== 'pc' && draftAttacks.length > 0) {
+            setCustomNpcAttacks(
+              getCustomNpcAttackKey(campaignId, trimmedName),
+              draftAttacks,
+            );
+          }
           setForm({ ...EMPTY_FORM });
+          setDraftAttacks([]);
           setShowAddForm(false);
         },
       },
     );
-  }, [form, addEntry]);
+  }, [campaignId, form, addEntry, draftAttacks]);
 
   const handleHpSubmit = useCallback(
     (entryId: string, _currentHp: number | undefined) => {
@@ -247,6 +271,9 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
   const visibleEntries = isDM
     ? sortedEntries
     : sortedEntries.filter((e) => !e.isHidden);
+  const selectedEntry = selectedEntryId
+    ? sortedEntries.find((entry) => entry.id === selectedEntryId)
+    : null;
 
   // Map sorted index back to original index for currentTurn matching
   const currentTurnEntryId =
@@ -306,17 +333,19 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
               variant="outline"
               disabled={rollingInitiative}
               onClick={handleRollAll}
+              title="Auto-roll initiative for all listed entries"
             >
               <Dices className="mr-1.5 h-3.5 w-3.5" />
-              {rollingInitiative ? 'Rolling...' : 'Roll All'}
+              {rollingInitiative ? 'Rolling...' : 'Roll All Init'}
             </Button>
           )}
           <Button
             size="sm"
             variant="outline"
             onClick={() => setShowAddForm((v) => !v)}
+            title={showAddForm ? 'Close add entry form' : 'Add a combatant to initiative'}
           >
-            {showAddForm ? 'Cancel' : 'Add Entry'}
+            {showAddForm ? 'Cancel' : 'Add Combatant'}
           </Button>
         </div>
       )}
@@ -449,6 +478,100 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                 Hidden
               </label>
             </div>
+
+            {/* Optional attacks for NPC/monster/other */}
+            {form.type !== 'pc' && (
+              <div className="col-span-2 rounded border border-border/60 bg-background/30 p-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Attacks (optional)
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDraftAttacks((prev) => [
+                        ...prev,
+                        { name: '', bonus: 0, damage: '1d6', actionCost: 'action' },
+                      ])
+                    }
+                    className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary hover:bg-primary/20"
+                  >
+                    Add Attack
+                  </button>
+                </div>
+                {draftAttacks.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    Leave blank if this combatant should use template/default attacks.
+                  </p>
+                ) : (
+                  <div className="max-h-36 space-y-1 overflow-y-auto pr-0.5">
+                    {draftAttacks.map((attack, index) => (
+                      <div key={`${index}-${attack.name}`} className="grid grid-cols-1 gap-1 sm:grid-cols-[1.2fr_0.5fr_0.8fr_0.8fr_auto]">
+                        <input
+                          type="text"
+                          value={attack.name}
+                          onChange={(e) =>
+                            setDraftAttacks((prev) =>
+                              prev.map((a, i) => (i === index ? { ...a, name: e.target.value } : a)),
+                            )
+                          }
+                          placeholder="Attack name"
+                          className="rounded border border-input bg-input px-2 py-1 text-[10px] text-foreground"
+                        />
+                        <input
+                          type="number"
+                          value={attack.bonus}
+                          onChange={(e) =>
+                            setDraftAttacks((prev) =>
+                              prev.map((a, i) => (i === index ? { ...a, bonus: parseInt(e.target.value, 10) || 0 } : a)),
+                            )
+                          }
+                          placeholder="+5"
+                          className="rounded border border-input bg-input px-2 py-1 text-[10px] text-foreground"
+                        />
+                        <input
+                          type="text"
+                          value={attack.damage}
+                          onChange={(e) =>
+                            setDraftAttacks((prev) =>
+                              prev.map((a, i) => (i === index ? { ...a, damage: e.target.value } : a)),
+                            )
+                          }
+                          placeholder="1d6+2"
+                          className="rounded border border-input bg-input px-2 py-1 text-[10px] text-foreground"
+                        />
+                        <select
+                          value={attack.actionCost ?? 'action'}
+                          onChange={(e) =>
+                            setDraftAttacks((prev) =>
+                              prev.map((a, i) => (
+                                i === index
+                                  ? { ...a, actionCost: e.target.value as EnemyAttack['actionCost'] }
+                                  : a
+                              )),
+                            )
+                          }
+                          className="rounded border border-input bg-input px-2 py-1 text-[10px] text-foreground"
+                        >
+                          <option value="action">Action</option>
+                          <option value="bonus">Bonus</option>
+                          <option value="reaction">Reaction</option>
+                          <option value="free">Free</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setDraftAttacks((prev) => prev.filter((_, i) => i !== index))}
+                          className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/20"
+                          title="Remove attack"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex justify-end">
@@ -479,15 +602,16 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
             return (
               <div
                 key={entry.id}
+                onClick={() => onSelectEntryId?.(entry.id)}
                 className={`initiative-row flex items-center gap-2.5 rounded-md px-3 py-2 transition-all ${
                   isCurrent
-                    ? 'border-l-4 border-primary bg-primary/8 shadow-[0_0_18px_hsla(38,90%,50%,0.18)] animate-candle'
+                    ? 'border-l-4 border-primary/80 bg-primary/10 shadow-[0_0_10px_hsla(38,90%,50%,0.12)]'
                     : isMapSelected
-                      ? 'border-l-4 border-blue-400 bg-blue-500/8 shadow-[0_0_8px_hsla(220,80%,60%,0.15)]'
+                      ? 'border-l-4 border-blue-400/80 bg-blue-500/10 shadow-[0_0_6px_hsla(220,80%,60%,0.12)]'
                       : isHidden
                         ? 'border-l-4 border-dashed border-iron/40 opacity-50'
                         : 'border-l-4 border-transparent'
-                }`}
+                } ${onSelectEntryId ? 'cursor-pointer hover:bg-accent/35' : ''}`}
               >
                 {/* Turn indicator */}
                 <div className="w-4 flex-shrink-0 text-center">
@@ -506,18 +630,28 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                 </span>
 
                 {/* Name and conditions */}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-sm font-medium text-foreground font-[Cinzel]">
                       {entry.name}
                     </span>
+                    {entry.isConcentrating && (
+                      <span title="Concentrating" className="text-amber-400">
+                        <Zap className="h-3 w-3" />
+                      </span>
+                    )}
+                    {entry.deathSaves && (
+                      <span title="Death saves active" className="text-red-400">
+                        <Skull className="h-3 w-3" />
+                      </span>
+                    )}
                     {isHidden && isDM && (
                       <span className="text-muted-foreground" title="Hidden from players">
                         &#128065;&#xFE0E;
                       </span>
                     )}
                   </div>
-                  {renderConditions(entry, isDM, conditionPickerEntryId, setConditionPickerEntryId, handleToggleCondition)}
+                  {renderConditions(entry, isDM, conditionPickerEntryId, setConditionPickerEntryId, handleToggleCondition, conditionLabels)}
                 </div>
 
                 {/* AC badge — hide from players for non-PC entries */}
@@ -538,6 +672,9 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                         ? <HpBar current={entry.currentHp} max={entry.maxHp} />
                         : <HealthDescriptor current={entry.currentHp} max={entry.maxHp} />
                     )}
+                    {isDM && (entry.tempHp ?? 0) > 0 && (
+                      <p className="mt-0.5 text-right text-[10px] text-cyan-300">+{entry.tempHp} temp</p>
+                    )}
                   </div>
                 )}
 
@@ -550,7 +687,10 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
                 {isDM && (
                   <button
                     type="button"
-                    onClick={() => removeEntry.mutate(entry.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeEntry.mutate(entry.id);
+                    }}
                     className="flex-shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
                     title="Remove entry"
                     aria-label={`Remove ${entry.name}`}
@@ -574,8 +714,58 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId }: Initiat
           })}
         </div>
       )}
+
+      {selectedEntry?.deathSaves && (
+        <div className="mt-2 rounded border border-border/60 bg-background/30 p-2">
+          <DeathSavesTracker
+            campaignId={campaignId}
+            entry={selectedEntry}
+            canEditPcDeathSaves={isDM}
+            canEditNpcDeathSaves={isDM && !selectedEntry.characterId}
+          />
+        </div>
+      )}
+
+      {selectedEntry && (
+        <DownedStatePanel
+          campaignId={campaignId}
+          entry={selectedEntry}
+          canEdit={isDM}
+        />
+      )}
     </div>
   );
+}
+
+function normalizeCombatantName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+#?\d+$/g, '')
+    .trim();
+}
+
+function getCustomNpcAttackKey(campaignId: string, name: string): string {
+  return `${campaignId}:${normalizeCombatantName(name)}`;
+}
+
+function setCustomNpcAttacks(key: string, attacks: EnemyAttack[]): void {
+  try {
+    const raw = localStorage.getItem(NPC_CUSTOM_ATTACKS_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, EnemyAttack[]>) : {};
+    parsed[key] = attacks
+      .map((attack) => ({
+        name: attack.name.trim(),
+        bonus: Number.isFinite(attack.bonus) ? attack.bonus : 0,
+        damage: attack.damage.trim(),
+        actionCost: attack.actionCost ?? 'action',
+        range: attack.range?.trim() || undefined,
+        description: attack.description?.trim() || undefined,
+      }))
+      .filter((attack) => attack.name.length > 0 && attack.damage.length > 0);
+    localStorage.setItem(NPC_CUSTOM_ATTACKS_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // Ignore localStorage failures
+  }
 }
 
 function renderConditions(
@@ -584,6 +774,7 @@ function renderConditions(
   conditionPickerEntryId: string | null,
   setConditionPickerEntryId: (id: string | null) => void,
   handleToggleCondition: (entryId: string, condition: string) => void,
+  conditionLabels: string[],
 ) {
   const conditions = entry.conditions ?? [];
   const showPicker = isDM && conditionPickerEntryId === entry.id;
@@ -591,14 +782,14 @@ function renderConditions(
   if (!isDM && conditions.length === 0) return null;
 
   return (
-    <div className="relative mt-0.5 flex flex-wrap items-center gap-1">
+    <div className="relative mt-0.5 flex max-w-full flex-wrap items-center gap-1 overflow-hidden">
       {conditions.map((c) => (
         <span
           key={c}
           className={`rounded-full bg-arcane/20 px-2 py-0.5 text-xs text-arcane ${
             isDM ? 'cursor-pointer hover:bg-destructive/20 hover:text-destructive' : ''
           }`}
-          onClick={isDM ? () => handleToggleCondition(entry.id, c) : undefined}
+          onClick={isDM ? (e) => { e.stopPropagation(); handleToggleCondition(entry.id, c); } : undefined}
           title={isDM ? `Remove ${c}` : c}
         >
           {c}
@@ -607,11 +798,17 @@ function renderConditions(
       {isDM && (
         <button
           type="button"
-          onClick={() => setConditionPickerEntryId(showPicker ? null : entry.id)}
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary/20 hover:text-primary"
-          title="Add condition"
+          onClick={(e) => {
+            e.stopPropagation();
+            setConditionPickerEntryId(showPicker ? null : entry.id);
+          }}
+          className="inline-flex max-w-full items-center gap-1 rounded-sm border border-border/60 bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
+          title={showPicker ? 'Close condition picker' : 'Add or remove conditions'}
         >
           <Plus className="h-3 w-3" />
+          <span className="max-w-[72px] truncate">
+            {conditions.length > 0 ? `Cond (${conditions.length})` : 'Conditions'}
+          </span>
         </button>
       )}
       {showPicker && (
@@ -619,6 +816,7 @@ function renderConditions(
           current={conditions}
           onToggle={(c) => handleToggleCondition(entry.id, c)}
           onClose={() => setConditionPickerEntryId(null)}
+          conditionLabels={conditionLabels}
         />
       )}
     </div>
@@ -640,6 +838,7 @@ function renderDMHp(
         ref={hpInputRef}
         type="number"
         value={hpInput}
+        onClick={(e) => e.stopPropagation()}
         onChange={(e) => setHpInput(e.target.value)}
         onBlur={() => handleHpSubmit(entry.id, entry.currentHp)}
         onKeyDown={(e) => {
@@ -658,6 +857,7 @@ function renderDMHp(
         setEditingHpId(entry.id);
         setHpInput(String(entry.currentHp ?? 0));
       }}
+      onMouseDown={(e) => e.stopPropagation()}
       className="cursor-pointer"
       title="Click to edit HP"
     >

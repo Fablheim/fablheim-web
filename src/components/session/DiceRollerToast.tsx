@@ -22,8 +22,8 @@ export default function DiceRollerToast({ campaignId }: DiceRollerToastProps) {
   }
 
   return (
-    <div className="w-80 rounded-lg border border-border bg-card shadow-2xl">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex w-80 max-h-[58vh] flex-col rounded-lg border border-border bg-card shadow-2xl">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <h3 className="font-[Cinzel] text-sm font-semibold text-foreground">Dice Roller</h3>
         <button
           type="button"
@@ -34,7 +34,7 @@ export default function DiceRollerToast({ campaignId }: DiceRollerToastProps) {
           ✕
         </button>
       </div>
-      <div className="p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <DiceRoller campaignId={campaignId} />
       </div>
     </div>

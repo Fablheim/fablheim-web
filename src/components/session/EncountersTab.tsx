@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Swords, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEncounters, useLoadEncounter } from '@/hooks/useEncounters';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import type { EncounterDifficulty } from '@/types/encounter';
+import { useBattleMap } from '@/hooks/useBattleMap';
+import type { Encounter, EncounterDifficulty } from '@/types/encounter';
 
 interface EncountersTabProps {
   campaignId: string;
@@ -19,14 +19,34 @@ const DIFFICULTY_STYLES: Record<EncounterDifficulty, string> = {
 
 export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
   const { data: encounters, isLoading } = useEncounters(campaignId);
+  const { data: battleMap } = useBattleMap(campaignId);
   const loadEncounter = useLoadEncounter(campaignId);
-  const [loadConfirmId, setLoadConfirmId] = useState<string | null>(null);
+  const [openEncounter, setOpenEncounter] = useState<Encounter | null>(null);
+  const hasLoadedMap = !!(
+    battleMap?.backgroundImageUrl ||
+    battleMap?.isActive ||
+    (battleMap?.tokens?.length ?? 0) > 0
+  );
+  const [options, setOptions] = useState({
+    addToInitiative: true,
+    clearExisting: true,
+    clearExistingMap: true,
+    spawnTokens: hasLoadedMap,
+    autoRollInitiative: true,
+    startCombat: true,
+  });
 
   function handleLoad(encounterId: string) {
     loadEncounter.mutate(
-      { encounterId, body: { addToInitiative: true, clearExistingMap: true } },
       {
-        onSuccess: () => { toast.success('Encounter loaded'); setLoadConfirmId(null); },
+        encounterId,
+        body: {
+          ...options,
+          spawnTokens: hasLoadedMap ? options.spawnTokens : false,
+        },
+      },
+      {
+        onSuccess: () => { toast.success('Encounter loaded into live session'); setOpenEncounter(null); },
         onError: () => toast.error('Failed to load encounter'),
       },
     );
@@ -58,15 +78,94 @@ export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
 
   return (
     <div className="p-3 space-y-2">
-      <ConfirmDialog
-        open={!!loadConfirmId}
-        title="Load Encounter?"
-        description="Tokens will be copied to the battle map and NPCs added to initiative. This will replace the current map contents."
-        confirmLabel="Load"
-        isPending={loadEncounter.isPending}
-        onConfirm={() => loadConfirmId && handleLoad(loadConfirmId)}
-        onCancel={() => setLoadConfirmId(null)}
-      />
+      {openEncounter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setOpenEncounter(null)} />
+          <div className="relative w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-2xl">
+            <h3 className="font-[Cinzel] text-sm font-semibold uppercase tracking-wider text-foreground">
+              Load Encounter
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {openEncounter.name}
+            </p>
+
+            <div className="mt-3 space-y-2 text-xs">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={options.addToInitiative}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, addToInitiative: e.target.checked }))}
+                />
+                Add to initiative
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={options.clearExisting}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, clearExisting: e.target.checked }))}
+                />
+                Clear existing initiative first
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={options.clearExistingMap}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, clearExistingMap: e.target.checked }))}
+                />
+                Clear existing map first
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={hasLoadedMap ? options.spawnTokens : false}
+                  disabled={!hasLoadedMap}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, spawnTokens: e.target.checked }))}
+                />
+                Spawn tokens on map
+                {!hasLoadedMap && <span className="text-[10px] text-muted-foreground">(map not active)</span>}
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={options.autoRollInitiative}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, autoRollInitiative: e.target.checked }))}
+                  disabled={!options.addToInitiative}
+                />
+                Auto-roll initiative
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={options.startCombat}
+                  onChange={(e) => setOptions((prev) => ({ ...prev, startCombat: e.target.checked }))}
+                  disabled={!options.addToInitiative}
+                />
+                Start combat immediately
+              </label>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpenEncounter(null)}
+                className="rounded border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
+                disabled={loadEncounter.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoad(openEncounter._id)}
+                className="rounded border border-brass/40 bg-brass/10 px-3 py-1 text-xs text-brass hover:bg-brass/20 disabled:opacity-50"
+                disabled={loadEncounter.isPending}
+              >
+                {loadEncounter.isPending ? 'Loading…' : 'Load Encounter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
         {encounters.length} encounter{encounters.length !== 1 ? 's' : ''} available
       </p>
@@ -95,7 +194,13 @@ export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
           {isDM && (
             <button
               type="button"
-              onClick={() => setLoadConfirmId(enc._id)}
+              onClick={() => {
+                setOptions((prev) => ({
+                  ...prev,
+                  spawnTokens: hasLoadedMap,
+                }));
+                setOpenEncounter(enc);
+              }}
               disabled={loadEncounter.isPending}
               className="shrink-0 flex items-center gap-1 rounded-md border border-brass/40 bg-brass/10 px-2 py-1 text-[10px] text-brass hover:bg-brass/20 transition-colors font-[Cinzel] uppercase tracking-wider disabled:opacity-50 ml-2"
             >
