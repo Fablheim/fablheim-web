@@ -27,8 +27,9 @@ export function GrantCreditsModal({ userId, username, onClose }: GrantCreditsMod
       return;
     }
 
+    const idempotencyKey = `admin-grant-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     grantCredits.mutate(
-      { userId, dto: { amount: parsedAmount, reason: reason.trim(), sendEmail } },
+      { userId, dto: { amount: parsedAmount, reason: reason.trim(), idempotencyKey, sendEmail } },
       {
         onSuccess: (result) => {
           toast.success(`Granted ${result.amount} credits to ${username}`);

@@ -187,6 +187,7 @@ export interface ResyncResult {
 export interface GrantCreditsDto {
   amount: number;
   reason: string;
+  idempotencyKey: string;
   sendEmail?: boolean;
 }
 
