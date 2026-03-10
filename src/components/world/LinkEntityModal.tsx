@@ -1,5 +1,6 @@
 import { type FormEvent, useState, useMemo } from 'react';
 import { X, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { useUpdateWorldEntity } from '@/hooks/useWorldEntities';
 import { TYPE_LABELS, TYPE_ICONS, TYPE_ACCENTS } from './world-constants';
@@ -56,12 +57,16 @@ export function LinkEntityModal({ open, onClose, campaignId, entity, allEntities
       { entityId: selectedId, relationshipType: relationshipType.trim() },
     ];
 
-    await updateEntity.mutateAsync({
-      campaignId,
-      id: entity._id,
-      data: { relatedEntities: updatedRelations },
-    });
-    handleClose();
+    try {
+      await updateEntity.mutateAsync({
+        campaignId,
+        id: entity._id,
+        data: { relatedEntities: updatedRelations },
+      });
+      handleClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to link entity');
+    }
   }
 
   return (

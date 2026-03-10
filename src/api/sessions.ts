@@ -91,6 +91,8 @@ export const sessionsApi = {
   ): Promise<{ recap: string }> => {
     const { data } = await api.post<{ recap: string }>(
       `/campaigns/${campaignId}/sessions/${sessionId}/recap/regenerate`,
+      undefined,
+      { timeout: 120_000 },
     );
     return data;
   },

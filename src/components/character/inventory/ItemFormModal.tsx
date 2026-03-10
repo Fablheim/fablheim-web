@@ -9,6 +9,7 @@ interface ItemFormModalProps {
   onSubmit: (data: ItemFormData) => void;
   item?: Item | null;
   isPending?: boolean;
+  containers?: Item[];
 }
 
 export interface ItemFormData {
@@ -28,6 +29,9 @@ export interface ItemFormData {
   armorType: string;
   stealthDisadvantage: boolean;
   notes: string;
+  isContainer: boolean;
+  containerCapacity: number;
+  parentItemId?: string;
 }
 
 const ITEM_TYPES: { value: ItemType; label: string }[] = [
@@ -84,6 +88,9 @@ function createDefaultForm(): ItemFormData {
     armorType: '',
     stealthDisadvantage: false,
     notes: '',
+    isContainer: false,
+    containerCapacity: 0,
+    parentItemId: undefined,
   };
 }
 
@@ -105,10 +112,13 @@ function formFromItem(item: Item): ItemFormData {
     armorType: item.armorType || '',
     stealthDisadvantage: item.stealthDisadvantage || false,
     notes: item.notes || '',
+    isContainer: item.isContainer,
+    containerCapacity: item.containerCapacity || 0,
+    parentItemId: item.parentItemId,
   };
 }
 
-export function ItemFormModal({ open, onClose, onSubmit, item, isPending }: ItemFormModalProps) {
+export function ItemFormModal({ open, onClose, onSubmit, item, isPending, containers }: ItemFormModalProps) {
   const isEdit = !!item;
   const [form, setForm] = useState<ItemFormData>(createDefaultForm);
 
@@ -161,6 +171,7 @@ export function ItemFormModal({ open, onClose, onSubmit, item, isPending }: Item
           {renderTypeAndRarity(form, update)}
           {renderQuantityWeightValue(form, update)}
           {renderMagicFields(form, update)}
+          {renderContainerFields(form, update, containers, item)}
           {form.type === 'weapon' && renderWeaponFields(form, update, toggleWeaponProperty)}
           {(form.type === 'armor' || form.type === 'shield') && renderArmorFields(form, update)}
           {renderNotesField(form, update)}
@@ -312,6 +323,64 @@ function renderMagicFields(
         />
         Requires Attunement
       </label>
+    </div>
+  );
+}
+
+function renderContainerFields(
+  form: ItemFormData,
+  update: <K extends keyof ItemFormData>(key: K, value: ItemFormData[K]) => void,
+  containers: Item[] | undefined,
+  editingItem: Item | null | undefined,
+) {
+  // Filter out self from container list when editing
+  const availableContainers = containers?.filter((c) => c._id !== editingItem?._id) ?? [];
+
+  return (
+    <div className="space-y-3 rounded-md border border-amber-900/20 bg-amber-950/10 p-3">
+      <p className={labelClass}>Container Options</p>
+      <div className="flex items-center gap-6">
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={form.isContainer}
+            onChange={(e) => update('isContainer', e.target.checked)}
+            className="rounded border-input"
+          />
+          This is a container
+        </label>
+        {form.isContainer && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="item-capacity" className="text-xs text-muted-foreground">
+              Capacity
+            </label>
+            <input
+              id="item-capacity"
+              type="number"
+              min={0}
+              value={form.containerCapacity}
+              onChange={(e) => update('containerCapacity', parseInt(e.target.value) || 0)}
+              className="w-20 rounded-sm border border-input bg-input px-2 py-1 text-sm text-foreground input-carved font-[Cinzel]"
+            />
+          </div>
+        )}
+      </div>
+      {!form.isContainer && availableContainers.length > 0 && (
+        <div>
+          <label htmlFor="item-parent" className={labelClass}>Store in container</label>
+          <select
+            id="item-parent"
+            value={form.parentItemId ?? ''}
+            onChange={(e) => update('parentItemId', e.target.value || undefined)}
+            className={inputClass}
+          >
+            <option value="">None (loose item)</option>
+            {availableContainers.map((c) => (
+              <option key={c._id} value={c._id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,10 +21,14 @@ export interface SystemActionRollOptions {
   mode?: 'roll' | 'damage';
 }
 
+export type DegreeOfSuccess = 'critical-success' | 'success' | 'failure' | 'critical-failure';
+
 export interface SystemActionRollOutcome {
   primaryTotal?: number;
   secondaryTotal?: number;
   message?: string;
+  degree?: DegreeOfSuccess;
+  naturalRoll?: number;
 }
 
 export interface SystemActionContext {

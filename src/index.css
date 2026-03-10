@@ -44,6 +44,9 @@
   --animate-torch: torch-flicker 3s ease-in-out infinite;
   --animate-candle: candle-pulse 4s ease-in-out infinite;
   --animate-ember: ember-drift 3s ease-out infinite;
+  --animate-dice-tumble: dice-tumble 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  --animate-dice-bounce: dice-bounce 0.5s ease-out forwards;
+  --animate-crit-flash: crit-flash 0.8s ease-out forwards;
   --animate-unfurl: parchment-unfurl 0.4s ease-out;
   --animate-rune: rune-glow 2s ease-in-out infinite;
   --animate-flicker-text: flicker-text 5s ease-in-out infinite;
@@ -169,6 +172,56 @@
 @keyframes pulse-warm {
   0%, 100% { box-shadow: 0 0 0 0 hsla(38, 90%, 50%, 0.25); }
   50% { box-shadow: 0 0 0 6px hsla(38, 90%, 50%, 0); }
+}
+
+@keyframes dice-tumble {
+  0% {
+    transform: scale(0.3) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) rotate(15deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.95) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes dice-bounce {
+  0% {
+    transform: translateY(-20px) scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(4px) scale(1.05);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(-2px) scale(0.98);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes crit-flash {
+  0% {
+    box-shadow: 0 0 0 0 hsla(38, 90%, 55%, 0.8);
+    transform: scale(1);
+  }
+  30% {
+    box-shadow: 0 0 30px 10px hsla(38, 90%, 55%, 0.4);
+    transform: scale(1.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsla(38, 90%, 55%, 0);
+    transform: scale(1);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════

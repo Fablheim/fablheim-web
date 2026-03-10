@@ -46,6 +46,7 @@ export function LegalPage() {
       lastUpdated="February 2026"
       intro="Licenses, acknowledgments, and policy summaries governing the Fablheim platform."
       toc={toc}
+      canonicalPath="/legal"
     >
       <LegalSection id="attributions" title="Open Game Content & Attributions">
         <p>
@@ -124,8 +125,8 @@ export function LegalPage() {
           content. You remain responsible for user-generated campaign content.
         </p>
         <p>
-          AI credits are consumed upon use and are non-refundable. Subscription credits reset monthly. Purchased
-          credits expire after 90 days. Fablheim may update credit costs and subscription terms with reasonable notice.
+          AI credits are consumed upon use and are non-refundable. Subscription credits reset monthly and expire
+          after 90 days. Purchased credits do not expire. Fablheim may update credit costs and subscription terms with reasonable notice.
         </p>
         <p>
           Fablheim reserves the right to suspend or terminate accounts that violate these terms or engage in abusive

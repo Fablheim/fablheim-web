@@ -7,10 +7,24 @@ import { useEncounters } from '@/hooks/useEncounters';
 import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
 import { useRollDice } from '@/hooks/useLiveSession';
 import { getSystemAdapter } from '@/rules/systems/getSystemAdapter';
-import type { SystemAction } from '@/rules/systems/types';
+import { pf2eDegreeOfSuccess } from '@/rules/systems/pathfinder2e/adapter';
+import type { DegreeOfSuccess, SystemAction } from '@/rules/systems/types';
 import type { EnemyAttack } from '@/types/enemy-template';
 import type { InitiativeEntry } from '@/types/live-session';
 import type { EnemyTemplate } from '@/types/enemy-template';
+
+const DEGREE_STYLES: Record<DegreeOfSuccess, string> = {
+  'critical-success': 'text-[hsl(45,90%,55%)]',
+  'success': 'text-[hsl(150,50%,55%)]',
+  'failure': 'text-muted-foreground',
+  'critical-failure': 'text-blood',
+};
+const DEGREE_LABELS: Record<DegreeOfSuccess, string> = {
+  'critical-success': 'Critical Success!',
+  'success': 'Success',
+  'failure': 'Failure',
+  'critical-failure': 'Critical Failure!',
+};
 
 interface ActionListPanelProps {
   campaignId: string;
@@ -33,6 +47,9 @@ export function ActionListPanel({
   const [mapPenaltyByAction, setMapPenaltyByAction] = useState<Record<string, number>>({});
   const [fateModifierByAction, setFateModifierByAction] = useState<Record<string, number>>({});
   const [lastMessageByAction, setLastMessageByAction] = useState<Record<string, string>>({});
+  const [lastDegreeByAction, setLastDegreeByAction] = useState<Record<string, DegreeOfSuccess>>({});
+  const [targetDC, setTargetDC] = useState<number | ''>('');
+  const isPf2e = (systemKey ?? '').toLowerCase().includes('pathfinder') || (systemKey ?? '').toLowerCase() === 'pf2e';
 
   const adapter = useMemo(() => getSystemAdapter(systemKey), [systemKey]);
   const character = useMemo(
@@ -80,6 +97,15 @@ export function ActionListPanel({
       if (result.message) {
         setLastMessageByAction((prev) => ({ ...prev, [action.id]: result.message! }));
       }
+      const dc = typeof targetDC === 'number' ? targetDC : undefined;
+      const computedDegree = result.naturalRoll != null && dc != null && result.primaryTotal != null
+        ? pf2eDegreeOfSuccess(result.primaryTotal, result.naturalRoll, dc)
+        : result.degree;
+      if (computedDegree) {
+        setLastDegreeByAction((prev) => ({ ...prev, [action.id]: computedDegree }));
+      } else {
+        setLastDegreeByAction((prev) => { const next = { ...prev }; delete next[action.id]; return next; });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to roll action.';
       toast.error(message);
@@ -104,21 +130,32 @@ export function ActionListPanel({
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2 top-1.5 h-3 w-3 text-muted-foreground" />
-        <input
-          type="text"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="h-7 w-full rounded border border-border/60 bg-background/35 pl-7 pr-2 text-[11px] text-foreground placeholder:text-muted-foreground"
-          placeholder="Filter actions..."
-        />
+      <div className="flex gap-1.5">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2 top-1.5 h-3 w-3 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-7 w-full rounded border border-border/60 bg-background/35 pl-7 pr-2 text-[11px] text-foreground placeholder:text-muted-foreground"
+            placeholder="Filter actions..."
+          />
+        </div>
+        {isPf2e && (
+          <input
+            type="number"
+            value={targetDC}
+            onChange={(event) => setTargetDC(event.target.value === '' ? '' : Number(event.target.value))}
+            className="h-7 w-16 rounded border border-border/60 bg-background/35 px-2 text-[11px] text-foreground placeholder:text-muted-foreground"
+            placeholder="DC"
+            title="Target DC/AC for degree of success"
+          />
+        )}
       </div>
       <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
         {filteredActions.map((action) => {
           const mapPenalty = mapPenaltyByAction[action.id] ?? 0;
           const fateModifier = fateModifierByAction[action.id] ?? 0;
-          const isPf2e = (systemKey ?? '').toLowerCase().includes('pathfinder') || (systemKey ?? '').toLowerCase() === 'pf2e';
           const isFate = (systemKey ?? '').toLowerCase() === 'fate';
           const canDamageRoll = hasDamageDice(action);
           return (
@@ -186,7 +223,14 @@ export function ActionListPanel({
                 </div>
               </div>
               {lastMessageByAction[action.id] && (
-                <p className="mt-1 text-[10px] text-muted-foreground">{lastMessageByAction[action.id]}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground">{lastMessageByAction[action.id]}</p>
+                  {lastDegreeByAction[action.id] && (
+                    <span className={`text-[10px] font-bold ${DEGREE_STYLES[lastDegreeByAction[action.id]]}`}>
+                      {DEGREE_LABELS[lastDegreeByAction[action.id]]}
+                    </span>
+                  )}
+                </div>
               )}
               {action.disabledReason && (
                 <p className="mt-1 text-[10px] text-muted-foreground">{action.disabledReason}</p>

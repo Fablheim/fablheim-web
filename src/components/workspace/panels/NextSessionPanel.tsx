@@ -28,7 +28,7 @@ export function NextSessionPanel({ campaignId }: NextSessionPanelProps) {
         </p>
       </div>
 
-      {lastCompleted?.aiSummary && (
+      {lastCompleted?.aiSummary?.unresolvedHooks?.length && (
         <div className="rounded-md border border-iron/30 bg-accent/20 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Lightbulb className="h-4 w-4 text-primary" />

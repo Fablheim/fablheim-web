@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Loader2, Pencil, Trash2, Dice5 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -47,6 +47,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const id = characterId ?? params.id;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: character, isLoading, error } = useCharacter(id!);
   const { data: campaign } = useCampaign(character?.campaignId ?? '');
   const { data: systemDef } = useSystemDefinition(campaign?.system ?? 'dnd5e');
@@ -66,10 +67,19 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const [showFormModal, setShowFormModal] = useState(false);
   const [abilityRollResult, setAbilityRollResult] = useState<AbilityRollResult | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const fromPath = (location.state as { from?: string } | null)?.from;
 
   const isOwner = character?.userId === user?._id;
 
   function handleBack() {
+    if (fromPath) {
+      navigate(fromPath);
+      return;
+    }
+    if (character?.campaignId) {
+      navigate(`/app/campaigns/${character.campaignId}`);
+      return;
+    }
     navigate('/app/characters');
   }
 

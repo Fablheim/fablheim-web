@@ -13,6 +13,7 @@ import { getDefaultLayout } from '@/lib/default-layouts';
 import { useCampaignStage } from '@/hooks/useCampaignStage';
 import { useAuth } from '@/context/AuthContext';
 import { useSessions } from '@/hooks/useSessions';
+import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { WorkspaceNav } from './WorkspaceNav';
 import { PanelRenderer } from './PanelRenderer';
 import { PrepWorkspace } from './PrepWorkspace';
@@ -53,7 +54,9 @@ export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspacePro
     isTransitioning,
   } = useCampaignStage(campaignId);
 
-  const isDM = campaign.dmId === user?._id;
+  const { data: accessibleCampaigns } = useAccessibleCampaigns();
+  const campaignRole = accessibleCampaigns?.find((c) => c._id === campaignId)?.role;
+  const isDM = campaignRole === 'dm' || campaignRole === 'co_dm' || campaign.dmId === user?._id;
 
   const { data: sessions } = useSessions(campaignId);
   const activeSession = sessions?.find((s) => s._id === activeSessionId);

@@ -37,6 +37,7 @@ export function useFileUpload() {
         '/files/battle-map',
         formData,
         {
+          timeout: 60_000,
           headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (e) => {
             if (e.total) {
@@ -64,6 +65,7 @@ export function useFileUpload() {
         '/files/portrait',
         formData,
         {
+          timeout: 60_000,
           headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (e) => {
             if (e.total) {

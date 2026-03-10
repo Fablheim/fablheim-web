@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react';
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000'),
   withCredentials: true,
+  timeout: 15_000, // 15s default; override per-request via { timeout: ms }
 });
 
 const CSRF_COOKIE_NAME = 'csrf_token';

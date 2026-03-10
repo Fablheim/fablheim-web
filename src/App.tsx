@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import LandingPage from './pages/LandingPage';
@@ -17,10 +18,6 @@ import Dnd5ePage from './pages/systems/Dnd5ePage';
 import Pathfinder2ePage from './pages/systems/Pathfinder2ePage';
 import FateCorePage from './pages/systems/FateCorePage';
 import DaggerheartPage from './pages/systems/DaggerheartPage';
-import SRDIndexPage from './pages/srd/SRDIndexPage';
-import SRDQuickStartPage from './pages/srd/SRDQuickStartPage';
-import SRDSystemPage from './pages/srd/SRDSystemPage';
-import SRDEntryPage from './pages/srd/SRDEntryPage';
 import { LegalPage } from './pages/LegalPage';
 import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
 import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
@@ -28,15 +25,21 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppShell } from './components/layout/AppShell';
 import { AppRoutes } from './routes';
+import NotFoundPage from './pages/NotFoundPage';
+
+const SRDIndexPage = lazy(() => import('./pages/srd/SRDIndexPage'));
+const SRDQuickStartPage = lazy(() => import('./pages/srd/SRDQuickStartPage'));
+const SRDSystemPage = lazy(() => import('./pages/srd/SRDSystemPage'));
+const SRDEntryPage = lazy(() => import('./pages/srd/SRDEntryPage'));
 
 function renderSRDRoutes() {
   return (
     <>
-      <Route path="/srd" element={<SRDIndexPage />} />
-      <Route path="/srd/:system" element={<SRDQuickStartPage />} />
-      <Route path="/srd/:system/browse" element={<SRDSystemPage />} />
-      <Route path="/srd/:system/browse/:category" element={<SRDSystemPage />} />
-      <Route path="/srd/:system/:category/:entry" element={<SRDEntryPage />} />
+      <Route path="/srd" element={<Suspense fallback={null}><SRDIndexPage /></Suspense>} />
+      <Route path="/srd/:system" element={<Suspense fallback={null}><SRDQuickStartPage /></Suspense>} />
+      <Route path="/srd/:system/browse" element={<Suspense fallback={null}><SRDSystemPage /></Suspense>} />
+      <Route path="/srd/:system/browse/:category" element={<Suspense fallback={null}><SRDSystemPage /></Suspense>} />
+      <Route path="/srd/:system/:category/:entry" element={<Suspense fallback={null}><SRDEntryPage /></Suspense>} />
     </>
   );
 }
@@ -84,6 +87,9 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* 404 catch-all for unknown public routes */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </ErrorBoundary>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/api/client';
 import { getSocket } from '@/lib/socket';
@@ -33,6 +34,46 @@ interface DiceRollerProps {
 
 const QUICK_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'] as const;
 
+// -- Sound effect (Web Audio API) ------------------------------------------
+
+function playDiceSound(isCrit = false) {
+  try {
+    const ctx = new AudioContext();
+    const duration = isCrit ? 0.4 : 0.25;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    // Clicky/rattly sound — white noise burst via rapid frequency modulation
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(isCrit ? 800 : 400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(isCrit ? 1200 : 200, ctx.currentTime + duration * 0.3);
+    osc.frequency.exponentialRampToValueAtTime(isCrit ? 600 : 100, ctx.currentTime + duration);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+    // Second tap for crit
+    if (isCrit) {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1400, ctx.currentTime + 0.15);
+      osc2.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.5);
+      gain2.gain.setValueAtTime(0.06, ctx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc2.start(ctx.currentTime + 0.15);
+      osc2.stop(ctx.currentTime + 0.5);
+    }
+  } catch {
+    // Web Audio not available — silently skip
+  }
+}
+
+const SOUND_KEY = 'fablheim:dice-sound-enabled';
+
 // -- Helpers ----------------------------------------------------------------
 
 function formatTimestamp(value?: string): string {
@@ -56,6 +97,10 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
   const [advantage, setAdvantage] = useState(false);
   const [disadvantage, setDisadvantage] = useState(false);
   const [rolling, setRolling] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem(SOUND_KEY);
+    return saved !== 'false'; // default on
+  });
 
   // Roll history
   const [history, setHistory] = useState<DiceRollEvent[]>([]);
@@ -95,7 +140,11 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
 
   const pushHistory = useCallback((event: DiceRollEvent) => {
     setHistory((prev) => [event, ...prev].slice(0, 50));
-  }, []);
+    if (soundEnabled) {
+      const isCrit = event.result?.critical === 'success' || event.result?.critical === 'failure';
+      playDiceSound(isCrit);
+    }
+  }, [soundEnabled]);
 
   // -- Load initial history -------------------------------------------------
 
@@ -275,9 +324,23 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
 
       {/* Roll History */}
       <div className="space-y-2">
-        <h3 className="text-carved font-[Cinzel] tracking-wider uppercase text-xs text-foreground">
-          Roll History
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-carved font-[Cinzel] tracking-wider uppercase text-xs text-foreground">
+            Roll History
+          </h3>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              localStorage.setItem(SOUND_KEY, String(next));
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+            title={soundEnabled ? 'Mute dice sounds' : 'Enable dice sounds'}
+          >
+            {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          </button>
+        </div>
         <div
           ref={historyRef}
           className="max-h-64 space-y-2 overflow-y-auto pr-1"
@@ -288,7 +351,7 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
             </p>
           )}
           {history.map((event, idx) => (
-            <RollHistoryItem key={`${eventTime(event) ?? 'no-time'}-${idx}`} event={event} />
+            <RollHistoryItem key={`${eventTime(event) ?? 'no-time'}-${idx}`} event={event} isNew={idx === 0} />
           ))}
         </div>
       </div>
@@ -298,11 +361,12 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
 
 // -- Roll History Item ------------------------------------------------------
 
-function RollHistoryItem({ event }: { event: DiceRollEvent }) {
+function RollHistoryItem({ event, isNew }: { event: DiceRollEvent; isNew?: boolean }) {
   const { result, username, purpose } = event;
   if (!result) return null;
   const isCritSuccess = result.critical === 'success';
   const isCritFailure = result.critical === 'failure';
+  const isCrit = isCritSuccess || isCritFailure;
 
   return (
     <div
@@ -313,6 +377,7 @@ function RollHistoryItem({ event }: { event: DiceRollEvent }) {
             ? 'border-l-2 border-l-blood shadow-[0_0_12px_hsla(0,60%,40%,0.2)] bg-accent/30'
             : 'border-l-2 border-l-brass/30 bg-accent/30'
       }`}
+      style={isNew && isCrit ? { animation: 'crit-flash 0.8s ease-out' } : isNew ? { animation: 'dice-bounce 0.5s ease-out' } : undefined}
     >
       {/* Header: username + time */}
       <div className="flex items-center justify-between">
@@ -346,13 +411,14 @@ function RollHistoryItem({ event }: { event: DiceRollEvent }) {
           )}
         </span>
         <span
-          className={`text-sm font-bold ${
+          className={`font-bold ${
             isCritSuccess
-              ? 'text-flame'
+              ? 'text-lg text-flame drop-shadow-[0_0_8px_hsla(38,90%,55%,0.5)]'
               : isCritFailure
-                ? 'text-[hsl(0,55%,55%)] drop-shadow-[0_0_6px_hsla(0,60%,40%,0.4)]'
-                : 'text-foreground'
+                ? 'text-lg text-[hsl(0,55%,55%)] drop-shadow-[0_0_6px_hsla(0,60%,40%,0.4)]'
+                : 'text-sm text-foreground'
           }`}
+          style={isNew ? { animation: 'dice-tumble 0.6s cubic-bezier(0.34,1.56,0.64,1)' } : undefined}
         >
           {result.total}
           {isCritSuccess && ' NAT 20!'}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -15,12 +15,13 @@ import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useEndCombat, useInitiative, useNextTurn } from '@/hooks/useLiveSession';
 import { useCampaignStage } from '@/hooks/useCampaignStage';
 import { useBattleMap } from '@/hooks/useBattleMap';
-import { useSessionRoom } from '@/hooks/useSocket';
+import { useSessionRoom, useSocketEvent } from '@/hooks/useSocket';
 import { useCombatSync } from '@/hooks/useCombatSync';
 import { Button } from '@/components/ui/Button';
 import { MapTab } from '@/components/session/MapTab';
 import { ChatPanel } from '@/components/session/ChatPanel';
 import DMMainContent from '@/components/session/DMMainContent';
+import DMSidebarV2 from '@/components/session/DMSidebarV2';
 import PlayerSidebarV2 from '@/components/session/PlayerSidebarV2';
 import DiceRollerToast from '@/components/session/DiceRollerToast';
 import DiceRoller from '@/components/session/DiceRoller';
@@ -33,6 +34,7 @@ import {
   useSessionWorkspaceState,
 } from '@/components/session/SessionWorkspaceState';
 import { FocusCard } from '@/components/session/FocusCard';
+import { RollRequestPrompt } from '@/components/session/RollRequestPrompt';
 
 function parseSessionParams(pathname: string): { campaignId: string } {
   const match = pathname.match(/\/campaigns\/([^/]+)\/session/);
@@ -51,7 +53,7 @@ export default function SessionRunnerShellV2() {
     error: campaignError,
   } = useCampaign(campaignId);
   const { data: accessibleCampaigns } = useAccessibleCampaigns();
-  const { connected, connectedUsers, desynced, dismissDesync } = useSessionRoom(campaignId);
+  const { connected, connectedUsers, desynced, dismissDesync, error: socketError } = useSessionRoom(campaignId);
   const { data: initiative } = useInitiative(campaignId);
   const { data: battleMap } = useBattleMap(campaignId);
   useCombatSync(campaignId);
@@ -178,6 +180,12 @@ export default function SessionRunnerShellV2() {
         onOpenEndConfirm={() => setShowEndConfirm(true)}
       />
 
+      {socketError && (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 shadow-lg backdrop-blur">
+          <p className="text-sm font-medium text-destructive">{socketError}</p>
+        </div>
+      )}
+
       {sessionEndedCountdown !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="px-4 text-center">
@@ -259,6 +267,30 @@ function SessionWorkspaceContent({
 
   const nextTurn = useNextTurn(campaignId);
   const endCombat = useEndCombat(campaignId);
+
+  // Roll request prompt (player side)
+  const [rollRequest, setRollRequest] = useState<{
+    requestId: string;
+    label: string;
+    type: string;
+    expiresAt: string;
+  } | null>(null);
+
+  const dismissRollRequest = useCallback(() => setRollRequest(null), []);
+
+  useSocketEvent('roll:request', (data: { requestId: string; label: string; type: string; expiresAt: string }) => {
+    // DMs don't need the prompt — they have the modal
+    if (isDM) return;
+    setRollRequest(data);
+  });
+
+  useSocketEvent('roll:request:cancelled', (data: { requestId: string }) => {
+    if (rollRequest?.requestId === data.requestId) setRollRequest(null);
+  });
+
+  useSocketEvent('roll:request:expired', (data: { requestId: string }) => {
+    if (rollRequest?.requestId === data.requestId) setRollRequest(null);
+  });
 
   const isCombatActive = !!initiative?.isActive;
   const hasTacticalMap = !!(
@@ -373,54 +405,64 @@ function SessionWorkspaceContent({
   );
 
   const leftPanel = isDM ? (
-    <div className="flex h-full flex-col gap-3 p-3">
-      <div className="rounded border border-border/60 bg-background/30 p-2">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Round</p>
-        <p className="text-sm font-semibold text-foreground">{initiative?.isActive ? initiative.round : '-'}</p>
-      </div>
+    isCombatActive || hasTacticalMap ? (
+      <div className="flex h-full flex-col gap-3 p-3">
+        <div className="rounded border border-border/60 bg-background/30 p-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Round</p>
+          <p className="text-sm font-semibold text-foreground">{initiative?.isActive ? initiative.round : '-'}</p>
+        </div>
 
-      <div className="rounded border border-border/60 bg-background/30 p-2">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Turn</p>
-        <p className="truncate text-sm font-semibold text-foreground">
-          {activeTurnEntry?.name ?? 'No active turn'}
-        </p>
-      </div>
+        <div className="rounded border border-border/60 bg-background/30 p-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Turn</p>
+          <p className="truncate text-sm font-semibold text-foreground">
+            {activeTurnEntry?.name ?? 'No active turn'}
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 gap-2">
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => nextTurn.mutate()}
-          disabled={!isCombatActive || nextTurn.isPending}
-        >
-          Next Turn
-        </Button>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => endCombat.mutate()}
-          disabled={!isCombatActive || endCombat.isPending}
-        >
-          End Combat
-        </Button>
-      </div>
+        <div className="grid grid-cols-1 gap-2">
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => nextTurn.mutate()}
+            disabled={!isCombatActive || nextTurn.isPending}
+          >
+            Next Turn
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => endCombat.mutate()}
+            disabled={!isCombatActive || endCombat.isPending}
+          >
+            End Combat
+          </Button>
+        </div>
 
-      <QuickActionBar
+        <QuickActionBar
+          campaignId={campaignId}
+          focusedEntry={entryToDisplay}
+          onEndTurn={() => nextTurn.mutate()}
+          onSpawnToken={() => {
+            window.dispatchEvent(new CustomEvent('fablheim:spawn-token', {
+              detail: {
+                name: entryToDisplay?.name ?? 'Token',
+                type: entryToDisplay?.type ?? 'other',
+              },
+            }));
+          }}
+          disableEndTurn={!isCombatActive || nextTurn.isPending}
+          layout="vertical"
+        />
+      </div>
+    ) : (
+      <DMSidebarV2
         campaignId={campaignId}
-        focusedEntry={entryToDisplay}
-        onEndTurn={() => nextTurn.mutate()}
-        onSpawnToken={() => {
-          window.dispatchEvent(new CustomEvent('fablheim:spawn-token', {
-            detail: {
-              name: entryToDisplay?.name ?? 'Token',
-              type: entryToDisplay?.type ?? 'other',
-            },
-          }));
-        }}
-        disableEndTurn={!isCombatActive || nextTurn.isPending}
-        layout="vertical"
+        isDM={isDM}
+        selectedEntry={entryToDisplay}
+        onSelectEntryId={(id) => selectEntry(id, { pin: true })}
+        onClearSelectedEntry={() => selectEntry(null, { pin: true })}
       />
-    </div>
+    )
   ) : (
     <PlayerSidebarV2 campaignId={campaignId} />
   );
@@ -449,7 +491,7 @@ function SessionWorkspaceContent({
     />
   );
 
-  const rightPanel = isDM ? (
+  const rightPanel = isDM && (isCombatActive || hasTacticalMap) ? (
     <div className="h-full min-h-0">
       <FocusCard campaignId={campaignId} isDM={isDM} entryOverride={entryToDisplay} />
     </div>
@@ -468,6 +510,19 @@ function SessionWorkspaceContent({
         defaultRightOpen
         mapMode={hasTacticalMap}
       />
+
+      {rollRequest && (
+        <div className="fixed bottom-20 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4">
+          <RollRequestPrompt
+            campaignId={campaignId}
+            requestId={rollRequest.requestId}
+            label={rollRequest.label}
+            type={rollRequest.type}
+            expiresAt={rollRequest.expiresAt}
+            onDismiss={dismissRollRequest}
+          />
+        </div>
+      )}
     </>
   );
 }

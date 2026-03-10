@@ -1,9 +1,10 @@
 import { type FormEvent, useState, useEffect } from 'react';
 import { X, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { useCreateWorldEntity, useUpdateWorldEntity, useWorldEntities } from '@/hooks/useWorldEntities';
 import { TYPE_LABELS, TYPE_DATA_FIELDS } from './world-constants';
-import type { WorldEntity, WorldEntityType, WorldEntityVisibility, CreateWorldEntityPayload } from '@/types/campaign';
+import type { WorldEntity, WorldEntityType, WorldEntityVisibility, LocationType, CreateWorldEntityPayload } from '@/types/campaign';
 
 interface CreateEntityModalProps {
   open: boolean;
@@ -15,6 +16,22 @@ interface CreateEntityModalProps {
 
 const ALL_TYPES: WorldEntityType[] = [
   'location', 'location_detail', 'faction', 'npc', 'npc_minor', 'item', 'quest', 'event', 'lore',
+];
+
+const LOCATION_TYPES: { value: LocationType; label: string }[] = [
+  { value: 'continent', label: 'Continent' },
+  { value: 'region', label: 'Region' },
+  { value: 'kingdom', label: 'Kingdom' },
+  { value: 'city', label: 'City' },
+  { value: 'town', label: 'Town' },
+  { value: 'village', label: 'Village' },
+  { value: 'district', label: 'District' },
+  { value: 'building', label: 'Building' },
+  { value: 'landmark', label: 'Landmark' },
+  { value: 'dungeon', label: 'Dungeon' },
+  { value: 'room', label: 'Room' },
+  { value: 'wilderness', label: 'Wilderness' },
+  { value: 'other', label: 'Other' },
 ];
 
 const inputClass =
@@ -40,6 +57,7 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
   const [newObjText, setNewObjText] = useState('');
   // Location hierarchy
   const [parentEntityId, setParentEntityId] = useState('');
+  const [locationType, setLocationType] = useState<LocationType | ''>('');
 
   const createEntity = useCreateWorldEntity();
   const updateEntity = useUpdateWorldEntity();
@@ -68,6 +86,7 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
       setParentEntityId(
         typeof entity.parentEntityId === 'object' ? entity.parentEntityId._id : (entity.parentEntityId ?? ''),
       );
+      setLocationType(entity.locationType ?? '');
     } else {
       resetForm();
     }
@@ -88,6 +107,7 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
     setObjectives([]);
     setNewObjText('');
     setParentEntityId('');
+    setLocationType('');
   }
 
   function handleClose() {
@@ -129,17 +149,26 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
       if (objectives.length > 0) payload.objectives = objectives;
     }
 
-    // Location hierarchy
-    if ((entityType === 'location' || entityType === 'location_detail') && parentEntityId) {
+    // Hierarchy — any entity can be placed inside a location
+    if (parentEntityId) {
       payload.parentEntityId = parentEntityId;
     }
 
-    if (isEdit && entity) {
-      await updateEntity.mutateAsync({ campaignId, id: entity._id, data: payload });
-    } else {
-      await createEntity.mutateAsync({ campaignId, data: payload });
+    // Location scale
+    if ((entityType === 'location' || entityType === 'location_detail') && locationType) {
+      payload.locationType = locationType as LocationType;
     }
-    handleClose();
+
+    try {
+      if (isEdit && entity) {
+        await updateEntity.mutateAsync({ campaignId, id: entity._id, data: payload });
+      } else {
+        await createEntity.mutateAsync({ campaignId, data: payload });
+      }
+      handleClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save entity');
+    }
   }
 
   const isPending = createEntity.isPending || updateEntity.isPending;
@@ -271,28 +300,54 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
             </>
           )}
 
-          {/* Parent location selector */}
+          {/* Location scale (for location types only) */}
           {(entityType === 'location' || entityType === 'location_detail') && (
             <>
               <div className="divider-ornate" />
               <div>
-                <label htmlFor="parent-location" className={labelClass}>Parent Location</label>
+                <label htmlFor="location-type" className={labelClass}>Location Scale</label>
                 <select
-                  id="parent-location"
-                  value={parentEntityId}
-                  onChange={(e) => setParentEntityId(e.target.value)}
+                  id="location-type"
+                  value={locationType}
+                  onChange={(e) => setLocationType(e.target.value as LocationType | '')}
                   className={inputClass}
                 >
-                  <option value="">None (top-level)</option>
-                  {(allEntities ?? [])
-                    .filter((e) => (e.type === 'location' || e.type === 'location_detail') && e._id !== entity?._id)
-                    .map((loc) => (
-                      <option key={loc._id} value={loc._id}>{loc.name}</option>
-                    ))}
+                  <option value="">Unspecified</option>
+                  {LOCATION_TYPES.map((lt) => (
+                    <option key={lt.value} value={lt.value}>{lt.label}</option>
+                  ))}
                 </select>
               </div>
             </>
           )}
+
+          {/* Parent location — available for ALL entity types */}
+          <div className="divider-ornate" />
+          <div>
+            <label htmlFor="parent-location" className={labelClass}>
+              {entityType === 'location' || entityType === 'location_detail'
+                ? 'Parent Location'
+                : 'Located In'}
+            </label>
+            <select
+              id="parent-location"
+              value={parentEntityId}
+              onChange={(e) => setParentEntityId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">{entityType === 'location' || entityType === 'location_detail' ? 'None (top-level)' : 'None'}</option>
+              {(allEntities ?? [])
+                .filter((e) => (e.type === 'location' || e.type === 'location_detail') && e._id !== entity?._id)
+                .map((loc) => (
+                  <option key={loc._id} value={loc._id}>
+                    {loc.locationType ? `[${loc.locationType}] ` : ''}{loc.name}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Place this {TYPE_LABELS[entityType].toLowerCase()} inside a location
+            </p>
+          </div>
 
           {/* Quest-specific fields */}
           {entityType === 'quest' && (

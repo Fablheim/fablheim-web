@@ -12,7 +12,7 @@ const tiers = [
   {
     name: 'Wanderer (Free)',
     price: '$0',
-    credits: `${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits`,
+    credits: 'No monthly AI credits',
     notes: 'Core campaign management and session runner access.',
     tag: 'Core Access',
     cardTone:
@@ -32,7 +32,7 @@ const tiers = [
     price: `${BILLING_CONFIG.tiers.pro.price}`,
     credits: `${BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits`,
     notes: 'Subscription credits expire after 90 days.',
-    tag: 'Most Chosen',
+    tag: 'Best For Active GMs',
     cardTone:
       'bg-[linear-gradient(165deg,hsla(40,90%,56%,0.24)_0%,hsla(18,66%,34%,0.24)_45%,hsla(24,16%,8%,0.9)_100%)] border-[color:var(--mkt-accent)]/70',
     featured: true,
@@ -50,8 +50,8 @@ const tiers = [
 
 const pricingFaq = [
   {
-    question: 'Does the free tier include AI credits?',
-    answer: `No. The free tier includes ${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits.`,
+    question: 'Does the free tier include monthly AI credits?',
+    answer: 'No. The free tier includes core app access, and AI credits start with paid plans.',
   },
   {
     question: 'Can I use Fablheim without AI?',
@@ -73,7 +73,7 @@ export default function PricingPage() {
     <MarketingPage>
       <SEO
         title="Fablheim Pricing | Optional AI Credits for GMs"
-        description="Fablheim pricing: free core app access, optional paid tiers for monthly AI credits, and one-time credit packs."
+        description="Fablheim pricing: free core app access, paid tiers with monthly AI credits, and one-time credit packs for optional AI support."
         canonicalPath="/pricing"
       />
       <JsonLd data={faqPageSchema('/pricing', pricingFaq)} />
@@ -101,7 +101,7 @@ export default function PricingPage() {
             Clear plans, optional AI credits
           </h1>
           <p className="mt-4 max-w-3xl text-[color:var(--mkt-muted)]">
-            Fablheim is usable without AI. Paid plans only change available monthly AI credits.
+            Fablheim is usable without AI. The free tier gives you the core app, and paid plans add monthly AI credits.
           </p>
         </div>
       </section>
@@ -126,7 +126,9 @@ export default function PricingPage() {
                 <p className="mt-3 font-[Cinzel] text-xl text-[color:var(--mkt-text)]">{tier.name}</p>
                 <div className="mt-3 flex items-end gap-1">
                   <p className="font-[Cinzel] text-3xl leading-none text-[color:var(--mkt-text)]">{tier.price}</p>
-                  <p className="text-xs uppercase tracking-[0.12em] text-[color:var(--mkt-muted)]">/ month</p>
+                  {tier.name === 'Wanderer (Free)' ? null : (
+                    <p className="text-xs uppercase tracking-[0.12em] text-[color:var(--mkt-muted)]">/ month</p>
+                  )}
                 </div>
                 <div className="mt-4 h-px w-full bg-[linear-gradient(90deg,transparent_0%,hsla(38,36%,66%,0.42)_35%,hsla(38,36%,66%,0.42)_65%,transparent_100%)]" />
                 <p className="mt-4 text-sm text-[color:var(--mkt-text)]">{tier.credits}</p>
@@ -147,6 +149,9 @@ export default function PricingPage() {
                 </p>
                 <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">
                   Subscribers get more credits per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.
+                </p>
+                <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">
+                  If you do not need monthly AI throughput, you can stay on free and buy packs only when needed.
                 </p>
               </div>
             </div>
@@ -223,7 +228,7 @@ export default function PricingPage() {
             </p>
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Button onClick={() => navigate(loggedIn ? '/app' : '/register')}>
-                {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+                {loggedIn ? 'Open Dashboard' : 'Join Beta'}
               </Button>
               <Button variant="outline" onClick={() => navigate('/how-it-works')} className="text-base">
                 See How It Works

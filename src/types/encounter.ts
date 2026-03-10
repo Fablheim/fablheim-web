@@ -11,6 +11,7 @@ export interface EncounterNPC {
   initiativeBonus: number;
   statBlock: string;
   tactics?: string;
+  group?: string;
 }
 
 // ── Encounter ────────────────────────────────────────────────
@@ -25,6 +26,7 @@ export interface Encounter {
   description: string;
   difficulty: EncounterDifficulty;
   estimatedXP: number;
+  locationEntityId?: string;
 
   // Map config
   gridWidth: number;
@@ -56,6 +58,7 @@ export interface CreateEncounterRequest {
   description?: string;
   difficulty?: EncounterDifficulty;
   estimatedXP?: number;
+  locationEntityId?: string;
   gridWidth?: number;
   gridHeight?: number;
   gridSquareSizeFt?: number;
@@ -69,6 +72,7 @@ export interface UpdateEncounterRequest {
   description?: string;
   difficulty?: EncounterDifficulty;
   estimatedXP?: number;
+  locationEntityId?: string | null;
   gridWidth?: number;
   gridHeight?: number;
   gridSquareSizeFt?: number;

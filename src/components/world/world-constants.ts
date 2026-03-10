@@ -8,11 +8,12 @@ import {
   Calendar,
   ScrollText,
   Map,
+  Network,
   type LucideIcon,
 } from 'lucide-react';
-import type { WorldEntityType } from '@/types/campaign';
+import type { WorldEntityType, LocationType } from '@/types/campaign';
 
-export type WorldTab = 'all' | 'locations' | 'factions' | 'npcs' | 'items' | 'quests' | 'lore' | 'events' | 'map';
+export type WorldTab = 'all' | 'tree' | 'locations' | 'factions' | 'npcs' | 'items' | 'quests' | 'lore' | 'events' | 'map';
 
 export interface WorldTabDef {
   key: WorldTab;
@@ -23,6 +24,7 @@ export interface WorldTabDef {
 
 export const WORLD_TABS: WorldTabDef[] = [
   { key: 'all', label: 'All', types: [], icon: ScrollText },
+  { key: 'tree', label: 'Tree', types: [], icon: Network },
   { key: 'locations', label: 'Locations', types: ['location', 'location_detail'], icon: MapPin },
   { key: 'factions', label: 'Factions', types: ['faction'], icon: Users },
   { key: 'npcs', label: 'NPCs', types: ['npc', 'npc_minor'], icon: User },
@@ -122,8 +124,25 @@ export const TYPE_DATA_FIELDS: Record<WorldEntityType, TypeDataField[]> = {
   ],
 };
 
+export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  continent: 'Continent',
+  region: 'Region',
+  kingdom: 'Kingdom',
+  city: 'City',
+  town: 'Town',
+  village: 'Village',
+  district: 'District',
+  building: 'Building',
+  landmark: 'Landmark',
+  dungeon: 'Dungeon',
+  room: 'Room',
+  wilderness: 'Wilderness',
+  other: 'Other',
+};
+
 export const CREATE_LABELS: Record<WorldTab, string> = {
   all: 'Entity',
+  tree: 'Entity',
   locations: 'Location',
   factions: 'Faction',
   npcs: 'NPC',
@@ -136,6 +155,7 @@ export const CREATE_LABELS: Record<WorldTab, string> = {
 
 export const EMPTY_MESSAGES: Record<WorldTab, { title: string; description: string }> = {
   all: { title: 'Your world awaits', description: 'Create your first entity to begin building your world' },
+  tree: { title: 'Your world awaits', description: 'Create locations and nest entities inside them to build your mental map' },
   locations: { title: 'No lands charted', description: 'Add locations to map out your world' },
   factions: { title: 'No factions formed', description: 'Create factions to populate your world with intrigue' },
   npcs: { title: 'No souls encountered', description: 'Add NPCs to bring your world to life' },

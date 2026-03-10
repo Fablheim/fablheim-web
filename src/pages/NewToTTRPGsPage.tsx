@@ -71,12 +71,13 @@ function Hero({
 
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[color:var(--mkt-muted)] sm:text-lg">
             Tabletop RPGs are collaborative stories with dice. One person runs the world, players make decisions, and
-            everyone reacts to what happens.
+            everyone reacts to what happens. Fablheim helps keep that shared experience organized without making new
+            players learn a complicated tool stack first.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
-              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              {loggedIn ? 'Open Dashboard' : 'Join Beta'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" onClick={onHowItWorks} className="text-base">
@@ -130,7 +131,7 @@ function FirstSessionPath({ onRules }: { onRules: () => void }) {
           <h2 className="mt-2 font-[Cinzel] text-3xl text-[color:var(--mkt-text)] sm:text-4xl">What your first session usually looks like</h2>
           <p className="mt-4 text-[color:var(--mkt-muted)]">
             You do not need to memorize every rule. The table and the GM handle pacing, while Fablheim keeps core tools
-            in one place.
+            in one place so it is easier to follow what is happening.
           </p>
           <ul className="mt-5 space-y-3 text-sm text-[color:var(--mkt-muted)]">
             {steps.map((step, idx) => (
@@ -190,7 +191,7 @@ function ForPlayers() {
           <article className="mkt-card rounded-lg p-5">
             <Sparkles className="h-5 w-5 text-[color:var(--mkt-accent)]" />
             <p className="mt-3 font-[Cinzel] text-xl text-[color:var(--mkt-text)]">AI Is Optional</p>
-            <p className="text-sm text-[color:var(--mkt-muted)]">Core play works without AI credits.</p>
+            <p className="text-sm text-[color:var(--mkt-muted)]">Core play works without AI, so new players do not need to think about credits at all.</p>
           </article>
         </div>
       </div>
@@ -239,7 +240,7 @@ function ClosingCta({
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
-              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              {loggedIn ? 'Open Dashboard' : 'Join Beta'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" onClick={onHowItWorks} className="text-base">
@@ -265,7 +266,7 @@ export default function NewToTTRPGsPage() {
     <MarketingPage>
       <SEO
         title="New to TTRPGs? Beginner Guide | Fablheim"
-        description="Learn tabletop RPG basics, how sessions flow, and how to join a game with Fablheim's beginner-friendly setup."
+        description="Learn the basics of tabletop RPGs, how sessions usually flow, and how Fablheim helps players join and stay synced during play."
         canonicalPath="/new-to-ttrpgs"
       />
       <JsonLd data={faqPageSchema('/new-to-ttrpgs', newPlayerFaq)} />
@@ -290,4 +291,3 @@ export default function NewToTTRPGsPage() {
     </MarketingPage>
   );
 }
-

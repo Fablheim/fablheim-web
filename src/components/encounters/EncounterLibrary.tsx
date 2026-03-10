@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Loader2, Trash2, Swords, ArrowRight } from 'lucide-react';
+import { Plus, Loader2, Trash2, Swords, ArrowRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useEncounters, useCreateEncounter, useDeleteEncounter } from '@/hooks/useEncounters';
+import { encountersApi } from '@/api/encounters';
 import type { Encounter, EncounterDifficulty } from '@/types/encounter';
 
 interface EncounterLibraryProps {
@@ -51,6 +52,39 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
   function handleDelete(e: React.MouseEvent, encounterId: string) {
     e.stopPropagation();
     setDeleteConfirmId(encounterId);
+  }
+
+  async function handleDuplicate(e: React.MouseEvent, enc: Encounter) {
+    e.stopPropagation();
+    try {
+      const created = await createEncounter.mutateAsync({
+        name: `${enc.name} (Copy)`,
+        description: enc.description || undefined,
+        difficulty: enc.difficulty,
+        estimatedXP: enc.estimatedXP || undefined,
+        locationEntityId: enc.locationEntityId,
+        gridWidth: enc.gridWidth,
+        gridHeight: enc.gridHeight,
+        gridSquareSizeFt: enc.gridSquareSizeFt,
+        backgroundImageUrl: enc.backgroundImageUrl,
+        notes: enc.notes || undefined,
+        tags: enc.tags.length > 0 ? enc.tags : undefined,
+      });
+      // Copy fields not in CreateEncounterRequest
+      if (enc.npcs.length > 0 || enc.tactics || enc.terrain || enc.treasure || enc.hooks.length > 0) {
+        await encountersApi.update(campaignId, created._id, {
+          npcs: enc.npcs,
+          tactics: enc.tactics,
+          terrain: enc.terrain,
+          treasure: enc.treasure,
+          hooks: enc.hooks,
+        });
+      }
+      toast.success(`Duplicated "${enc.name}"`);
+      onSelect(created);
+    } catch {
+      toast.error('Failed to duplicate encounter');
+    }
   }
 
   function confirmDelete() {
@@ -163,13 +197,25 @@ export function EncounterLibrary({ campaignId, onSelect }: EncounterLibraryProps
               <h3 className="font-['IM_Fell_English'] text-base font-semibold text-foreground text-carved line-clamp-1">
                 {enc.name}
               </h3>
-              <button
-                type="button"
-                onClick={(e) => handleDelete(e, enc._id)}
-                className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-blood hover:bg-blood/10 transition-all"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                <button
+                  type="button"
+                  onClick={(e) => handleDuplicate(e, enc)}
+                  disabled={createEncounter.isPending}
+                  className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                  title="Duplicate encounter"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(e, enc._id)}
+                  className="rounded p-1 text-muted-foreground hover:text-blood hover:bg-blood/10 transition-colors"
+                  title="Delete encounter"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </span>
             </div>
 
             {enc.description && (

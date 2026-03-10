@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Weight, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Weight, Sparkles, Loader2, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from './CurrencyDisplay';
@@ -80,11 +80,45 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
   const weightPct = capacity > 0 ? Math.min(100, (totalWeight / capacity) * 100) : 0;
   const isEncumbered = totalWeight > capacity;
 
+  const [collapsedContainers, setCollapsedContainers] = useState<Set<string>>(new Set());
+
   const filteredItems = useMemo(() => {
     const types = TAB_TYPE_MAP[activeTab];
     if (!types) return allItems;
     return allItems.filter((i) => types.includes(i.type));
   }, [allItems, activeTab]);
+
+  // Group items: loose items (no parentItemId), containers, and contained items
+  const { looseItems, containers, containedItemsMap } = useMemo(() => {
+    const cMap = new Map<string, Item[]>();
+    const containerList: Item[] = [];
+    const loose: Item[] = [];
+
+    // First pass: identify containers
+    const containerIds = new Set(filteredItems.filter((i) => i.isContainer).map((i) => i._id));
+
+    for (const item of filteredItems) {
+      if (item.isContainer) {
+        containerList.push(item);
+      } else if (item.parentItemId && containerIds.has(item.parentItemId)) {
+        const siblings = cMap.get(item.parentItemId) ?? [];
+        siblings.push(item);
+        cMap.set(item.parentItemId, siblings);
+      } else {
+        loose.push(item);
+      }
+    }
+    return { looseItems: loose, containers: containerList, containedItemsMap: cMap };
+  }, [filteredItems]);
+
+  const toggleContainer = useCallback((id: string) => {
+    setCollapsedContainers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const handleEquip = useCallback(
     (id: string, slot: string) => {
@@ -180,7 +214,11 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
         {renderAttunementIndicator(attunedCount)}
         {renderTabs(activeTab, setActiveTab)}
         {renderItemList(
-          filteredItems,
+          looseItems,
+          containers,
+          containedItemsMap,
+          collapsedContainers,
+          toggleContainer,
           itemsLoading,
           handleEquip,
           handleUnequip,
@@ -195,6 +233,7 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
         onSubmit={handleFormSubmit}
         item={editingItem}
         isPending={createItem.isPending || updateItem.isPending}
+        containers={allItems.filter((i) => i.isContainer)}
       />
     </div>
   );
@@ -306,7 +345,11 @@ function renderTabs(
 }
 
 function renderItemList(
-  items: Item[],
+  looseItems: Item[],
+  containers: Item[],
+  containedItemsMap: Map<string, Item[]>,
+  collapsedContainers: Set<string>,
+  toggleContainer: (id: string) => void,
   isLoading: boolean,
   onEquip: (id: string, slot: string) => void,
   onUnequip: (id: string) => void,
@@ -322,7 +365,8 @@ function renderItemList(
     );
   }
 
-  if (items.length === 0) {
+  const totalItems = looseItems.length + containers.length;
+  if (totalItems === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
         No items found. Add items using the button above.
@@ -332,7 +376,68 @@ function renderItemList(
 
   return (
     <div className="space-y-1.5">
-      {items.map((item) => (
+      {containers.map((container) => {
+        const contents = containedItemsMap.get(container._id) ?? [];
+        const isCollapsed = collapsedContainers.has(container._id);
+        const contentsWeight = contents.reduce((s, i) => s + i.weight * i.quantity, 0);
+
+        return (
+          <div key={container._id} className="rounded-sm border border-amber-800/30 bg-amber-950/10">
+            <button
+              type="button"
+              onClick={() => toggleContainer(container._id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-amber-950/20 transition-colors"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <Package className="h-4 w-4 shrink-0 text-amber-400" />
+              <span className="flex-1 truncate text-sm font-medium text-amber-400">
+                {container.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {contents.length} item{contents.length !== 1 ? 's' : ''}
+                {container.containerCapacity > 0 && ` / ${container.containerCapacity}`}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {contentsWeight.toFixed(1)} lb
+              </span>
+            </button>
+            {!isCollapsed && (
+              <div className="space-y-1 border-t border-amber-800/20 px-2 pb-2 pt-1">
+                <ItemRow
+                  item={container}
+                  onEquip={onEquip}
+                  onUnequip={onUnequip}
+                  onToggleAttunement={onToggleAttunement}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+                {contents.map((item) => (
+                  <div key={item._id} className="ml-4">
+                    <ItemRow
+                      item={item}
+                      onEquip={onEquip}
+                      onUnequip={onUnequip}
+                      onToggleAttunement={onToggleAttunement}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  </div>
+                ))}
+                {contents.length === 0 && (
+                  <p className="py-2 text-center text-xs text-muted-foreground italic">
+                    Empty container
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {looseItems.map((item) => (
         <ItemRow
           key={item._id}
           item={item}

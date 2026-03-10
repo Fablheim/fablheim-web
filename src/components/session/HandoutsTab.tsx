@@ -68,8 +68,13 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
   useSocketEvent('handout:shared', () => {
     queryClient.invalidateQueries({ queryKey: ['handouts', campaignId] });
   });
-  useSocketEvent('handout:unshared', () => {
+  useSocketEvent('handout:unshared', (data: { handoutId?: string }) => {
     queryClient.invalidateQueries({ queryKey: ['handouts', campaignId] });
+    // If the player has this handout open, close it and show a toast
+    if (!isDM && data?.handoutId && viewingHandout?._id === data.handoutId) {
+      setViewingHandout(null);
+      toast('This handout was removed', { duration: 3000 });
+    }
   });
 
   // Track new handouts for "New!" badge

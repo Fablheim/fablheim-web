@@ -1,4 +1,9 @@
-import { WorldPage } from '@/pages/WorldPage';
+import { lazy, Suspense } from 'react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+const WorldPage = lazy(() =>
+  import('@/pages/WorldPage').then((m) => ({ default: m.WorldPage })),
+);
 
 interface WorldBrowserPanelProps {
   campaignId: string;
@@ -7,7 +12,9 @@ interface WorldBrowserPanelProps {
 export function WorldBrowserPanel({ campaignId }: WorldBrowserPanelProps) {
   return (
     <div className="h-full overflow-y-auto">
-      <WorldPage campaignId={campaignId} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <WorldPage campaignId={campaignId} />
+      </Suspense>
     </div>
   );
 }

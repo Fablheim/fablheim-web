@@ -1,5 +1,12 @@
 import { api } from './client';
-import type { Campaign, CreateCampaignPayload, UpdateCampaignPayload, Session } from '@/types/campaign';
+import type {
+  Campaign,
+  CreateCampaignPayload,
+  UpdateCampaignPayload,
+  Session,
+  CampaignArc,
+  WorldStateTracker,
+} from '@/types/campaign';
 
 export const campaignsApi = {
   list: async (): Promise<Campaign[]> => {
@@ -40,7 +47,7 @@ export const campaignsApi = {
   },
 
   deletePermanently: async (id: string): Promise<void> => {
-    await api.delete(`/campaigns/${id}/permanent`);
+    await api.delete(`/campaigns/${id}/permanent`, { data: { confirm: true } });
   },
 
   // ── Stage Transitions ──────────────────────────────────────
@@ -70,5 +77,80 @@ export const campaignsApi = {
   returnToPrep: async (id: string): Promise<Campaign> => {
     const { data } = await api.post<Campaign>(`/campaigns/${id}/return-to-prep`);
     return data;
+  },
+
+  // ── Arcs ─────────────────────────────────────────────────
+
+  getArcs: async (id: string): Promise<CampaignArc[]> => {
+    const { data } = await api.get<CampaignArc[]>(`/campaigns/${id}/arcs`);
+    return data;
+  },
+
+  addArc: async (
+    id: string,
+    body: { name: string; description?: string; status?: string; sortOrder?: number; milestones?: Array<{ description: string; completed?: boolean }> },
+  ): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/arcs`, body);
+    return data;
+  },
+
+  updateArc: async (
+    id: string,
+    arcId: string,
+    body: { name?: string; description?: string; status?: string; sortOrder?: number },
+  ): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/arcs/${arcId}`, body);
+    return data;
+  },
+
+  removeArc: async (id: string, arcId: string): Promise<void> => {
+    await api.delete(`/campaigns/${id}/arcs/${arcId}`);
+  },
+
+  addArcMilestone: async (
+    id: string,
+    arcId: string,
+    body: { description: string; completed?: boolean },
+  ): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/arcs/${arcId}/milestones`, body);
+    return data;
+  },
+
+  toggleArcMilestone: async (id: string, arcId: string, milestoneId: string): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/arcs/${arcId}/milestones/${milestoneId}`);
+    return data;
+  },
+
+  // ── Trackers ─────────────────────────────────────────────
+
+  getTrackers: async (id: string): Promise<WorldStateTracker[]> => {
+    const { data } = await api.get<WorldStateTracker[]>(`/campaigns/${id}/trackers`);
+    return data;
+  },
+
+  addTracker: async (
+    id: string,
+    body: { name: string; description?: string; value?: number; min?: number; max?: number; thresholds?: Array<{ value: number; label: string; effect?: string }>; visibility?: string },
+  ): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/trackers`, body);
+    return data;
+  },
+
+  updateTracker: async (
+    id: string,
+    trackerId: string,
+    body: { name?: string; description?: string; value?: number; min?: number; max?: number; thresholds?: Array<{ value: number; label: string; effect?: string }>; visibility?: string },
+  ): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/trackers/${trackerId}`, body);
+    return data;
+  },
+
+  adjustTracker: async (id: string, trackerId: string, delta: number): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/trackers/${trackerId}/adjust`, { delta });
+    return data;
+  },
+
+  removeTracker: async (id: string, trackerId: string): Promise<void> => {
+    await api.delete(`/campaigns/${id}/trackers/${trackerId}`);
   },
 };

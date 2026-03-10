@@ -181,6 +181,7 @@ export function NPCBrowserPanel({ campaignId }: NPCBrowserPanelProps) {
           allEntities={npcs}
           onViewEntity={(e) => setViewingEntity(e)}
           onLinkEntity={() => {}}
+          domainFeatureEnabled={!!campaign?.features?.domains}
         />
         <DeleteEntityModal
           open={!!deletingEntity}

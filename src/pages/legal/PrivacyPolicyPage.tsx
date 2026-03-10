@@ -21,6 +21,7 @@ export function PrivacyPolicyPage() {
       lastUpdated="February 2026"
       intro="This policy explains what information Fablheim collects, how it is used, and what controls you have."
       toc={toc}
+      canonicalPath="/legal/privacy"
     >
       <LegalSection id="information-collect" title="1. Information We Collect">
         <h3 className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Account Information</h3>

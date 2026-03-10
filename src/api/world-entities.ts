@@ -1,15 +1,34 @@
 import { api } from './client';
 import type {
   WorldEntity,
+  WorldTreeNode,
   CreateWorldEntityPayload,
   UpdateWorldEntityPayload,
 } from '@/types/campaign';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  skip: number;
+}
+
 export const worldEntitiesApi = {
   list: async (campaignId: string, type?: string): Promise<WorldEntity[]> => {
-    const { data } = await api.get<WorldEntity[]>(
+    const { data } = await api.get<PaginatedResult<WorldEntity>>(
       `/campaigns/${campaignId}/world/entities`,
       { params: type ? { type } : undefined },
+    );
+    return data.data;
+  },
+
+  listPaginated: async (
+    campaignId: string,
+    opts?: { type?: string; limit?: number; skip?: number },
+  ): Promise<PaginatedResult<WorldEntity>> => {
+    const { data } = await api.get<PaginatedResult<WorldEntity>>(
+      `/campaigns/${campaignId}/world/entities`,
+      { params: { type: opts?.type, limit: opts?.limit, skip: opts?.skip } },
     );
     return data;
   },
@@ -79,6 +98,57 @@ export const worldEntitiesApi = {
   getChildren: async (campaignId: string, entityId: string): Promise<WorldEntity[]> => {
     const { data } = await api.get<WorldEntity[]>(
       `/campaigns/${campaignId}/world/entities/${entityId}/children`,
+    );
+    return data;
+  },
+
+  getTree: async (campaignId: string): Promise<WorldTreeNode[]> => {
+    const { data } = await api.get<WorldTreeNode[]>(
+      `/campaigns/${campaignId}/world/entities/tree`,
+    );
+    return data;
+  },
+
+  // ── Quest Outcomes ───────────────────────────────────────
+
+  chooseOutcome: async (campaignId: string, entityId: string, outcomeId: string): Promise<WorldEntity> => {
+    const { data } = await api.patch<WorldEntity>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/outcomes/${outcomeId}/choose`,
+    );
+    return data;
+  },
+
+  // ── Faction Reputation ──────────────────────────────────
+
+  adjustReputation: async (
+    campaignId: string,
+    entityId: string,
+    body: { delta: number; description: string; sessionNumber?: number },
+  ): Promise<WorldEntity> => {
+    const { data } = await api.post<WorldEntity>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/reputation`,
+      body,
+    );
+    return data;
+  },
+
+  // ── NPC Secrets & Attitude ──────────────────────────────
+
+  revealSecret: async (campaignId: string, entityId: string, secretId: string): Promise<WorldEntity> => {
+    const { data } = await api.patch<WorldEntity>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/secrets/${secretId}/reveal`,
+    );
+    return data;
+  },
+
+  addAttitudeEvent: async (
+    campaignId: string,
+    entityId: string,
+    body: { description: string; sessionNumber?: number; newDisposition?: string },
+  ): Promise<WorldEntity> => {
+    const { data } = await api.post<WorldEntity>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/attitude`,
+      body,
     );
     return data;
   },

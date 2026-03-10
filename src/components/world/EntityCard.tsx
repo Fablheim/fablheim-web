@@ -1,6 +1,6 @@
 import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, ArrowRight } from 'lucide-react';
-import type { WorldEntity } from '@/types/campaign';
-import { TYPE_ACCENTS, TYPE_LABELS, TYPE_ICONS } from './world-constants';
+import type { WorldEntity, LocationType } from '@/types/campaign';
+import { TYPE_ACCENTS, TYPE_LABELS, TYPE_ICONS, LOCATION_TYPE_LABELS } from './world-constants';
 
 interface EntityCardProps {
   entity: WorldEntity;
@@ -42,6 +42,11 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
             <span className={`inline-flex items-center rounded-md ${accent.bg} px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider ${accent.text}`}>
               {typeLabel}
             </span>
+            {entity.locationType && (
+              <span className="inline-flex items-center rounded-md bg-background/40 px-1.5 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                {LOCATION_TYPE_LABELS[entity.locationType as LocationType] ?? entity.locationType}
+              </span>
+            )}
             {isHidden ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-arcane/15 px-1.5 py-0.5 text-[10px] text-arcane">
                 <EyeOff className="h-3 w-3" />

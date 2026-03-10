@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from './MarketingShell';
+import { SEO } from '@/components/seo/SEO';
 
 export interface LegalTocItem {
   id: string;
@@ -13,15 +14,17 @@ interface LegalPageLayoutProps {
   lastUpdated: string;
   intro?: string;
   toc: LegalTocItem[];
+  canonicalPath: string;
   children: ReactNode;
 }
 
-export function LegalPageLayout({ title, lastUpdated, intro, toc, children }: LegalPageLayoutProps) {
+export function LegalPageLayout({ title, lastUpdated, intro, toc, canonicalPath, children }: LegalPageLayoutProps) {
   const { user } = useAuth();
   const [tocOpen, setTocOpen] = useState(false);
 
   return (
     <MarketingPage>
+      <SEO title={`${title} | Fablheim`} description={intro ?? title} canonicalPath={canonicalPath} />
       <a href="#legal-main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-[color:var(--mkt-surface-1)] focus:px-3 focus:py-2 focus:text-sm focus:text-[color:var(--mkt-text)]">
         Skip to legal content
       </a>

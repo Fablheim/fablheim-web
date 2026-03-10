@@ -15,6 +15,7 @@ import { DamageModTags } from '@/components/session/DamageModTags';
 import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
 import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import { ActionListPanel } from '@/components/session/ActionListPanel';
+import { HeroPointsTracker } from '@/components/session/HeroPointsTracker';
 import { TabbedSection } from '@/components/ui/TabbedSection';
 import {
   checkSystemDataSize,
@@ -52,6 +53,7 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
     currentTurnEntryId,
   } = useSessionWorkspaceState();
 
+  const isPf2eSystem = (rules?.system ?? '').toLowerCase().includes('pathfinder') || (rules?.system ?? '').toLowerCase() === 'pf2e';
   const [modalMode, setModalMode] = useState<'damage' | 'heal' | 'temp-hp' | null>(null);
   const [activeTab, setActiveTab] = useState<FocusTabId>(() => {
     const saved = window.localStorage.getItem(TAB_KEY);
@@ -340,6 +342,11 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
                 </span>
               )}
             </div>
+            {isPf2eSystem && entry.type === 'pc' && (
+              <div className="mt-2">
+                <HeroPointsTracker campaignId={campaignId} entry={entry} canEdit={isDM} />
+              </div>
+            )}
           </section>
 
           <section className="rounded-md border border-[#2a2016] bg-background/30 p-3">

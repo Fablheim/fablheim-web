@@ -8,7 +8,8 @@ import type { EnemyTemplate, SpawnedEnemy, EnemyCategory } from '@/types/enemy-t
 interface SpawnEnemiesModalProps {
   open: boolean;
   onClose: () => void;
-  onSpawn: (enemies: SpawnedEnemy[]) => void;
+  onSpawn: (enemies: SpawnedEnemy[], group?: string) => void;
+  existingGroups?: string[];
 }
 
 const SYSTEM_LABELS: Record<string, string> = {
@@ -44,7 +45,7 @@ const CATEGORY_COLORS: Record<EnemyCategory, string> = {
 
 type NamingPattern = 'numeric' | 'alpha' | 'custom';
 
-export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalProps) {
+export function SpawnEnemiesModal({ open, onClose, onSpawn, existingGroups }: SpawnEnemiesModalProps) {
   const { data: templates, isLoading } = useEnemyTemplates();
   const spawnEnemies = useSpawnEnemies();
 
@@ -53,6 +54,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
   const [selectedTemplate, setSelectedTemplate] = useState<EnemyTemplate | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [namingPattern, setNamingPattern] = useState<NamingPattern>('numeric');
+  const [group, setGroup] = useState('');
 
   if (!open) return null;
 
@@ -62,6 +64,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
     setSelectedTemplate(null);
     setQuantity(1);
     setNamingPattern('numeric');
+    setGroup('');
     onClose();
   }
 
@@ -69,6 +72,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
     setSelectedTemplate(null);
     setQuantity(1);
     setNamingPattern('numeric');
+    setGroup('');
   }
 
   async function handleSpawn() {
@@ -79,7 +83,7 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
         templateId: selectedTemplate._id,
         body: { quantity, namingPattern },
       });
-      onSpawn(enemies);
+      onSpawn(enemies, group.trim() || undefined);
       toast.success(`Spawned ${quantity} ${selectedTemplate.name}`);
       handleClose();
     } catch {
@@ -232,6 +236,28 @@ export function SpawnEnemiesModal({ open, onClose, onSpawn }: SpawnEnemiesModalP
             {renderRadio('numeric', `${template.name} 1, ${template.name} 2, ${template.name} 3...`)}
             {renderRadio('alpha', `${template.name} A, ${template.name} B, ${template.name} C...`)}
           </div>
+        </div>
+
+        <div>
+          <label className="block font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
+            Group (optional)
+          </label>
+          <input
+            type="text"
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            placeholder="e.g. Wave 1, Archers, Boss adds..."
+            maxLength={50}
+            list="existing-groups"
+            className="mt-1 w-full rounded-sm border border-input bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground input-carved"
+          />
+          {existingGroups && existingGroups.length > 0 && (
+            <datalist id="existing-groups">
+              {existingGroups.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-[hsla(38,40%,30%,0.15)]">

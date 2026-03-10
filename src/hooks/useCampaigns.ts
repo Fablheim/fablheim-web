@@ -82,3 +82,127 @@ export function useDeleteCampaignPermanently() {
     },
   });
 }
+
+// ── Arcs ─────────────────────────────────────────────────
+
+export function useArcs(campaignId: string) {
+  return useQuery({
+    queryKey: ['campaigns', campaignId, 'arcs'],
+    queryFn: () => campaignsApi.getArcs(campaignId),
+    enabled: !!campaignId,
+  });
+}
+
+export function useAddArc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, data }: { campaignId: string; data: Parameters<typeof campaignsApi.addArc>[1] }) =>
+      campaignsApi.addArc(campaignId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useUpdateArc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, arcId, data }: { campaignId: string; arcId: string; data: Parameters<typeof campaignsApi.updateArc>[2] }) =>
+      campaignsApi.updateArc(campaignId, arcId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useRemoveArc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, arcId }: { campaignId: string; arcId: string }) =>
+      campaignsApi.removeArc(campaignId, arcId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useAddArcMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, arcId, data }: { campaignId: string; arcId: string; data: { description: string; completed?: boolean } }) =>
+      campaignsApi.addArcMilestone(campaignId, arcId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+    },
+  });
+}
+
+export function useToggleArcMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, arcId, milestoneId }: { campaignId: string; arcId: string; milestoneId: string }) =>
+      campaignsApi.toggleArcMilestone(campaignId, arcId, milestoneId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+    },
+  });
+}
+
+// ── Trackers ─────────────────────────────────────────────
+
+export function useTrackers(campaignId: string) {
+  return useQuery({
+    queryKey: ['campaigns', campaignId, 'trackers'],
+    queryFn: () => campaignsApi.getTrackers(campaignId),
+    enabled: !!campaignId,
+  });
+}
+
+export function useAddTracker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, data }: { campaignId: string; data: Parameters<typeof campaignsApi.addTracker>[1] }) =>
+      campaignsApi.addTracker(campaignId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useUpdateTracker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, trackerId, data }: { campaignId: string; trackerId: string; data: Parameters<typeof campaignsApi.updateTracker>[2] }) =>
+      campaignsApi.updateTracker(campaignId, trackerId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
+    },
+  });
+}
+
+export function useAdjustTracker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, trackerId, delta }: { campaignId: string; trackerId: string; delta: number }) =>
+      campaignsApi.adjustTracker(campaignId, trackerId, delta),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
+    },
+  });
+}
+
+export function useRemoveTracker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, trackerId }: { campaignId: string; trackerId: string }) =>
+      campaignsApi.removeTracker(campaignId, trackerId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}

@@ -323,7 +323,7 @@ export function SessionsPage({ initialCampaignId }: SessionsPageProps = {}) {
                           </div>
                         )}
 
-                        {(session.aiRecap || session.aiSummary) && (
+                        {(session.aiRecap || session.aiSummary?.summary) && (
                           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
                             <div className="divider-ornate mb-3" />
                             <p className="mb-1 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
@@ -333,7 +333,7 @@ export function SessionsPage({ initialCampaignId }: SessionsPageProps = {}) {
                               </span>
                             </p>
                             <p className="whitespace-pre-wrap font-['IM_Fell_English'] text-sm italic leading-relaxed text-muted-foreground/95">
-                              {session.aiRecap || session.aiSummary}
+                              {session.aiRecap || session.aiSummary?.summary}
                             </p>
                           </div>
                         )}

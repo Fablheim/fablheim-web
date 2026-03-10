@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
 import { useCampaign } from '@/hooks/useCampaigns';
-import { useWorldEntities, useDeleteWorldEntity } from '@/hooks/useWorldEntities';
+import { useWorldEntities, useWorldTree, useDeleteWorldEntity } from '@/hooks/useWorldEntities';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CampaignSelector } from '@/components/ui/CampaignSelector';
@@ -16,6 +16,7 @@ import { CreateEntityModal } from '@/components/world/CreateEntityModal';
 import { EntityDetailModal } from '@/components/world/EntityDetailModal';
 import { DeleteEntityModal } from '@/components/world/DeleteEntityModal';
 import { LinkEntityModal } from '@/components/world/LinkEntityModal';
+import { WorldTreeBrowser } from '@/components/world/WorldTreeBrowser';
 import { WORLD_TABS, EMPTY_MESSAGES, TYPE_LABELS, type WorldTab } from '@/components/world/world-constants';
 import type { WorldEntity, WorldEntityType } from '@/types/campaign';
 
@@ -60,6 +61,7 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
     error: entitiesError,
   } = useWorldEntities(selectedCampaignId);
 
+  const { data: treeNodes } = useWorldTree(selectedCampaignId);
   const deleteEntity = useDeleteWorldEntity();
 
   // Derived
@@ -77,6 +79,7 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
   const tabCounts = useMemo(() => {
     const counts: Record<WorldTab, number> = {
       all: visibleEntities.length,
+      tree: treeNodes?.length ?? visibleEntities.length,
       locations: 0,
       factions: 0,
       npcs: 0,
@@ -94,7 +97,7 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
       }
     }
     return counts;
-  }, [visibleEntities, fullCampaign?.worldMap]);
+  }, [visibleEntities, treeNodes, fullCampaign?.worldMap]);
 
   // Step 2: tab filter
   const tabFiltered = useMemo(() => {
@@ -258,17 +261,32 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
             })}
           </div>
 
+          {/* Tree view tab */}
+          {activeTab === 'tree' && treeNodes && (
+            <div className="mkt-card mkt-card-mounted rounded-lg border border-border" style={{ minHeight: '400px' }}>
+              <WorldTreeBrowser
+                nodes={treeNodes}
+                onSelectEntity={(entityId) => {
+                  const entity = visibleEntities.find((e) => e._id === entityId);
+                  if (entity) handleView(entity);
+                }}
+              />
+            </div>
+          )}
+
           {/* World Map tab */}
           {activeTab === 'map' && fullCampaign && (
             <WorldMapViewer
               campaign={fullCampaign}
               isDM={isDM}
               onMapUpdated={() => queryClient.invalidateQueries({ queryKey: ['campaigns', selectedCampaignId] })}
+              entities={visibleEntities}
+              onSelectEntity={handleView}
             />
           )}
 
-          {/* Entity content (all tabs except map) */}
-          {activeTab !== 'map' && (
+          {/* Entity content (grid/list tabs) */}
+          {activeTab !== 'map' && activeTab !== 'tree' && (
             <>
               {/* Loading */}
               {entitiesLoading && (
@@ -365,6 +383,7 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
         allEntities={visibleEntities}
         onViewEntity={handleViewLinkedEntity}
         onLinkEntity={handleLinkFromDetail}
+        domainFeatureEnabled={!!fullCampaign?.features?.domains}
       />
 
       <DeleteEntityModal

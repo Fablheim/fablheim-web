@@ -34,6 +34,7 @@ export function useCreateWorldEntity() {
       worldEntitiesApi.create(campaignId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId, 'tree'] });
     },
   });
 }
@@ -67,6 +68,14 @@ export function useDeleteWorldEntity() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
     },
+  });
+}
+
+export function useWorldTree(campaignId: string) {
+  return useQuery({
+    queryKey: ['world-entities', campaignId, 'tree'],
+    queryFn: () => worldEntitiesApi.getTree(campaignId),
+    enabled: !!campaignId,
   });
 }
 
@@ -112,6 +121,74 @@ export function useRemoveObjective() {
       worldEntitiesApi.removeObjective(campaignId, entityId, objectiveId),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+    },
+  });
+}
+
+// ── Quest Outcomes ─────────────────────────────────────────
+
+export function useChooseOutcome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, outcomeId }: { campaignId: string; entityId: string; outcomeId: string }) =>
+      worldEntitiesApi.chooseOutcome(campaignId, entityId, outcomeId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', 'detail', v.entityId] });
+    },
+  });
+}
+
+// ── Faction Reputation ─────────────────────────────────────
+
+export function useAdjustReputation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      entityId,
+      data,
+    }: {
+      campaignId: string;
+      entityId: string;
+      data: { delta: number; description: string; sessionNumber?: number };
+    }) => worldEntitiesApi.adjustReputation(campaignId, entityId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', 'detail', v.entityId] });
+    },
+  });
+}
+
+// ── NPC Secrets & Attitude ─────────────────────────────────
+
+export function useRevealSecret() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, secretId }: { campaignId: string; entityId: string; secretId: string }) =>
+      worldEntitiesApi.revealSecret(campaignId, entityId, secretId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', 'detail', v.entityId] });
+    },
+  });
+}
+
+export function useAddAttitudeEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      entityId,
+      data,
+    }: {
+      campaignId: string;
+      entityId: string;
+      data: { description: string; sessionNumber?: number; newDisposition?: string };
+    }) => worldEntitiesApi.addAttitudeEvent(campaignId, entityId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', 'detail', v.entityId] });
     },
   });
 }

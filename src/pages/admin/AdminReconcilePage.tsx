@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { AdminLayout } from './AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { useReconciliationReport, useFixReconciliation } from '@/hooks/useAdmin';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { ReconciliationDiscrepancy } from '@/api/admin';
 
 const SEVERITY_CLASSES: Record<string, string> = {
@@ -13,7 +13,9 @@ const SEVERITY_CLASSES: Record<string, string> = {
   info: 'bg-blue-500/20 text-blue-400',
 };
 
-export function AdminReconcilePage({ userId }: { userId: string }) {
+export function AdminReconcilePage({ userId: propUserId }: { userId?: string } = {}) {
+  const { userId: paramUserId } = useParams<{ userId: string }>();
+  const userId = propUserId || paramUserId!;
   const { data: report, isLoading } = useReconciliationReport(userId);
   const fixMutation = useFixReconciliation();
   const navigate = useNavigate();

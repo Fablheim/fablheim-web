@@ -124,12 +124,13 @@ export async function setChatMode(page: Page, mode: 'ic' | 'ooc' | 'whisper'): P
  */
 export async function clickDMTab(
   page: Page,
-  tab: 'world' | 'encounters' | 'initiative' | 'notes' | 'party' | 'ai',
+  tab: 'world' | 'encounters' | 'initiative' | 'passive' | 'notes' | 'party' | 'ai',
 ): Promise<void> {
   const labels: Record<string, string> = {
     world: 'World',
     encounters: 'Encounters',
     initiative: 'Initiative',
+    passive: 'Passive Checks',
     notes: 'Notes',
     party: 'Party',
     ai: 'AI Tools',

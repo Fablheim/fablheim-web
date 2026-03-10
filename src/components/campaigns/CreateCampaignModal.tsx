@@ -1,5 +1,6 @@
 import { type FormEvent, useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { useCreateCampaign, useUpdateCampaign } from '@/hooks/useCampaigns';
 import { systemLabels, statusLabels } from '@/types/campaign';
@@ -99,12 +100,16 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
       sessionFrequency: sessionFrequency || undefined,
     };
 
-    if (isEdit && campaign) {
-      await updateCampaign.mutateAsync({ id: campaign._id, data: payload });
-    } else {
-      await createCampaign.mutateAsync(payload);
+    try {
+      if (isEdit && campaign) {
+        await updateCampaign.mutateAsync({ id: campaign._id, data: payload });
+      } else {
+        await createCampaign.mutateAsync(payload);
+      }
+      handleClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save campaign');
     }
-    handleClose();
   }
 
   const isPending = createCampaign.isPending || updateCampaign.isPending;

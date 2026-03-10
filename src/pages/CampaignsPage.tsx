@@ -216,8 +216,11 @@ export function CampaignsPage() {
           {joined.map((m) => (
             <div
               key={m._id}
+              role="button"
+              tabIndex={0}
               onClick={() => navigate(`/app/campaigns/${m.campaignId._id}`)}
-              className="app-card group h-full cursor-pointer rounded-lg p-6 tavern-card texture-parchment transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/app/campaigns/${m.campaignId._id}`); } }}
+              className="app-card group h-full cursor-pointer rounded-lg p-6 tavern-card texture-parchment transition-all duration-200 hover:border-gold hover:shadow-glow hover-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">

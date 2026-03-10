@@ -52,6 +52,9 @@ export interface Item {
   armorType?: string;
   stealthDisadvantage?: boolean;
   notes?: string;
+  isContainer: boolean;
+  parentItemId?: string;
+  containerCapacity: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +87,9 @@ export interface CreateItemPayload {
   armorType?: string;
   stealthDisadvantage?: boolean;
   notes?: string;
+  isContainer?: boolean;
+  parentItemId?: string;
+  containerCapacity?: number;
 }
 
 export type UpdateItemPayload = Partial<

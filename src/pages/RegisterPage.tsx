@@ -2,12 +2,12 @@ import { type FormEvent, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
-import { Check, Eye, EyeOff, Gem, Layers, ShieldCheck, Sparkles, Swords } from 'lucide-react';
+import { Check, Compass, Eye, EyeOff, ShieldCheck, Sparkles, Swords } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isAxiosError } from 'axios';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 
-const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google`;
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000')}/auth/google`;
 
 export function RegisterPage() {
   const { user, register } = useAuth();
@@ -96,10 +96,10 @@ export function RegisterPage() {
           Fablheim
         </Link>
         <h1 className="font-['IM_Fell_English'] text-3xl text-[color:var(--mkt-text)] sm:text-4xl">
-          Begin Your Journey
+          Start Your Campaign Hall
         </h1>
         <p className="mt-2 font-['IM_Fell_English'] text-sm italic text-[color:var(--mkt-muted)]">
-          Claim your seat at the table.{' '}
+          Create your account and start prepping, running, and recapping in one place.{' '}
           <Link to="/login" className="text-[color:var(--mkt-accent)] hover:underline">
             Already have an account?
           </Link>
@@ -194,7 +194,7 @@ export function RegisterPage() {
           disabled={isSubmitting}
           className="btn-emboss w-full rounded-sm shimmer-gold bg-primary px-4 py-2.5 font-[Cinzel] text-sm font-semibold uppercase tracking-widest text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-glow-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--mkt-accent)] focus:ring-offset-2 disabled:opacity-50"
         >
-          {isSubmitting ? 'Forging your path...' : 'Begin Your Quest'}
+          {isSubmitting ? 'Creating your account...' : 'Create Account'}
         </button>
       </form>
     );
@@ -235,10 +235,10 @@ export function RegisterPage() {
 
   function renderSidebar() {
     const features = [
-      { icon: Gem, text: 'Campaign hall \u2014 prep, live, and recap in one place' },
-      { icon: Sparkles, text: 'AI-assisted content \u2014 you keep narrative authority' },
-      { icon: Swords, text: 'Live session runner \u2014 initiative, dice, maps, chat' },
-      { icon: Layers, text: 'Flexible workspace \u2014 prep, run, and recap in one place' },
+      { icon: Compass, text: 'Campaign prep stays organized across world details, encounters, notes, and characters' },
+      { icon: Swords, text: 'Live session runner gives you initiative, dice, chat, encounters, and map support' },
+      { icon: Sparkles, text: 'Optional AI helps with NPCs, encounters, lore, and recaps when you need speed' },
+      { icon: Check, text: 'Players can join free through an invite link or email invite' },
     ];
 
     return (

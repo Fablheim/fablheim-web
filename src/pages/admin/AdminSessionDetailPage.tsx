@@ -17,7 +17,7 @@ import {
   useSessionEvents,
   useResyncSession,
 } from '@/hooks/useAdmin';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { SampledEvent } from '@/api/admin';
 
 const EVENT_TYPE_FILTER_OPTIONS = [
@@ -32,10 +32,12 @@ const EVENT_TYPE_FILTER_OPTIONS = [
 ];
 
 export function AdminSessionDetailPage({
-  sessionId,
+  sessionId: propSessionId,
 }: {
-  sessionId: string;
-}) {
+  sessionId?: string;
+} = {}) {
+  const { sessionId: paramSessionId } = useParams<{ sessionId: string }>();
+  const sessionId = propSessionId || paramSessionId!;
   const [eventTypeFilter, setEventTypeFilter] = useState('');
   const [confirmResync, setConfirmResync] = useState(false);
 

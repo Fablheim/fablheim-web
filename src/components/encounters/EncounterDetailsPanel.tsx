@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Save, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Save, Loader2, MapPin, X, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUpdateEncounter } from '@/hooks/useEncounters';
+import { useWorldEntities } from '@/hooks/useWorldEntities';
+import { LOCATION_TYPE_LABELS } from '@/components/world/world-constants';
 import type { Encounter, EncounterDifficulty, EncounterStatus } from '@/types/encounter';
+import type { LocationType } from '@/types/campaign';
 
 interface EncounterDetailsPanelProps {
   campaignId: string;
@@ -18,8 +21,35 @@ const labelClass =
 const DIFFICULTIES: EncounterDifficulty[] = ['easy', 'medium', 'hard', 'deadly'];
 const STATUSES: EncounterStatus[] = ['draft', 'ready', 'used'];
 
+// D&D 5e CR → XP lookup
+const CR_XP: Record<number, number> = {
+  0: 10, 0.125: 25, 0.25: 50, 0.5: 100,
+  1: 200, 2: 450, 3: 700, 4: 1100, 5: 1800,
+  6: 2300, 7: 2900, 8: 3900, 9: 5000, 10: 5900,
+  11: 7200, 12: 8400, 13: 10000, 14: 11500, 15: 13000,
+  16: 15000, 17: 18000, 18: 20000, 19: 22000, 20: 25000,
+  21: 33000, 22: 41000, 23: 50000, 24: 62000, 25: 75000,
+  26: 90000, 27: 105000, 28: 120000, 29: 135000, 30: 155000,
+};
+
+// XP thresholds based on total XP (rough guide without party level)
+function classifyDifficulty(totalXP: number): EncounterDifficulty {
+  if (totalXP >= 11000) return 'deadly';
+  if (totalXP >= 5000) return 'hard';
+  if (totalXP >= 2000) return 'medium';
+  return 'easy';
+}
+
 export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetailsPanelProps) {
   const updateEncounter = useUpdateEncounter(campaignId, encounter._id);
+  const { data: worldEntities } = useWorldEntities(campaignId);
+
+  const locationEntities = useMemo(() => {
+    if (!worldEntities) return [];
+    return worldEntities
+      .filter((e) => e.type === 'location' || e.type === 'location_detail')
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [worldEntities]);
 
   const [name, setName] = useState(encounter.name);
   const [description, setDescription] = useState(encounter.description);
@@ -32,7 +62,18 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
   const [terrain, setTerrain] = useState(encounter.terrain ?? '');
   const [treasure, setTreasure] = useState(encounter.treasure ?? '');
   const [hooks, setHooks] = useState((encounter.hooks ?? []).join('\n'));
+  const [locationEntityId, setLocationEntityId] = useState(encounter.locationEntityId ?? '');
   const [dirty, setDirty] = useState(false);
+
+  // Warn before navigating away with unsaved changes
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
 
   // Sync when encounter changes externally
   useEffect(() => {
@@ -47,10 +88,24 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
     setTerrain(encounter.terrain ?? '');
     setTreasure(encounter.treasure ?? '');
     setHooks((encounter.hooks ?? []).join('\n'));
+    setLocationEntityId(encounter.locationEntityId ?? '');
     setDirty(false);
   }, [encounter._id, encounter.updatedAt]);
 
   const markDirty = useCallback(() => setDirty(true), []);
+
+  function calculateFromNPCs() {
+    let totalXP = 0;
+    for (const npc of encounter.npcs) {
+      const xp = CR_XP[npc.cr] ?? 0;
+      totalXP += xp * npc.count;
+    }
+    const diff = classifyDifficulty(totalXP);
+    setEstimatedXP(totalXP.toString());
+    setDifficulty(diff);
+    setDirty(true);
+    toast.success(`${totalXP.toLocaleString()} XP — ${diff.charAt(0).toUpperCase() + diff.slice(1)}`);
+  }
 
   function handleSave() {
     const parsedTags = tags
@@ -69,6 +124,7 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
         description: description.trim(),
         difficulty: difficulty as EncounterDifficulty,
         estimatedXP: parseInt(estimatedXP, 10) || 0,
+        locationEntityId: locationEntityId || null,
         notes: notes.trim(),
         tags: parsedTags,
         status: status as EncounterStatus,
@@ -127,48 +183,105 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
   }
 
   function renderMiddleFields() {
+    const selectedLocation = locationEntities.find((e) => e._id === locationEntityId);
     return (
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label htmlFor="enc-diff" className={labelClass}>Difficulty</label>
-          <select
-            id="enc-diff"
-            value={difficulty}
-            onChange={(e) => { setDifficulty(e.target.value as EncounterDifficulty); markDirty(); }}
-            className={inputClass}
-          >
-            {DIFFICULTIES.map((d) => (
-              <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
-            ))}
-          </select>
+      <>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="enc-diff" className={labelClass}>Difficulty</label>
+            <select
+              id="enc-diff"
+              value={difficulty}
+              onChange={(e) => { setDifficulty(e.target.value as EncounterDifficulty); markDirty(); }}
+              className={inputClass}
+            >
+              {DIFFICULTIES.map((d) => (
+                <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="enc-xp" className={labelClass}>
+              Est. XP
+              {encounter.npcs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={calculateFromNPCs}
+                  className="ml-1.5 inline-flex items-center gap-0.5 rounded border border-brass/30 bg-brass/10 px-1 py-0.5 text-[8px] text-brass hover:bg-brass/20 transition-colors normal-case tracking-normal font-sans"
+                  title="Calculate XP and difficulty from creature CRs"
+                >
+                  <Calculator className="h-2.5 w-2.5" />
+                  Calc
+                </button>
+              )}
+            </label>
+            <input
+              id="enc-xp"
+              type="number"
+              min={0}
+              value={estimatedXP}
+              onChange={(e) => { setEstimatedXP(e.target.value); markDirty(); }}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="enc-status" className={labelClass}>Status</label>
+            <select
+              id="enc-status"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value as EncounterStatus); markDirty(); }}
+              className={inputClass}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
+        {/* Location link */}
         <div>
-          <label htmlFor="enc-xp" className={labelClass}>Est. XP</label>
-          <input
-            id="enc-xp"
-            type="number"
-            min={0}
-            value={estimatedXP}
-            onChange={(e) => { setEstimatedXP(e.target.value); markDirty(); }}
-            className={inputClass}
-          />
+          <label htmlFor="enc-location" className={labelClass}>
+            <MapPin className="mr-1 inline h-3 w-3" />
+            World Location
+          </label>
+          {locationEntityId && selectedLocation ? (
+            <div className="mt-1 flex items-center gap-2 rounded-sm border border-forest/30 bg-forest/10 px-3 py-2 text-sm">
+              <MapPin className="h-3.5 w-3.5 text-[hsl(150,50%,55%)]" />
+              <span className="text-foreground">{selectedLocation.name}</span>
+              {selectedLocation.locationType && (
+                <span className="rounded bg-background/40 px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">
+                  {LOCATION_TYPE_LABELS[selectedLocation.locationType as LocationType] ?? selectedLocation.locationType}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => { setLocationEntityId(''); markDirty(); }}
+                className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <select
+              id="enc-location"
+              value=""
+              onChange={(e) => { setLocationEntityId(e.target.value); markDirty(); }}
+              className={inputClass}
+            >
+              <option value="">— No location —</option>
+              {locationEntities.map((loc) => (
+                <option key={loc._id} value={loc._id}>
+                  {loc.name}
+                  {loc.locationType ? ` (${LOCATION_TYPE_LABELS[loc.locationType as LocationType] ?? loc.locationType})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
-
-        <div>
-          <label htmlFor="enc-status" className={labelClass}>Status</label>
-          <select
-            id="enc-status"
-            value={status}
-            onChange={(e) => { setStatus(e.target.value as EncounterStatus); markDirty(); }}
-            className={inputClass}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      </>
     );
   }
 

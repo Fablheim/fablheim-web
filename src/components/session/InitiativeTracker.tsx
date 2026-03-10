@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dices, Plus, X, Zap, Skull } from 'lucide-react';
+import { Dices, Plus, X, Zap, Skull, Copy, Timer, TimerOff, Crosshair } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import {
   useInitiative,
@@ -54,6 +55,13 @@ const EMPTY_FORM: AddInitiativeEntryRequest = {
 };
 
 const NPC_CUSTOM_ATTACKS_STORAGE_KEY = 'fablheim:npc-custom-attacks';
+const TURN_TIMER_STORAGE_KEY = 'fablheim:turn-timer-enabled';
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`;
+}
 
 function HpBar({ current, max, hideNumbers }: { current: number; max: number; hideNumbers?: boolean }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
@@ -153,10 +161,23 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
   const [form, setForm] = useState<AddInitiativeEntryRequest>({ ...EMPTY_FORM });
   const [editingHpId, setEditingHpId] = useState<string | null>(null);
   const [hpInput, setHpInput] = useState('');
+  const [editingInitId, setEditingInitId] = useState<string | null>(null);
+  const [initInput, setInitInput] = useState('');
+  const [removeConfirmEntry, setRemoveConfirmEntry] = useState<InitiativeEntry | null>(null);
   const [conditionPickerEntryId, setConditionPickerEntryId] = useState<string | null>(null);
   const [rollingInitiative, setRollingInitiative] = useState(false);
+  const [rollConfirmOpen, setRollConfirmOpen] = useState(false);
   const [draftAttacks, setDraftAttacks] = useState<EnemyAttack[]>([]);
+  const [aoeSelected, setAoeSelected] = useState<Set<string>>(new Set());
+  const [aoeInput, setAoeInput] = useState('');
+  const [timerEnabled, setTimerEnabled] = useState(() => {
+    try { return localStorage.getItem(TURN_TIMER_STORAGE_KEY) === 'true'; } catch { return false; }
+  });
+  const [turnElapsed, setTurnElapsed] = useState(0);
+  const turnStartRef = useRef<number>(Date.now());
   const hpInputRef = useRef<HTMLInputElement>(null);
+  const initInputRef = useRef<HTMLInputElement>(null);
+  const aoeInputRef = useRef<HTMLInputElement>(null);
 
   // Listen for WebSocket initiative updates and sync-response
   useEffect(() => {
@@ -195,6 +216,29 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
     }
   }, [editingHpId]);
 
+  // Focus initiative input when editing
+  useEffect(() => {
+    if (editingInitId && initInputRef.current) {
+      initInputRef.current.focus();
+      initInputRef.current.select();
+    }
+  }, [editingInitId]);
+
+  // Reset turn timer when turn changes
+  useEffect(() => {
+    turnStartRef.current = Date.now();
+    setTurnElapsed(0);
+  }, [initiative?.currentTurn, initiative?.round]);
+
+  // Tick the turn timer every second when active
+  useEffect(() => {
+    if (!timerEnabled || !initiative?.isActive) return;
+    const interval = setInterval(() => {
+      setTurnElapsed(Math.floor((Date.now() - turnStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerEnabled, initiative?.isActive]);
+
   const handleAddEntry = useCallback(() => {
     if (!form.name.trim() || form.initiativeRoll === undefined) return;
     const trimmedName = form.name.trim();
@@ -223,18 +267,42 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
   }, [campaignId, form, addEntry, draftAttacks]);
 
   const handleHpSubmit = useCallback(
-    (entryId: string, _currentHp: number | undefined) => {
-      const val = parseInt(hpInput, 10);
-      if (isNaN(val)) {
-        setEditingHpId(null);
-        return;
+    (entryId: string, currentHp: number | undefined) => {
+      const trimmed = hpInput.trim();
+      if (!trimmed) { setEditingHpId(null); return; }
+
+      let newHp: number;
+      // Support delta notation: "+5" adds, "-3" subtracts from current HP
+      if ((trimmed.startsWith('+') || trimmed.startsWith('-')) && currentHp != null) {
+        const delta = parseInt(trimmed, 10);
+        if (isNaN(delta)) { setEditingHpId(null); return; }
+        newHp = currentHp + delta;
+      } else {
+        newHp = parseInt(trimmed, 10);
+        if (isNaN(newHp)) { setEditingHpId(null); return; }
       }
+
       updateEntry.mutate(
-        { entryId, body: { currentHp: val } },
+        { entryId, body: { currentHp: Math.max(0, newHp) } },
         { onSettled: () => setEditingHpId(null) },
       );
     },
     [hpInput, updateEntry],
+  );
+
+  const handleInitSubmit = useCallback(
+    (entryId: string) => {
+      const val = parseInt(initInput, 10);
+      if (isNaN(val)) {
+        setEditingInitId(null);
+        return;
+      }
+      updateEntry.mutate(
+        { entryId, body: { initiativeRoll: val } },
+        { onSettled: () => setEditingInitId(null) },
+      );
+    },
+    [initInput, updateEntry],
   );
 
   const handleToggleCondition = useCallback(
@@ -250,11 +318,12 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
     [initiative?.entries, updateEntry],
   );
 
-  const handleRollAll = useCallback(async () => {
+  const doRollAll = useCallback(async () => {
     if (!initiative?.entries.length) return;
     setRollingInitiative(true);
     try {
       for (const entry of initiative.entries) {
+        if (entry.type === 'pc') continue;
         const roll = Math.floor(Math.random() * 20) + 1 + (entry.initiativeBonus || 0);
         await updateEntry.mutateAsync({ entryId: entry.id, body: { initiativeRoll: roll } });
       }
@@ -262,6 +331,66 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
       setRollingInitiative(false);
     }
   }, [initiative?.entries, updateEntry]);
+
+  const handleRollAll = useCallback(() => {
+    if (!initiative?.entries.length) return;
+    // Check if any non-PC entry already has a non-zero roll
+    const hasExistingRolls = initiative.entries.some(
+      (e) => e.type !== 'pc' && e.initiativeRoll > 0,
+    );
+    if (hasExistingRolls) {
+      setRollConfirmOpen(true);
+    } else {
+      doRollAll();
+    }
+  }, [initiative?.entries, doRollAll]);
+
+  const handleAoeDamage = useCallback(async () => {
+    const trimmed = aoeInput.trim();
+    if (!trimmed || aoeSelected.size === 0 || !initiative?.entries) return;
+    for (const entry of initiative.entries) {
+      if (!aoeSelected.has(entry.id) || entry.currentHp == null) continue;
+      let newHp: number;
+      if (trimmed.startsWith('+') || trimmed.startsWith('-')) {
+        const delta = parseInt(trimmed, 10);
+        if (isNaN(delta)) continue;
+        newHp = entry.currentHp + delta;
+      } else {
+        const val = parseInt(trimmed, 10);
+        if (isNaN(val)) continue;
+        newHp = val;
+      }
+      await updateEntry.mutateAsync({ entryId: entry.id, body: { currentHp: Math.max(0, newHp) } });
+    }
+    setAoeInput('');
+    setAoeSelected(new Set());
+  }, [aoeInput, aoeSelected, initiative?.entries, updateEntry]);
+
+  const handleDuplicateEntry = useCallback(
+    (entry: InitiativeEntry) => {
+      // Increment trailing number in name, or append " 2"
+      const match = entry.name.match(/^(.*?)(\d+)$/);
+      let newName: string;
+      if (match) {
+        const nextNum = parseInt(match[2], 10) + 1;
+        newName = `${match[1]}${nextNum}`;
+      } else {
+        newName = `${entry.name} 2`;
+      }
+      const roll = Math.floor(Math.random() * 20) + 1 + (entry.initiativeBonus || 0);
+      addEntry.mutate({
+        type: entry.type,
+        name: newName,
+        initiativeRoll: roll,
+        initiativeBonus: entry.initiativeBonus,
+        currentHp: entry.maxHp,
+        maxHp: entry.maxHp,
+        ac: entry.ac,
+        isHidden: entry.isHidden,
+      });
+    },
+    [addEntry],
+  );
 
   const sortedEntries = initiative
     ? [...initiative.entries].sort((a, b) => b.initiativeRoll - a.initiativeRoll)
@@ -288,11 +417,32 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
         <h3 className="text-carved font-[Cinzel] tracking-wider text-sm font-semibold text-foreground">
           Initiative Tracker
         </h3>
-        {initiative?.isActive && (
-          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary tabular-nums font-[Cinzel] shadow-glow-sm">
-            Round {initiative.round}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {initiative?.isActive && timerEnabled && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums font-[Cinzel] text-muted-foreground">
+              {formatElapsed(turnElapsed)}
+            </span>
+          )}
+          {initiative?.isActive && (
+            <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary tabular-nums font-[Cinzel] shadow-glow-sm">
+              Round {initiative.round}
+            </span>
+          )}
+          {isDM && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !timerEnabled;
+                setTimerEnabled(next);
+                try { localStorage.setItem(TURN_TIMER_STORAGE_KEY, String(next)); } catch {}
+              }}
+              className={`rounded p-1 transition-colors ${timerEnabled ? 'text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-muted'}`}
+              title={timerEnabled ? 'Disable turn timer' : 'Enable turn timer'}
+            >
+              {timerEnabled ? <Timer className="h-3.5 w-3.5" /> : <TimerOff className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* DM combat controls */}
@@ -336,7 +486,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
               title="Auto-roll initiative for all listed entries"
             >
               <Dices className="mr-1.5 h-3.5 w-3.5" />
-              {rollingInitiative ? 'Rolling...' : 'Roll All Init'}
+              {rollingInitiative ? 'Rolling...' : 'Roll NPC Init'}
             </Button>
           )}
           <Button
@@ -587,6 +737,36 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
         </div>
       )}
 
+      {/* AoE damage/heal bar */}
+      {isDM && aoeSelected.size > 0 && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-arcane/30 bg-arcane/10 px-3 py-2">
+          <Crosshair className="h-3.5 w-3.5 flex-shrink-0 text-arcane" />
+          <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-arcane">
+            {aoeSelected.size} selected
+          </span>
+          <input
+            ref={aoeInputRef}
+            type="text"
+            inputMode="numeric"
+            value={aoeInput}
+            onChange={(e) => setAoeInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAoeDamage(); }}
+            placeholder="-10 / +5"
+            className="w-20 input-carved rounded-sm border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-arcane"
+          />
+          <Button size="sm" variant="outline" onClick={handleAoeDamage} disabled={!aoeInput.trim()}>
+            Apply
+          </Button>
+          <button
+            type="button"
+            onClick={() => { setAoeSelected(new Set()); setAoeInput(''); }}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Initiative list */}
       {visibleEntries.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground font-['IM_Fell_English'] italic">
@@ -613,6 +793,25 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                         : 'border-l-4 border-transparent'
                 } ${onSelectEntryId ? 'cursor-pointer hover:bg-accent/35' : ''}`}
               >
+                {/* AoE select checkbox (DM only, entries with HP) */}
+                {isDM && entry.currentHp != null && (
+                  <input
+                    type="checkbox"
+                    checked={aoeSelected.has(entry.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      setAoeSelected((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(entry.id);
+                        else next.delete(entry.id);
+                        return next;
+                      });
+                    }}
+                    className="h-3 w-3 flex-shrink-0 rounded border-border accent-arcane"
+                    title="Select for AoE damage/heal"
+                  />
+                )}
+
                 {/* Turn indicator */}
                 <div className="w-4 flex-shrink-0 text-center">
                   {isCurrent && (
@@ -678,10 +877,52 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                   </div>
                 )}
 
-                {/* Initiative roll */}
-                <span className="flex-shrink-0 w-8 text-right text-sm font-[Cinzel] font-bold tabular-nums text-foreground">
-                  {entry.initiativeRoll}
-                </span>
+                {/* Initiative roll — DM can click to edit */}
+                {isDM && editingInitId === entry.id ? (
+                  <input
+                    ref={initInputRef}
+                    type="number"
+                    value={initInput}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setInitInput(e.target.value)}
+                    onBlur={() => handleInitSubmit(entry.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleInitSubmit(entry.id);
+                      if (e.key === 'Escape') setEditingInitId(null);
+                    }}
+                    className="w-12 flex-shrink-0 input-carved rounded-sm border border-border bg-background px-1 py-0.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!isDM}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingInitId(entry.id);
+                      setInitInput(String(entry.initiativeRoll));
+                    }}
+                    className={`flex-shrink-0 w-8 text-right text-sm font-[Cinzel] font-bold tabular-nums text-foreground ${isDM ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                    title={isDM ? 'Click to set initiative' : undefined}
+                  >
+                    {entry.initiativeRoll}
+                  </button>
+                )}
+
+                {/* Clone button (DM, non-PC only) */}
+                {isDM && entry.type !== 'pc' && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDuplicateEntry(entry);
+                    }}
+                    className="flex-shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-primary/20 hover:text-primary"
+                    title={`Duplicate ${entry.name}`}
+                    aria-label={`Duplicate ${entry.name}`}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                )}
 
                 {/* Remove button (DM only) */}
                 {isDM && (
@@ -689,7 +930,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeEntry.mutate(entry.id);
+                      setRemoveConfirmEntry(entry);
                     }}
                     className="flex-shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
                     title="Remove entry"
@@ -733,6 +974,32 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
           canEdit={isDM}
         />
       )}
+
+      <ConfirmDialog
+        open={!!removeConfirmEntry}
+        title="Remove Combatant"
+        description={removeConfirmEntry ? `Remove ${removeConfirmEntry.name} from initiative?` : ''}
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={() => {
+          if (removeConfirmEntry) {
+            removeEntry.mutate(removeConfirmEntry.id, {
+              onSettled: () => setRemoveConfirmEntry(null),
+            });
+          }
+        }}
+        onCancel={() => setRemoveConfirmEntry(null)}
+        isPending={removeEntry.isPending}
+      />
+
+      <ConfirmDialog
+        open={rollConfirmOpen}
+        title="Re-roll Initiative"
+        description="Some NPCs already have initiative rolls. Re-rolling will overwrite their current values."
+        confirmLabel="Re-roll"
+        onConfirm={() => { setRollConfirmOpen(false); doRollAll(); }}
+        onCancel={() => setRollConfirmOpen(false)}
+      />
     </div>
   );
 }
@@ -836,7 +1103,8 @@ function renderDMHp(
     return (
       <input
         ref={hpInputRef}
-        type="number"
+        type="text"
+        inputMode="numeric"
         value={hpInput}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => setHpInput(e.target.value)}
@@ -845,6 +1113,7 @@ function renderDMHp(
           if (e.key === 'Enter') handleHpSubmit(entry.id, entry.currentHp);
           if (e.key === 'Escape') setEditingHpId(null);
         }}
+        placeholder="+5 / -3 / 20"
         className="w-16 input-carved rounded-sm border border-border bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
       />
     );

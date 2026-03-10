@@ -357,7 +357,9 @@ function WizardContent({
     try {
       const created = await createCharacter.mutateAsync(payload);
       toast.success(`${draft.name} has been created!`);
-      navigate(`/app/characters/${created._id}`);
+      navigate(`/app/characters/${created._id}`, {
+        state: { from: `/app/campaigns/${campaignId}` },
+      });
     } catch {
       toast.error('Failed to create character');
     }

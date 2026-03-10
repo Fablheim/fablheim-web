@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trash2, Move, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Move, Eye, EyeOff, Swords, Heart, Wand2 } from 'lucide-react';
 import type { MapToken } from '@/types/live-session';
 
 interface TokenContextMenuProps {
@@ -11,6 +11,9 @@ interface TokenContextMenuProps {
   onRemove: () => void;
   onToggleHidden: () => void;
   onSetSize: (size: number) => void;
+  onDamage?: () => void;
+  onHeal?: () => void;
+  onConditions?: () => void;
   onClose: () => void;
 }
 
@@ -25,6 +28,9 @@ export function TokenContextMenu({
   onRemove,
   onToggleHidden,
   onSetSize,
+  onDamage,
+  onHeal,
+  onConditions,
   onClose,
 }: TokenContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -71,6 +77,15 @@ export function TokenContextMenu({
 
       {(isDM || isOwn) && (
         <MenuItem icon={Move} label="Move" onClick={onMove} />
+      )}
+
+      {isDM && onDamage && onHeal && onConditions && (
+        <>
+          <div className="my-1 h-px bg-border" />
+          <MenuItem icon={Swords} label="Damage" onClick={onDamage} className="text-destructive hover:bg-destructive/10" />
+          <MenuItem icon={Heart} label="Heal" onClick={onHeal} className="text-emerald-400 hover:bg-emerald-500/10" />
+          <MenuItem icon={Wand2} label="Conditions" onClick={onConditions} />
+        </>
       )}
 
       {isDM && (

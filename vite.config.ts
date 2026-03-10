@@ -14,4 +14,16 @@ export default defineConfig({
       'react-helmet-async': path.resolve(__dirname, './src/components/seo/helmetAsyncShim.tsx'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['lucide-react', 'sonner', 'react-markdown'],
+          'vendor-socket': ['socket.io-client'],
+        },
+      },
+    },
+  },
 })

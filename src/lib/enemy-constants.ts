@@ -50,6 +50,24 @@ export const SYSTEM_COLORS: Record<string, string> = {
   custom: 'bg-iron/20 text-muted-foreground',
 };
 
+export const SIZE_LABELS: Record<string, string> = {
+  tiny: 'Tiny',
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  huge: 'Huge',
+  gargantuan: 'Gargantuan',
+};
+
+export const CR_PRESETS = [
+  { label: 'CR 0–¼', min: 0, max: 0.25 },
+  { label: 'CR ½–1', min: 0.5, max: 1 },
+  { label: 'CR 2–4', min: 2, max: 4 },
+  { label: 'CR 5–10', min: 5, max: 10 },
+  { label: 'CR 11–16', min: 11, max: 16 },
+  { label: 'CR 17+', min: 17, max: 30 },
+] as const;
+
 export const SCOPE_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'global', label: 'SRD' },

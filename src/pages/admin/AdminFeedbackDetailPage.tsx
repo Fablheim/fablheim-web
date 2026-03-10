@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { AdminLayout } from './AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { useAdminFeedbackById, useUpdateFeedback } from '@/hooks/useAdmin';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const STATUS_OPTIONS = ['new', 'in_review', 'planned', 'in_progress', 'resolved', 'closed'];
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
@@ -15,7 +15,9 @@ const TYPE_ICONS: Record<string, typeof Bug> = {
   general: MessageSquare,
 };
 
-export function AdminFeedbackDetailPage({ feedbackId }: { feedbackId: string }) {
+export function AdminFeedbackDetailPage({ feedbackId: propId }: { feedbackId?: string } = {}) {
+  const { id: paramId } = useParams<{ id: string }>();
+  const feedbackId = propId || paramId!;
   const { data: item, isLoading } = useAdminFeedbackById(feedbackId);
   const updateFeedback = useUpdateFeedback();
   const navigate = useNavigate();

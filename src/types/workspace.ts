@@ -57,12 +57,19 @@ export type PrepSection =
   | 'notes'
   | 'sessions'
   | 'ai-tools'
-  | 'rules';
+  | 'rules'
+  | 'arcs'
+  | 'trackers'
+  | 'my-notes';
 
 export interface PrepSectionDef {
   id: PrepSection;
   label: string;
   icon: LucideIcon;
+  /** When true, section is only visible to the DM / co-DM */
+  dmOnly?: boolean;
+  /** When true, section is only visible to players (hidden from DM) */
+  playerOnly?: boolean;
 }
 
 // ── Workspace Preset ─────────────────────────────────────

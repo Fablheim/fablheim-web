@@ -154,7 +154,11 @@ export function CharactersPage({ campaignId: propCampaignId, mode = 'all' }: Cha
 
   function handleViewDetail(item: CharacterListItem) {
     if (item.kind === 'pc') {
-      navigate(`/app/characters/${item.data._id}`);
+      navigate(`/app/characters/${item.data._id}`, {
+        state: {
+          from: selectedCampaignId ? `/app/campaigns/${selectedCampaignId}` : '/app/characters',
+        },
+      });
     } else {
       setViewingItem(item);
     }

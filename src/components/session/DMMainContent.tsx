@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ListOrdered, Map, Plus, ScrollText, Sparkles, Swords, Users } from 'lucide-react';
+import { useCampaign } from '@/hooks/useCampaigns';
 import { WorldBrowserPanel } from '@/components/workspace/panels/WorldBrowserPanel';
 import { EncountersTab } from '@/components/session/EncountersTab';
 import InlineEncounterBuilder from '@/components/session/InlineEncounterBuilder';
@@ -17,6 +18,7 @@ interface DMMainContentProps {
 }
 
 export default function DMMainContent({ campaignId, isDM }: DMMainContentProps) {
+  const { data: campaign } = useCampaign(campaignId);
   const [activeTab, setActiveTab] = useState<MainTab>(() =>
     (localStorage.getItem('fablheim:dm-main-tab') as MainTab) || 'world',
   );
@@ -138,7 +140,7 @@ export default function DMMainContent({ campaignId, isDM }: DMMainContentProps) 
 
         {activeTab === 'notes' && (
           <div className="h-full overflow-y-auto">
-            <SessionNotesTab campaignId={campaignId} />
+            <SessionNotesTab campaignId={campaignId} sessionId={campaign?.activeSessionId} />
           </div>
         )}
 

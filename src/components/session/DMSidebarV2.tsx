@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Dice5, Globe, Loader2, MapPin, Plus, ScrollText, Sparkles, Swords, Target, Users } from 'lucide-react';
+import { Dice5, Eye, Globe, Loader2, MapPin, Plus, ScrollText, Sparkles, Swords, Target, Users } from 'lucide-react';
+import { RequestRollModal } from '@/components/session/RequestRollModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useWorldEntities, useCreateWorldEntity } from '@/hooks/useWorldEntities';
@@ -17,12 +18,14 @@ import { DamageModTags } from '@/components/session/DamageModTags';
 import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
 import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import InlineEncounterBuilder from '@/components/session/InlineEncounterBuilder';
+import { PartyStatusPanel } from '@/components/session/PartyStatusPanel';
+import { PassiveChecksTab } from '@/components/session/PassiveChecksTab';
 import type { WorldEntityType } from '@/types/campaign';
 import type { InitiativeEntry } from '@/types/live-session';
 import type { EnemyAttack, EnemyTemplate } from '@/types/enemy-template';
 import type { CharacterAttack } from '@/types/campaign';
 
-type DMTab = 'world' | 'encounters' | 'notes' | 'party' | 'initiative' | 'ai';
+type DMTab = 'world' | 'encounters' | 'notes' | 'party' | 'initiative' | 'passive' | 'ai';
 type AIFocusTool = 'npc' | 'encounter' | 'quest' | 'lore' | 'location';
 type ActionCostType = 'action' | 'bonus' | 'reaction' | 'free';
 
@@ -55,6 +58,7 @@ export default function DMSidebarV2({
     const saved = localStorage.getItem('fablheim:session-v2-dm-tab');
     return (saved as DMTab) || 'world';
   });
+  const [showRequestRoll, setShowRequestRoll] = useState(false);
   const [showQuickAIEverywhere, setShowQuickAIEverywhere] = useState(() => {
     const saved = localStorage.getItem('fablheim:session-v2-show-quick-ai');
     return saved !== '0';
@@ -77,7 +81,7 @@ export default function DMSidebarV2({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="grid grid-cols-6 gap-1 border-b border-border/70 p-2">
+      <div className="grid grid-cols-7 gap-1 border-b border-border/70 p-2">
         <button type="button" onClick={() => setActiveTab('world')} className={tabClass(activeTab === 'world')} aria-label="World">
           <Globe className="h-4 w-4" />
         </button>
@@ -86,6 +90,9 @@ export default function DMSidebarV2({
         </button>
         <button type="button" onClick={() => setActiveTab('initiative')} className={tabClass(activeTab === 'initiative')} aria-label="Initiative">
           <Target className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => setActiveTab('passive')} className={tabClass(activeTab === 'passive')} aria-label="Passive Checks">
+          <Eye className="h-4 w-4" />
         </button>
         <button type="button" onClick={() => setActiveTab('notes')} className={tabClass(activeTab === 'notes')} aria-label="Notes">
           <ScrollText className="h-4 w-4" />
@@ -117,6 +124,17 @@ export default function DMSidebarV2({
         </button>
       </div>
 
+      <div className="flex items-center border-b border-border/50 px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => setShowRequestRoll(true)}
+          className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-[Cinzel] uppercase tracking-wider text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+        >
+          <Dice5 className="h-3.5 w-3.5" />
+          Request Roll
+        </button>
+      </div>
+
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {showQuickAIEverywhere && activeTab !== 'ai' && (
           <QuickAIActions activeTab={activeTab} onOpenTool={openAITool} />
@@ -139,10 +157,15 @@ export default function DMSidebarV2({
             onClearSelectedEntry={onClearSelectedEntry}
           />
         )}
+        {activeTab === 'passive' && <PassiveChecksTab campaignId={campaignId} />}
         {activeTab === 'notes' && <CompactNotesPanel campaignId={campaignId} />}
-        {activeTab === 'party' && <CompactPartyPanel campaignId={campaignId} />}
+        {activeTab === 'party' && <PartyStatusPanel campaignId={campaignId} />}
         {activeTab === 'ai' && <AIToolsTab campaignId={campaignId} focusSeed={aiFocusSeed} />}
       </div>
+
+      {showRequestRoll && (
+        <RequestRollModal campaignId={campaignId} onClose={() => setShowRequestRoll(false)} />
+      )}
     </div>
   );
 }
@@ -1631,51 +1654,7 @@ function CompactNotesPanel({ campaignId }: { campaignId: string }) {
   );
 }
 
-function CompactPartyPanel({ campaignId }: { campaignId: string }) {
-  const { data: characters, isLoading } = useCharacters(campaignId);
-  const { data: initiative } = useInitiative(campaignId);
-  const party = characters ?? [];
 
-  if (isLoading) {
-    return <CompactLoadingRows />;
-  }
-
-  return (
-    <div className="space-y-1.5">
-      {party.length === 0 ? (
-        <CompactEmptyState text="No characters in campaign." />
-      ) : (
-        party.map((character) => {
-          const entry = initiative?.entries?.find(
-            (candidate) => candidate.characterId === character._id || candidate.name === character.name,
-          );
-          const hp = entry?.currentHp ?? character.hp?.current;
-          const maxHp = entry?.maxHp ?? character.hp?.max;
-          const hpPercent = maxHp && maxHp > 0 ? Math.max(0, Math.min(100, ((hp ?? 0) / maxHp) * 100)) : 0;
-          return (
-            <div key={character._id} className="rounded border border-border/60 bg-background/40 p-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium text-foreground">{character.name}</p>
-                <div className="shrink-0 text-xs text-muted-foreground">AC {entry?.ac ?? character.ac}</div>
-              </div>
-              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full transition-all ${
-                    hpPercent <= 25 ? 'bg-red-500' : hpPercent <= 50 ? 'bg-yellow-500' : 'bg-green-500'
-                  }`}
-                  style={{ width: `${hpPercent}%` }}
-                />
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                HP {hp ?? 0}/{maxHp ?? 0}
-              </div>
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
 
 function miniSelect(active: boolean): string {
   return `rounded px-2 py-1 text-xs ${active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`;

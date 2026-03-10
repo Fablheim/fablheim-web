@@ -22,9 +22,9 @@ import {
   useRemoveEncounterToken,
   useUpdateEncounter,
 } from '@/hooks/useEncounters';
-import defaultForestMap from '@/assets/battle-map.png';
-import defaultStoneDungeonMap from '@/assets/battle-map-stone-dungeon.png';
-import defaultOpenGrasslandMap from '@/assets/battle-map-open-grassland.png';
+import defaultForestMap from '@/assets/battle-map.webp';
+import defaultStoneDungeonMap from '@/assets/battle-map-stone-dungeon.webp';
+import defaultOpenGrasslandMap from '@/assets/battle-map-open-grassland.webp';
 import {
   TILE_SIZE,
   MIN_SCALE,

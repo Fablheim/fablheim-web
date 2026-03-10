@@ -4,6 +4,7 @@ import type { User } from '../types/user';
 import * as authApi from '../api/auth';
 import { registerSessionExpiredHandler } from '../api/client';
 import { identifyUser, resetAnalytics } from '../lib/analytics';
+import { queryClient } from '../providers/QueryProvider';
 
 interface AuthContextValue {
   user: User | null;
@@ -26,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await authApi.getMe();
       setUser(me);
       Sentry.setUser({ id: me._id });
-      identifyUser(me._id, { subscriptionTier: (me as any).subscriptionTier });
+      identifyUser(me._id, { subscriptionTier: me.subscriptionTier });
     } catch {
       setUser(null);
       Sentry.setUser(null);
@@ -34,7 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    registerSessionExpiredHandler(() => setUser(null));
+    registerSessionExpiredHandler(() => {
+      setUser(null);
+      queryClient.clear();
+    });
     refreshUser().finally(() => setIsLoading(false));
   }, []);
 
@@ -42,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { user } = await authApi.login(email, password, turnstileToken);
     setUser(user);
     Sentry.setUser({ id: user._id });
-    identifyUser(user._id, { subscriptionTier: (user as any).subscriptionTier });
+    identifyUser(user._id, { subscriptionTier: user.subscriptionTier });
   }
 
   async function register(username: string, email: string, password: string, turnstileToken?: string) {
@@ -57,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     Sentry.setUser(null);
     resetAnalytics();
+    queryClient.clear();
   }
 
   return (

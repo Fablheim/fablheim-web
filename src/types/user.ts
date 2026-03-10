@@ -6,7 +6,7 @@ export interface User {
   avatar: string;
   provider: 'local' | 'google';
   subscriptionTier: 'free' | 'hobbyist' | 'pro' | 'professional';
-  subscriptionStatus: 'active' | 'cancelled' | 'expired';
+  subscriptionStatus: 'active' | 'past_due' | 'cancelled' | 'expired';
   role: 'user' | 'admin';
   ageVerified: boolean;
   ageVerifiedAt?: string;
@@ -19,5 +19,4 @@ export interface User {
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
 }

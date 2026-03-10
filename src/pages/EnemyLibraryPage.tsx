@@ -10,8 +10,22 @@ import {
   CATEGORY_LABELS,
   SYSTEM_LABELS,
   SCOPE_OPTIONS,
+  SIZE_LABELS,
+  CR_PRESETS,
 } from '@/lib/enemy-constants';
 import type { EnemyTemplate, EnemyCategory } from '@/types/enemy-template';
+
+/** Parse CR string to a numeric value for filtering ("1/4" → 0.25, "5" → 5) */
+function parseCR(cr?: string): number | null {
+  if (!cr) return null;
+  const trimmed = cr.trim();
+  if (trimmed.includes('/')) {
+    const [num, den] = trimmed.split('/').map(Number);
+    return den ? num / den : null;
+  }
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
 
 const READABLE_CATEGORY_COLORS: Record<EnemyCategory, string> = {
   humanoid: 'bg-brass/22 text-[hsl(40,88%,74%)] border border-brass/35',
@@ -69,9 +83,12 @@ export function EnemyLibraryPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [systemFilter, setSystemFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [crFilter, setCrFilter] = useState('');
   const [scopeFilter, setScopeFilter] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [viewport, setViewport] = useState(getViewportSize);
 
@@ -85,9 +102,17 @@ export function EnemyLibraryPage() {
     return templates?.filter((t) => {
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (systemFilter && t.system !== systemFilter) return false;
+      if (sizeFilter && t.size !== sizeFilter) return false;
+      if (crFilter) {
+        const preset = CR_PRESETS.find((p) => p.label === crFilter);
+        if (preset) {
+          const cr = parseCR(t.cr);
+          if (cr == null || cr < preset.min || cr > preset.max) return false;
+        }
+      }
       return true;
     });
-  }, [templates, search, systemFilter]);
+  }, [templates, search, systemFilter, sizeFilter, crFilter]);
 
   useEffect(() => {
     function onResize() {
@@ -108,6 +133,12 @@ export function EnemyLibraryPage() {
   const paginatedItems = filtered?.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   function handleCardClick(template: EnemyTemplate) {
+    // Toggle expanded stat block; double-click or "Details" navigates
+    setExpandedId((prev) => (prev === template._id ? null : template._id));
+  }
+
+  function handleNavigateDetail(e: React.MouseEvent, template: EnemyTemplate) {
+    e.stopPropagation();
     navigate(`/app/enemies/${template._id}`, {
       state: { filters, search, systemFilter },
     });
@@ -209,6 +240,26 @@ export function EnemyLibraryPage() {
             <option key={val} value={val}>{label}</option>
           ))}
         </select>
+        <select
+          value={sizeFilter}
+          onChange={(e) => { setSizeFilter(e.target.value); setPage(1); }}
+          className="rounded-sm border border-input bg-input px-3 py-2 text-sm text-foreground input-carved font-[Cinzel] uppercase tracking-wider"
+        >
+          <option value="">All Sizes</option>
+          {Object.entries(SIZE_LABELS).map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
+        <select
+          value={crFilter}
+          onChange={(e) => { setCrFilter(e.target.value); setPage(1); }}
+          className="rounded-sm border border-input bg-input px-3 py-2 text-sm text-foreground input-carved font-[Cinzel] uppercase tracking-wider"
+        >
+          <option value="">All CRs</option>
+          {CR_PRESETS.map((preset) => (
+            <option key={preset.label} value={preset.label}>{preset.label}</option>
+          ))}
+        </select>
       </div>
     );
   }
@@ -258,10 +309,10 @@ export function EnemyLibraryPage() {
             <Skull className="h-6 w-6 text-primary/60" />
           </div>
           <h3 className="font-['IM_Fell_English'] text-xl text-foreground">
-            {search || categoryFilter || systemFilter ? 'No matching enemies' : 'No enemy templates yet'}
+            {search || categoryFilter || systemFilter || sizeFilter || crFilter ? 'No matching enemies' : 'No enemy templates yet'}
           </h3>
           <p className="mt-1 text-base text-muted-foreground font-['IM_Fell_English'] italic">
-            {search || categoryFilter || systemFilter
+            {search || categoryFilter || systemFilter || sizeFilter || crFilter
               ? 'Try adjusting your search or filters'
               : 'Create your first enemy template to build a reusable bestiary'}
           </p>
@@ -453,12 +504,82 @@ export function EnemyLibraryPage() {
           <div className="text-sm text-[color:var(--mkt-muted)] capitalize">
             {template.size}
           </div>
-          <div className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-1.5 py-0.5 text-xs font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all group-hover:border-brass/60 group-hover:bg-brass/24 group-hover:text-[hsl(42,95%,86%)]">
+          <button
+            type="button"
+            onClick={(e) => handleNavigateDetail(e, template)}
+            className="inline-flex items-center gap-1 rounded-md border border-brass/30 bg-brass/12 px-1.5 py-0.5 text-xs font-[Cinzel] uppercase tracking-wide text-[color:var(--mkt-accent)] transition-all hover:border-brass/60 hover:bg-brass/24 hover:text-[hsl(42,95%,86%)]"
+          >
             Details
             <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-          </div>
+          </button>
         </div>
+
+        {expandedId === template._id && renderExpandedStats(template)}
       </>
+    );
+  }
+
+  function renderExpandedStats(template: EnemyTemplate) {
+    const abilities = template.abilities ?? {};
+    const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+    const hasAbilities = abilityKeys.some((k) => abilities[k] != null);
+
+    return (
+      <div className="mt-2 border-t border-[color:var(--mkt-border)]/50 pt-2 space-y-2">
+        {/* Ability scores */}
+        {hasAbilities && (
+          <div className="grid grid-cols-6 gap-1 text-center">
+            {abilityKeys.map((key) => (
+              <div key={key} className="rounded border border-[color:var(--mkt-border)]/50 bg-black/15 py-0.5">
+                <p className="font-[Cinzel] text-[9px] uppercase tracking-wider text-[color:var(--mkt-muted)]">{key}</p>
+                <p className="text-sm font-bold text-[color:var(--mkt-text)]">{abilities[key] ?? '—'}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Speed */}
+        {template.speed && (
+          <div className="text-xs text-[color:var(--mkt-muted)]">
+            <span className="font-[Cinzel] text-[10px] uppercase tracking-wider">Speed: </span>
+            {template.speed.walk} ft
+            {template.speed.fly ? `, fly ${template.speed.fly} ft` : ''}
+            {template.speed.swim ? `, swim ${template.speed.swim} ft` : ''}
+            {template.speed.climb ? `, climb ${template.speed.climb} ft` : ''}
+            {template.speed.burrow ? `, burrow ${template.speed.burrow} ft` : ''}
+          </div>
+        )}
+
+        {/* Attacks */}
+        {template.attacks.length > 0 && (
+          <div className="space-y-1">
+            <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">Attacks</p>
+            {template.attacks.map((atk, i) => (
+              <div key={i} className="rounded border border-[color:var(--mkt-border)]/40 bg-black/10 px-2 py-1 text-xs text-[color:var(--mkt-muted)]">
+                <span className="font-semibold text-[color:var(--mkt-text)]">{formatAttackName(atk.name)}</span>
+                {' '}+{atk.bonus} to hit, {atk.damage}
+                {atk.range ? ` (${atk.range})` : ''}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Traits */}
+        {template.traits.length > 0 && (
+          <div className="space-y-1">
+            <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-[color:var(--mkt-muted)]">Traits</p>
+            {template.traits.slice(0, 4).map((trait, i) => (
+              <div key={i} className="text-xs text-[color:var(--mkt-muted)]">
+                <span className="font-semibold text-[color:var(--mkt-text)]">{trait.name}.</span>{' '}
+                {trait.description.length > 150 ? trait.description.slice(0, 150) + '…' : trait.description}
+              </div>
+            ))}
+            {template.traits.length > 4 && (
+              <p className="text-[10px] text-[color:var(--mkt-muted)] italic">+{template.traits.length - 4} more traits</p>
+            )}
+          </div>
+        )}
+      </div>
     );
   }
 }

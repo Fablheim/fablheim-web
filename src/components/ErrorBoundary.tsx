@@ -2,6 +2,7 @@ import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import * as Sentry from '@sentry/react';
+import { queryClient } from '@/providers/QueryProvider';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -29,6 +30,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   handleReset = () => {
+    queryClient.invalidateQueries();
     this.setState({ hasError: false, error: null });
   };
 

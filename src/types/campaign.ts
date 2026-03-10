@@ -20,6 +20,51 @@ export const statusLabels: Record<CampaignStatus, string> = {
 
 export type CampaignStage = 'prep' | 'live' | 'recap';
 
+// ── Campaign Arc & Tracker types ─────────────────────────
+
+export type ArcStatus = 'upcoming' | 'active' | 'completed';
+
+export interface ArcMilestone {
+  _id: string;
+  description: string;
+  completed: boolean;
+}
+
+export interface CampaignArc {
+  _id: string;
+  name: string;
+  description?: string;
+  status: ArcStatus;
+  sortOrder: number;
+  milestones: ArcMilestone[];
+}
+
+export interface TrackerThreshold {
+  value: number;
+  label: string;
+  effect?: string;
+}
+
+export interface WorldStateTracker {
+  _id: string;
+  name: string;
+  description?: string;
+  value: number;
+  min: number;
+  max: number;
+  thresholds: TrackerThreshold[];
+  visibility: 'public' | 'dm-only';
+}
+
+export interface CampaignFeatures {
+  arcs?: boolean;
+  worldStateTrackers?: boolean;
+  domains?: boolean;
+  factionReputation?: boolean;
+  npcSecrets?: boolean;
+  questBranching?: boolean;
+}
+
 export interface Campaign {
   _id: string;
   name: string;
@@ -47,6 +92,9 @@ export interface Campaign {
     width: number;
     height: number;
   } | null;
+  arcs?: CampaignArc[];
+  worldStateTrackers?: WorldStateTracker[];
+  features?: CampaignFeatures;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,12 +242,62 @@ export interface AbilityRollResult {
 
 export type WorldEntityType = 'location' | 'location_detail' | 'faction' | 'npc' | 'npc_minor' | 'item' | 'quest' | 'event' | 'lore';
 export type WorldEntityVisibility = 'public' | 'dm-only';
+export type LocationType =
+  | 'continent' | 'region' | 'kingdom' | 'city' | 'town' | 'village'
+  | 'district' | 'building' | 'landmark' | 'dungeon' | 'room' | 'wilderness' | 'other';
 
 export interface QuestObjective {
   id: string;
   description: string;
   completed: boolean;
   completedAt?: string;
+}
+
+// ── Faction / NPC / Quest sub-types ─────────────────────
+
+export type FactionDisposition = 'hostile' | 'unfriendly' | 'neutral' | 'friendly' | 'allied';
+
+export interface ReputationEvent {
+  description: string;
+  delta: number;
+  sessionNumber?: number;
+  date: string;
+}
+
+export interface FactionRelationship {
+  factionEntityId: string;
+  attitude: FactionDisposition;
+  description?: string;
+}
+
+export interface NpcSecret {
+  description: string;
+  revealed: boolean;
+  revealedAt?: string;
+}
+
+export interface NpcLoyalty {
+  factionEntityId: string;
+  strength: number;
+}
+
+export interface AttitudeEvent {
+  description: string;
+  sessionNumber?: number;
+  date: string;
+}
+
+export interface QuestOutcome {
+  id: string;
+  description: string;
+  chosen: boolean;
+  consequences?: string;
+}
+
+export interface QuestFactionImpact {
+  factionEntityId: string;
+  reputationDelta: number;
+  description?: string;
 }
 
 export interface WorldEntity {
@@ -214,8 +312,11 @@ export interface WorldEntity {
   typeData: Record<string, any>;
   aiGenerated: boolean;
   createdBy: string;
+  // Map pin (percentage coords 0–1 on campaign world map)
+  mapPin?: { x: number; y: number };
   // Location hierarchy
   parentEntityId?: string | { _id: string; name: string; type: string };
+  locationType?: LocationType;
   // Quest-specific
   questType?: string;
   questStatus?: string;
@@ -224,6 +325,23 @@ export interface WorldEntity {
   rewards?: string;
   prerequisiteQuests?: string[];
   nextQuests?: string[];
+  branchQuests?: string[];
+  outcomes?: QuestOutcome[];
+  stakes?: string;
+  arcId?: string;
+  factionImpact?: QuestFactionImpact[];
+  // Faction-specific
+  disposition?: FactionDisposition;
+  reputation?: number;
+  reputationHistory?: ReputationEvent[];
+  factionRelationships?: FactionRelationship[];
+  hiddenGoals?: string;
+  // NPC-specific
+  npcDisposition?: FactionDisposition;
+  secrets?: NpcSecret[];
+  motivations?: string[];
+  loyalties?: NpcLoyalty[];
+  attitudeHistory?: AttitudeEvent[];
   createdAt: string;
   updatedAt: string;
   _meta?: GenerationMeta;
@@ -237,7 +355,9 @@ export interface CreateWorldEntityPayload {
   relatedEntities?: Array<{ entityId: string; relationshipType: string }>;
   visibility?: WorldEntityVisibility;
   typeData?: Record<string, any>;
+  mapPin?: { x: number; y: number } | null;
   parentEntityId?: string;
+  locationType?: LocationType;
   questType?: string;
   questStatus?: string;
   objectives?: Array<{ id: string; description: string }>;
@@ -248,6 +368,15 @@ export interface CreateWorldEntityPayload {
 }
 
 export type UpdateWorldEntityPayload = Partial<CreateWorldEntityPayload>;
+
+export interface WorldTreeNode {
+  _id: string;
+  name: string;
+  type: WorldEntityType;
+  locationType?: LocationType;
+  parentEntityId?: string;
+  childCount: number;
+}
 
 // ── Handouts ──────────────────────────────────────────────
 
@@ -324,7 +453,13 @@ export interface Session {
   statistics: SessionStatistics;
   aiRecap?: string;
   aiRecapGeneratedAt?: string;
-  aiSummary?: string;
+  aiSummary?: {
+    summary: string;
+    keyEvents: string[];
+    unresolvedHooks: string[];
+    moodPace: string;
+    generatedAt: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -347,3 +482,73 @@ export interface UpdateSessionRequest {
   status?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
   aiRecap?: string;
 }
+
+// ── Domains ─────────────────────────────────────────────
+
+export interface ResourcePool {
+  name: string;
+  current: number;
+  max?: number;
+}
+
+export interface PopulationTier {
+  name: string;
+  threshold: number;
+  unlocks?: string;
+}
+
+export interface UpgradeTier {
+  tier: number;
+  name: string;
+  description?: string;
+  cost: Record<string, number>;
+  built: boolean;
+  builtAt?: string;
+}
+
+export interface UpgradeCategory {
+  _id?: string;
+  name: string;
+  description?: string;
+  tiers: UpgradeTier[];
+}
+
+export interface DomainSpecialist {
+  _id?: string;
+  role: string;
+  name?: string;
+  npcEntityId?: string;
+  recruited: boolean;
+  recruitedAt?: string;
+  bonus?: string;
+}
+
+export interface Domain {
+  _id: string;
+  campaignId: string;
+  locationEntityId: string;
+  name: string;
+  description: string;
+  population: number;
+  currentTierIndex: number;
+  populationTiers: PopulationTier[];
+  resources: ResourcePool[];
+  upgradeCategories: UpgradeCategory[];
+  specialists: DomainSpecialist[];
+  notes: string;
+  visibility: 'public' | 'dm-only';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDomainPayload {
+  locationEntityId: string;
+  name: string;
+  description?: string;
+  population?: number;
+  populationTiers?: PopulationTier[];
+  resources?: Array<{ name: string; current?: number; max?: number }>;
+  visibility?: 'public' | 'dm-only';
+}
+
+export type UpdateDomainPayload = Partial<Omit<CreateDomainPayload, 'locationEntityId'>>;

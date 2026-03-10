@@ -10,8 +10,18 @@ import { NPCBrowserPanel } from './panels/NPCBrowserPanel';
 import { NotebookPanel } from './panels/NotebookPanel';
 import { RulesPanel } from './panels/RulesPanel';
 import { SessionsPrepPanel } from './panels/SessionsPrepPanel';
-import { EncounterPrepPage } from '@/pages/EncounterPrepPage';
-import { AIToolsPage } from '@/pages/AIToolsPage';
+import { lazy, Suspense } from 'react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+const EncounterPrepPage = lazy(() =>
+  import('@/pages/EncounterPrepPage').then((m) => ({ default: m.EncounterPrepPage })),
+);
+const AIToolsPage = lazy(() =>
+  import('@/pages/AIToolsPage').then((m) => ({ default: m.AIToolsPage })),
+);
+import { ArcsPanel } from './panels/ArcsPanel';
+import { TrackersPanel } from './panels/TrackersPanel';
+import { PlayerNotesPanel } from './panels/PlayerNotesPanel';
 
 interface PrepContentAreaProps {
   activeSection: PrepSection;
@@ -19,11 +29,13 @@ interface PrepContentAreaProps {
   isDM: boolean;
 }
 
-export function PrepContentArea({ activeSection, campaign }: PrepContentAreaProps) {
+export function PrepContentArea({ activeSection, campaign, isDM }: PrepContentAreaProps) {
   return (
     <div className="flex-1 overflow-hidden">
       <div key={activeSection} className="h-full prep-content-fade">
-        {renderContent()}
+        <Suspense fallback={<LoadingSpinner />}>
+          {renderContent()}
+        </Suspense>
       </div>
     </div>
   );
@@ -46,6 +58,12 @@ export function PrepContentArea({ activeSection, campaign }: PrepContentAreaProp
         return <SessionsPrepPanel campaignId={campaign._id} />;
       case 'ai-tools':
         return <AIToolsWithBrain campaignId={campaign._id} />;
+      case 'arcs':
+        return <ArcsPanel campaignId={campaign._id} isDM={isDM} />;
+      case 'trackers':
+        return <TrackersPanel campaignId={campaign._id} isDM={isDM} />;
+      case 'my-notes':
+        return <PlayerNotesPanel campaignId={campaign._id} />;
       case 'rules':
         return <RulesPanel campaignId={campaign._id} system={campaign.system} />;
       default:

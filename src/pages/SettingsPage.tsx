@@ -266,8 +266,8 @@ function DeleteAccountSection() {
           {error && <div className={feedbackClass.error}>{error}</div>}
 
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
-            This will permanently delete your account, all campaigns you own, your characters, and campaign
-            memberships. This cannot be undone.
+            This will permanently delete your account, your characters, and campaign memberships. You must
+            transfer or delete any campaigns you own before deleting your account. This cannot be undone.
           </div>
 
           <div>

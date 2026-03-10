@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { connectSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 import type { SyncResponse } from '@/types/live-session';
@@ -13,15 +14,21 @@ export function useSocket() {
 
     function onConnect() { setConnected(true); }
     function onDisconnect() { setConnected(false); }
+    function onConnectError(err: Error) {
+      console.error('Socket connect_error:', err.message);
+      setConnected(false);
+    }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
 
     if (socket.connected) setConnected(true);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
     };
   }, []);
 
@@ -153,10 +160,27 @@ export function useSessionRoom(campaignId: string | null) {
       }
     }
 
+    // Rate limit warnings from the server
+    function onRateLimit(data: { event: string; retryAfterMs: number; message: string }) {
+      toast.warning(data.message, { duration: data.retryAfterMs });
+    }
+
+    // Validation errors from WsValidationPipe (WsException)
+    function onException(data: { status?: string; message?: string }) {
+      const msg = data?.message || 'Server rejected the request';
+      if (msg.startsWith('Validation failed:')) {
+        toast.error(msg.replace('Validation failed: ', 'Invalid input: '));
+      } else {
+        toast.error(msg);
+      }
+    }
+
     socket.on('user-joined', onUserJoined);
     socket.on('user-left', onUserLeft);
     socket.on('sync-response', onSyncResponse);
     socket.on('chat:message', onChatMessage);
+    socket.on('error:rate-limit', onRateLimit);
+    socket.on('exception', onException);
 
     return () => {
       socket.emit('leave-session', { campaignId });
@@ -164,6 +188,8 @@ export function useSessionRoom(campaignId: string | null) {
       socket.off('user-left', onUserLeft);
       socket.off('sync-response', onSyncResponse);
       socket.off('chat:message', onChatMessage);
+      socket.off('error:rate-limit', onRateLimit);
+      socket.off('exception', onException);
     };
   }, [socket, connected, campaignId]);
 

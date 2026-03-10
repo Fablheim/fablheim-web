@@ -185,7 +185,7 @@ export function DashboardPage() {
       <button
         key={char._id}
         type="button"
-        onClick={() => navigate(`/app/characters/${char._id}`)}
+        onClick={() => navigate(`/app/characters/${char._id}`, { state: { from: '/app' } })}
         className="mkt-card mkt-card-mounted flex items-center gap-3 rounded-md px-3 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-[color:var(--mkt-accent)]/45"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blood/60 bg-blood/80 font-[Cinzel] text-xs font-bold text-parchment">

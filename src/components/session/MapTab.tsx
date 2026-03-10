@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type WheelEvent, type CSSProperties, type ReactNode } from 'react';
-import { Plus, Trash2, Move, Loader2, ZoomIn, ZoomOut, Maximize, ImageOff, RefreshCw, Settings, Grid3X3, Type, Users, Eye, EyeOff, ChevronDown, RotateCw } from 'lucide-react';
+import { Plus, Trash2, Move, Loader2, ZoomIn, ZoomOut, Maximize, ImageOff, RefreshCw, Settings, Grid3X3, Type, Users, Eye, EyeOff, ChevronDown, RotateCw, Ruler, Footprints } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import {
@@ -76,6 +76,16 @@ const TOKEN_TYPE_LABELS: Record<MapToken['type'], string> = {
   monster: 'MON',
   other: 'OTH',
 };
+
+function columnLabel(index: number): string {
+  let label = '';
+  let n = index;
+  do {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return label;
+}
 
 const DEFAULT_AOE_SHAPES: Array<{ key: AoEOverlayShape; label: string }> = [
   { key: 'sphere', label: 'Sphere' },
@@ -178,6 +188,17 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
   } | null>(null);
   const [showAoEHint, setShowAoEHint] = useState(false);
   const [spacePanActive, setSpacePanActive] = useState(false);
+
+  // Ruler / measurement state
+  const [rulerMode, setRulerMode] = useState(false);
+  const [rulerPoints, setRulerPoints] = useState<{ x: number; y: number }[]>([]);
+  const [rulerPreview, setRulerPreview] = useState<{ mapX: number; mapY: number } | null>(null);
+  const [showRange, setShowRange] = useState(false);
+
+  // Encounter load options
+  const [loadSpawnTokens, setLoadSpawnTokens] = useState(true);
+  const [loadClearMap, setLoadClearMap] = useState(true);
+  const [loadAutoRoll, setLoadAutoRoll] = useState(true);
 
   // Drag-to-move state
   const [draggingToken, setDraggingToken] = useState<{
@@ -352,6 +373,16 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
 
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (rulerMode) {
+          if (rulerPoints.length > 0) {
+            // First Escape clears points, second exits mode
+            setRulerPoints([]);
+            setRulerPreview(null);
+          } else {
+            setRulerMode(false);
+          }
+          return;
+        }
         if (draggingToken || draggingAoE || resizingAoE) {
           setDraggingToken(null);
           setDragGhost(null);
@@ -430,6 +461,8 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
     placingToken,
     removeAoE,
     resizingAoE,
+    rulerMode,
+    rulerPoints,
     selectedAoEId,
     selectedTokenId,
     updateAoE,
@@ -521,6 +554,12 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
   // --- Handlers ---
 
   function handleCellClick(x: number, y: number) {
+    if (rulerMode) {
+      // Add waypoint; double-click last point to finish (or Escape)
+      setRulerPoints((prev) => [...prev, { x, y }]);
+      return;
+    }
+
     if (placingAoE && isDM) {
       const defaults = getDefaultAoESize(aoeShape);
       addAoE.mutate(
@@ -690,6 +729,17 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
   }
 
   function handlePointerMove(e: ReactPointerEvent) {
+    // Ruler preview: track cursor in map-space when measuring
+    if (rulerMode && rulerPoints.length > 0) {
+      const viewport = viewportRef.current;
+      if (viewport) {
+        const rect = viewport.getBoundingClientRect();
+        const mapX = (e.clientX - rect.left - translateRef.current.x) / scaleRef.current;
+        const mapY = (e.clientY - rect.top - translateRef.current.y) / scaleRef.current;
+        setRulerPreview({ mapX, mapY });
+      }
+    }
+
     if (resizingAoE) {
       const viewport = viewportRef.current;
       if (!viewport) return;
@@ -1069,6 +1119,11 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
             Click cell to place token
           </span>
         )}
+        {rulerMode && (
+          <span className="text-[10px] text-primary animate-pulse font-[Cinzel] uppercase">
+            {rulerPoints.length > 0 ? 'Click to add waypoint · Esc to clear' : 'Click cell to start measuring'}
+          </span>
+        )}
 
         {isDM && !placingToken && !movingTokenId && (
           <div className="flex items-center gap-1">
@@ -1091,67 +1146,149 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
           ) : null;
         })()}
 
+        <button
+          type="button"
+          onClick={() => {
+            const next = !rulerMode;
+            setRulerMode(next);
+            setRulerPoints([]);
+            setRulerPreview(null);
+            if (next) {
+              // Cancel other placement modes
+              setPlacingToken(false);
+              setPlacingAoE(false);
+              setMovingTokenId(null);
+            }
+          }}
+          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] transition-colors font-[Cinzel] uppercase tracking-wider ${
+            rulerMode
+              ? 'border-primary/40 bg-primary/15 text-primary'
+              : 'border-iron bg-accent/30 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+          }`}
+          title="Measure distance (ruler)"
+        >
+          <Ruler className="h-3 w-3" />
+          Measure
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowRange((prev) => !prev)}
+          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] transition-colors font-[Cinzel] uppercase tracking-wider ${
+            showRange
+              ? 'border-primary/40 bg-primary/15 text-primary'
+              : 'border-iron bg-accent/30 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+          }`}
+          title="Show movement range for selected token"
+        >
+          <Footprints className="h-3 w-3" />
+          Range
+        </button>
+
         {renderViewControls()}
       </div>
     );
   }
 
+  function renderEncounterMenu() {
+    const hasExistingTokens = (map?.tokens.length ?? 0) > 0;
+
+    return renderToolbarMenu('encounter', 'Encounter', (
+      <div className="space-y-2">
+        <select
+          value={selectedEncounterId}
+          onChange={(e) => setSelectedEncounterId(e.target.value)}
+          className="w-full rounded border border-iron bg-accent/40 px-2 py-1 text-[11px] text-foreground"
+        >
+          {(encounters ?? []).map((encounter) => (
+            <option key={encounter._id} value={encounter._id}>
+              {encounter.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Load options */}
+        <div className="space-y-1 rounded border border-iron/50 bg-accent/20 p-1.5">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={loadSpawnTokens}
+              onChange={(e) => setLoadSpawnTokens(e.target.checked)}
+              className="h-3 w-3 rounded border-iron accent-primary"
+            />
+            <span className="text-[10px] text-muted-foreground">Place tokens on map</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={loadAutoRoll}
+              onChange={(e) => setLoadAutoRoll(e.target.checked)}
+              className="h-3 w-3 rounded border-iron accent-primary"
+            />
+            <span className="text-[10px] text-muted-foreground">Auto-roll NPC initiative</span>
+          </label>
+          {hasExistingTokens && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={loadClearMap}
+                onChange={(e) => setLoadClearMap(e.target.checked)}
+                className="h-3 w-3 rounded border-iron accent-primary"
+              />
+              <span className="text-[10px] text-muted-foreground">Replace existing tokens</span>
+            </label>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-1">
+          <button
+            type="button"
+            disabled={!selectedEncounterId || loadEncounter.isPending}
+            onClick={() => {
+              if (!selectedEncounterId) return;
+              loadEncounter.mutate(
+                {
+                  encounterId: selectedEncounterId,
+                  body: {
+                    addToInitiative: true,
+                    clearExistingMap: loadClearMap,
+                    clearExisting: false,
+                    spawnTokens: loadSpawnTokens,
+                    autoRollInitiative: loadAutoRoll,
+                    startCombat: false,
+                  },
+                },
+                {
+                  onSuccess: () => {
+                    toast.success('Encounter loaded');
+                    setOpenToolbarMenu(null);
+                  },
+                  onError: () => toast.error('Failed to load encounter'),
+                },
+              );
+            }}
+            className="rounded border border-brass/40 bg-brass/10 px-2 py-1 text-[10px] text-brass hover:bg-brass/20 disabled:opacity-50"
+          >
+            {loadEncounter.isPending ? 'Loading...' : 'Load'}
+          </button>
+          <button
+            type="button"
+            disabled={!map?.sourceEncounterId || loadEncounter.isPending}
+            onClick={() => setShowResetConfirm(true)}
+            className="rounded border border-iron px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent/60 disabled:opacity-50"
+            title="Reset live map to currently loaded encounter defaults"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    ));
+  }
+
   function renderDMActions() {
     return (
       <>
-        {renderToolbarMenu('encounter', 'Encounter', (
-          <div className="space-y-2">
-            <select
-              value={selectedEncounterId}
-              onChange={(e) => setSelectedEncounterId(e.target.value)}
-              className="w-full rounded border border-iron bg-accent/40 px-2 py-1 text-[11px] text-foreground"
-            >
-              {(encounters ?? []).map((encounter) => (
-                <option key={encounter._id} value={encounter._id}>
-                  {encounter.name}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                type="button"
-                disabled={!selectedEncounterId || loadEncounter.isPending}
-                onClick={() => {
-                  if (!selectedEncounterId) return;
-                  loadEncounter.mutate(
-                    {
-                      encounterId: selectedEncounterId,
-                      body: {
-                        addToInitiative: true,
-                        clearExistingMap: true,
-                        clearExisting: false,
-                        spawnTokens: true,
-                        autoRollInitiative: true,
-                        startCombat: false,
-                      },
-                    },
-                    {
-                      onSuccess: () => toast.success('Encounter loaded to map'),
-                      onError: () => toast.error('Failed to load encounter'),
-                    },
-                  );
-                }}
-                className="rounded border border-brass/40 bg-brass/10 px-2 py-1 text-[10px] text-brass hover:bg-brass/20 disabled:opacity-50"
-              >
-                Load
-              </button>
-              <button
-                type="button"
-                disabled={!map?.sourceEncounterId || loadEncounter.isPending}
-                onClick={() => setShowResetConfirm(true)}
-                className="rounded border border-iron px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent/60 disabled:opacity-50"
-                title="Reset live map to currently loaded encounter defaults"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        ))}
+        {renderEncounterMenu()}
 
         {renderToolbarMenu('tokens', 'Tokens', (
           <div className="space-y-2">
@@ -1437,7 +1574,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
       <div
         ref={viewportRef}
         data-pannable="true"
-        className="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing"
+        className={`flex-1 overflow-hidden relative ${rulerMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -1458,9 +1595,11 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
           }}
         >
           {renderBackgroundImage()}
+          {renderMovementRange()}
           {renderAoEOverlays()}
           {renderGridLines(mapPixelW, mapPixelH)}
           {renderCells(gridCols, gridRows)}
+          {renderRulerOverlay()}
           {renderDragGhost()}
         </div>
         {renderTokenHud()}
@@ -1816,6 +1955,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
     const majorLineOpacity = Math.min(1, gridLineOpacity + 0.15);
     const verticalLines = Math.floor(mapPixelW / gridCellSize);
     const horizontalLines = Math.floor(mapPixelH / gridCellSize);
+    const labelFontSize = Math.max(7, Math.min(10, gridCellSize * 0.3));
     return (
       <svg
         className="absolute inset-0 z-10 pointer-events-none"
@@ -1823,8 +1963,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
         height={mapPixelH}
         shapeRendering="crispEdges"
       >
-        {Array.from({ length: verticalLines + 1 }, (_, i) => (
-          (() => {
+        {Array.from({ length: verticalLines + 1 }, (_, i) => {
             const isMajor = i % majorEvery === 0;
             return (
           <line
@@ -1839,10 +1978,8 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
             vectorEffect="non-scaling-stroke"
           />
             );
-          })()
-        ))}
-        {Array.from({ length: horizontalLines + 1 }, (_, i) => (
-          (() => {
+        })}
+        {Array.from({ length: horizontalLines + 1 }, (_, i) => {
             const isMajor = i % majorEvery === 0;
             return (
           <line
@@ -1857,10 +1994,51 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
             vectorEffect="non-scaling-stroke"
           />
             );
-          })()
-        ))}
+        })}
+        {showLabels && renderGridCoordinateLabels(verticalLines, horizontalLines, labelFontSize)}
       </svg>
     );
+  }
+
+  function renderGridCoordinateLabels(cols: number, rows: number, fontSize: number) {
+    const labels: React.ReactNode[] = [];
+    const labelColor = gridColor;
+    const labelOpacity = Math.min(0.7, gridLineOpacity + 0.2);
+    // Column labels (A, B, C, ... Z, AA, AB, ...)
+    for (let c = 0; c < cols; c++) {
+      labels.push(
+        <text
+          key={`col-${c}`}
+          x={mapOffsetX + c * gridCellSize + gridCellSize / 2}
+          y={mapOffsetY + fontSize + 1}
+          textAnchor="middle"
+          fill={labelColor}
+          fillOpacity={labelOpacity}
+          fontSize={fontSize}
+          fontFamily="Cinzel, serif"
+        >
+          {columnLabel(c)}
+        </text>,
+      );
+    }
+    // Row labels (1, 2, 3, ...)
+    for (let r = 0; r < rows; r++) {
+      labels.push(
+        <text
+          key={`row-${r}`}
+          x={mapOffsetX + 3}
+          y={mapOffsetY + r * gridCellSize + gridCellSize / 2 + fontSize / 3}
+          textAnchor="start"
+          fill={labelColor}
+          fillOpacity={labelOpacity}
+          fontSize={fontSize}
+          fontFamily="Cinzel, serif"
+        >
+          {r + 1}
+        </text>,
+      );
+    }
+    return labels;
   }
 
   function renderCells(gridW: number, gridH: number) {
@@ -1919,6 +2097,28 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
     const circlePx = sizePx - 4;
     const fontSize = s >= 3 ? 14 : s === 2 ? 11 : 8;
 
+    // Look up linked initiative entry for HP + conditions
+    const linkedEntry = token.initiativeEntryId
+      ? initiative?.entries.find((e) => e.id === token.initiativeEntryId)
+      : undefined;
+    const hpNow = linkedEntry?.currentHp;
+    const hpMax = linkedEntry?.maxHp;
+    const hasHP = hpNow != null && hpMax != null && hpMax > 0;
+    const hpPct = hasHP ? Math.max(0, Math.min(100, (hpNow / hpMax) * 100)) : 0;
+    const conditions = linkedEntry?.conditions ?? [];
+    const isConcentrating = conditions.includes('Concentrating') || linkedEntry?.isConcentrating;
+    const isLowHP = hasHP && hpPct <= 25 && hpPct > 0;
+    const isDead = hasHP && hpNow === 0;
+
+    // Condition-based ring color
+    let statusRingClass = '';
+    if (isDead) statusRingClass = 'ring-2 ring-[hsl(0,0%,50%)] opacity-60';
+    else if (isConcentrating && !isSelected && !isCurrentTurn) statusRingClass = 'ring-2 ring-[hsl(270,60%,60%)]';
+    else if (isLowHP && !isSelected && !isCurrentTurn) statusRingClass = 'ring-2 ring-blood';
+
+    // HP bar color
+    const hpBarColor = hpPct > 50 ? 'hsl(150,50%,45%)' : hpPct > 25 ? 'hsl(45,80%,50%)' : 'hsl(0,60%,50%)';
+
     return (
       <div
         className="absolute z-10 pointer-events-auto"
@@ -1926,7 +2126,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
         onPointerDown={(e) => handleTokenPointerDown(e, token)}
       >
         <div
-          title={`${token.name} (${TOKEN_TYPE_LABELS[token.type]})`}
+          title={`${token.name} (${TOKEN_TYPE_LABELS[token.type]})${hasHP ? ` ${hpNow}/${hpMax} HP` : ''}${conditions.length > 0 ? ` [${conditions.join(', ')}]` : ''}`}
           className={`
             rounded-full flex items-center justify-center font-bold text-white
             transition-all duration-200
@@ -1934,6 +2134,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
             ${isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-card scale-110' : ''}
             ${isCurrentTurn ? 'ring-2 ring-[hsl(38,80%,55%)] shadow-[0_0_8px_hsla(38,80%,55%,0.6)]' : ''}
             ${isOwn && !isSelected && !isCurrentTurn ? 'ring-2 ring-primary/50' : ''}
+            ${!isSelected && !isCurrentTurn && !isOwn ? statusRingClass : ''}
             ${token.isHidden ? 'opacity-50' : ''}
           `}
           style={{
@@ -1946,15 +2147,162 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
         >
           {token.name.charAt(0).toUpperCase()}
         </div>
+        {hasHP && showLabels && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+            style={{ top: circlePx - 1, width: Math.max(circlePx * 0.8, 12), height: 3 }}
+          >
+            <div className="h-full w-full rounded-full bg-black/50 overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${hpPct}%`, backgroundColor: hpBarColor }} />
+            </div>
+          </div>
+        )}
         {showLabels && (
           <span
             className="absolute left-1/2 -translate-x-1/2 text-[7px] font-bold text-foreground/80 whitespace-nowrap truncate text-center leading-none pointer-events-none"
-            style={{ top: circlePx + 3, maxWidth: Math.max(sizePx, 40) }}
+            style={{ top: circlePx + (hasHP ? 4 : 3), maxWidth: Math.max(sizePx, 40) }}
           >
             {token.name.length > 6 ? token.name.slice(0, 6) + '.' : token.name}
           </span>
         )}
+        {conditions.length > 0 && showLabels && circlePx >= 20 && (
+          <span
+            className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-arcane px-0.5 text-[6px] font-bold text-white pointer-events-none"
+            title={conditions.join(', ')}
+          >
+            {conditions.length}
+          </span>
+        )}
       </div>
+    );
+  }
+
+  function renderMovementRange() {
+    if (!showRange || !selectedTokenId) return null;
+    const token = map!.tokens.find((t) => t.id === selectedTokenId);
+    if (!token) return null;
+
+    // Get speed from linked character, default 30
+    const character = token.characterId
+      ? characters?.find((c) => c._id === token.characterId)
+      : null;
+    const speedFt = character?.speed ?? 30;
+    const sqFt = Math.max(1, map!.gridSquareSizeFt);
+    const rangeSquares = speedFt / sqFt;
+    const tokenSize = token.size || 1;
+
+    // Collect reachable cells within movement range (Euclidean)
+    const cells: { x: number; y: number }[] = [];
+    const reach = Math.ceil(rangeSquares) + 1;
+    for (let dy = -reach; dy <= reach + tokenSize - 1; dy++) {
+      for (let dx = -reach; dx <= reach + tokenSize - 1; dx++) {
+        const gx = token.x + dx;
+        const gy = token.y + dy;
+        if (gx < 0 || gy < 0 || gx >= gridCols || gy >= gridRows) continue;
+        // Distance from nearest edge of token to cell center
+        const cellCenterX = gx + 0.5;
+        const cellCenterY = gy + 0.5;
+        const nearestX = Math.max(token.x, Math.min(token.x + tokenSize, cellCenterX));
+        const nearestY = Math.max(token.y, Math.min(token.y + tokenSize, cellCenterY));
+        const dist = Math.hypot(cellCenterX - nearestX, cellCenterY - nearestY);
+        if (dist <= rangeSquares) {
+          cells.push({ x: gx, y: gy });
+        }
+      }
+    }
+
+    return (
+      <>
+        {cells.map((cell) => (
+          <div
+            key={`range-${cell.x}-${cell.y}`}
+            className="absolute pointer-events-none"
+            style={{
+              left: mapOffsetX + cell.x * gridCellSize,
+              top: mapOffsetY + cell.y * gridCellSize,
+              width: gridCellSize,
+              height: gridCellSize,
+              backgroundColor: 'hsl(200, 70%, 55%)',
+              opacity: 0.18,
+              borderRadius: 2,
+            }}
+          />
+        ))}
+      </>
+    );
+  }
+
+  function renderRulerOverlay() {
+    if (!rulerMode || rulerPoints.length === 0) return null;
+
+    const sqFt = Math.max(1, map!.gridSquareSizeFt);
+    const pxPerFt = gridCellSize / sqFt;
+    const snap5 = (ft: number) => Math.round(ft / 5) * 5;
+
+    // Convert grid coords to pixel center
+    const toPx = (pt: { x: number; y: number }) => ({
+      px: mapOffsetX + (pt.x + 0.5) * gridCellSize,
+      py: mapOffsetY + (pt.y + 0.5) * gridCellSize,
+    });
+
+    // Build array of pixel points: all waypoints + preview cursor
+    const allPx = rulerPoints.map(toPx);
+    if (rulerPreview) {
+      allPx.push({ px: rulerPreview.mapX, py: rulerPreview.mapY });
+    }
+    if (allPx.length < 2) return null;
+
+    // Compute per-segment and total distances
+    let totalFt = 0;
+    const segments: { x1: number; y1: number; x2: number; y2: number; ft: number }[] = [];
+    for (let i = 1; i < allPx.length; i++) {
+      const segFt = snap5(Math.hypot(allPx[i].px - allPx[i - 1].px, allPx[i].py - allPx[i - 1].py) / pxPerFt);
+      totalFt += segFt;
+      segments.push({ x1: allPx[i - 1].px, y1: allPx[i - 1].py, x2: allPx[i].px, y2: allPx[i].py, ft: segFt });
+    }
+
+    const lastSeg = segments[segments.length - 1];
+    const labelX = lastSeg.x2;
+    const labelY = lastSeg.y2 - 14;
+    const labelText = segments.length > 1 ? `${totalFt} ft total` : `${totalFt} ft`;
+    const labelW = Math.max(48, labelText.length * 7 + 12);
+
+    return (
+      <svg
+        className="absolute inset-0 pointer-events-none z-30"
+        style={{ width: '100%', height: '100%', overflow: 'visible' }}
+      >
+        {segments.map((seg, i) => (
+          <g key={i}>
+            <line x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke="black" strokeWidth={4} strokeOpacity={0.4} strokeLinecap="round" />
+            <line x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke="hsl(45, 60%, 65%)" strokeWidth={2} strokeLinecap="round" strokeDasharray="6 4" />
+          </g>
+        ))}
+        {/* Waypoint dots */}
+        {allPx.map((pt, i) => (
+          <circle key={i} cx={pt.px} cy={pt.py} r={i === 0 ? 5 : 4} fill="hsl(45, 60%, 65%)" stroke="black" strokeWidth={1.5} />
+        ))}
+        {/* Per-segment label for multi-segment paths */}
+        {segments.length > 1 && segments.slice(0, -1).map((seg, i) => {
+          const mx = (seg.x1 + seg.x2) / 2;
+          const my = (seg.y1 + seg.y2) / 2;
+          const segLabel = `${seg.ft}`;
+          return (
+            <text key={i} x={mx} y={my - 6} textAnchor="middle" fill="hsl(45, 50%, 60%)" fontSize={9} fontFamily="Cinzel, serif" fontWeight="bold" stroke="black" strokeWidth={2.5} paintOrder="stroke">
+              {segLabel}
+            </text>
+          );
+        })}
+        {/* Total distance label at cursor */}
+        {totalFt > 0 && (
+          <>
+            <rect x={labelX - labelW / 2} y={labelY - 10} width={labelW} height={20} rx={4} fill="hsl(30, 15%, 12%)" fillOpacity={0.9} stroke="hsl(45, 40%, 45%)" strokeWidth={1} />
+            <text x={labelX} y={labelY + 4} textAnchor="middle" fill="hsl(45, 60%, 75%)" fontSize={11} fontFamily="Cinzel, serif" fontWeight="bold">
+              {labelText}
+            </text>
+          </>
+        )}
+      </svg>
     );
   }
 
@@ -2080,6 +2428,24 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
                 tokenId: contextMenu.token.id,
                 body: { size },
               });
+              setContextMenu(null);
+            }}
+            onDamage={() => {
+              onTokenSelect?.(contextMenu.token.initiativeEntryId);
+              setSelectedTokenId(contextMenu.token.id);
+              window.dispatchEvent(new CustomEvent('fablheim:focus-action', { detail: { action: 'damage' } }));
+              setContextMenu(null);
+            }}
+            onHeal={() => {
+              onTokenSelect?.(contextMenu.token.initiativeEntryId);
+              setSelectedTokenId(contextMenu.token.id);
+              window.dispatchEvent(new CustomEvent('fablheim:focus-action', { detail: { action: 'heal' } }));
+              setContextMenu(null);
+            }}
+            onConditions={() => {
+              onTokenSelect?.(contextMenu.token.initiativeEntryId);
+              setSelectedTokenId(contextMenu.token.id);
+              window.dispatchEvent(new CustomEvent('fablheim:focus-action', { detail: { action: 'conditions' } }));
               setContextMenu(null);
             }}
             onClose={() => setContextMenu(null)}

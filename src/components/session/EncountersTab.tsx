@@ -131,7 +131,8 @@ export function EncountersTab({ campaignId, isDM }: EncountersTabProps) {
                   onChange={(e) => setOptions((prev) => ({ ...prev, autoRollInitiative: e.target.checked }))}
                   disabled={!options.addToInitiative}
                 />
-                Auto-roll initiative
+                Auto-roll NPC initiative
+                <span className="text-[10px] text-muted-foreground">(PCs set manually)</span>
               </label>
               <label className="flex items-center gap-2">
                 <input

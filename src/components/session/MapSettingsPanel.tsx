@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import defaultForestMap from '@/assets/battle-map.png';
-import defaultStoneDungeonMap from '@/assets/battle-map-stone-dungeon.png';
-import defaultOpenGrasslandMap from '@/assets/battle-map-open-grassland.png';
+import defaultForestMap from '@/assets/battle-map.webp';
+import defaultStoneDungeonMap from '@/assets/battle-map-stone-dungeon.webp';
+import defaultOpenGrasslandMap from '@/assets/battle-map-open-grassland.webp';
 import type { BattleMap } from '@/types/live-session';
 
 type MapSettings = Partial<
@@ -363,15 +363,7 @@ export function MapSettingsPanel({
 
   function renderActions() {
     return (
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          disabled
-          title="Coming soon"
-          className="rounded border border-border/60 px-2 py-1 text-[10px] text-muted-foreground opacity-70"
-        >
-          Save as Encounter Default
-        </button>
+      <div className="mt-2 flex items-center justify-end gap-2">
         <Button size="sm" onClick={handleApply} disabled={isPending || hasValidationError}>
           {isPending && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
           {isPending ? 'Saving...' : 'Apply'}

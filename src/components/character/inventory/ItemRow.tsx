@@ -143,6 +143,11 @@ function renderBadges(item: Item, canEquip: boolean) {
           Attuned
         </span>
       )}
+      {item.isContainer && (
+        <span className="rounded-sm bg-amber-900/40 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-400">
+          Container
+        </span>
+      )}
       {item.isMagical && (
         <Sparkles className="h-3 w-3 text-amber-400" />
       )}

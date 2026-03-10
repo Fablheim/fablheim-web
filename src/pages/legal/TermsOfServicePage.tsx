@@ -22,6 +22,7 @@ export function TermsOfServicePage() {
       lastUpdated="February 2026"
       intro="These terms govern access to and use of the Fablheim platform."
       toc={toc}
+      canonicalPath="/legal/terms"
     >
       <LegalSection id="acceptance" title="1. Acceptance of Terms">
         <p>
@@ -81,7 +82,7 @@ export function TermsOfServicePage() {
         <ul className="list-disc space-y-1 pl-6">
           <li>Credits consumed upon use are non-refundable</li>
           <li>Subscription credits reset monthly and do not roll over</li>
-          <li>Purchased credits expire after 90 days</li>
+          <li>Purchased credits do not expire</li>
           <li>Fablheim reserves the right to modify credit costs with reasonable notice</li>
         </ul>
       </LegalSection>

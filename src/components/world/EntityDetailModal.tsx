@@ -1,8 +1,14 @@
-import { X, Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, Circle, Target, Clock, CheckCheck, XCircle } from 'lucide-react';
+import { useMemo } from 'react';
+import { X, Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, Circle, Target, Clock, CheckCheck, XCircle, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { TYPE_LABELS, TYPE_ACCENTS, TYPE_ICONS, TYPE_DATA_FIELDS } from './world-constants';
+import { useEncounters } from '@/hooks/useEncounters';
+import { TYPE_LABELS, TYPE_ACCENTS, TYPE_ICONS, TYPE_DATA_FIELDS, LOCATION_TYPE_LABELS } from './world-constants';
 import { EntityRelationships } from './EntityRelationships';
-import type { WorldEntity } from '@/types/campaign';
+import { FactionReputationPanel } from './FactionReputationPanel';
+import { NPCSecretsPanel } from './NPCSecretsPanel';
+import { QuestOutcomesPanel } from './QuestOutcomesPanel';
+import { DomainPanel } from './DomainPanel';
+import type { WorldEntity, LocationType } from '@/types/campaign';
 
 interface EntityDetailModalProps {
   open: boolean;
@@ -14,6 +20,7 @@ interface EntityDetailModalProps {
   allEntities: WorldEntity[];
   onViewEntity: (entity: WorldEntity) => void;
   onLinkEntity: () => void;
+  domainFeatureEnabled?: boolean;
 }
 
 export function EntityDetailModal({
@@ -26,7 +33,15 @@ export function EntityDetailModal({
   allEntities,
   onViewEntity,
   onLinkEntity,
+  domainFeatureEnabled,
 }: EntityDetailModalProps) {
+  const isLocation = entity?.type === 'location' || entity?.type === 'location_detail';
+  const { data: encounters } = useEncounters(isLocation ? entity?.campaignId : undefined);
+  const linkedEncounters = useMemo(() => {
+    if (!encounters || !entity) return [];
+    return encounters.filter((enc) => enc.locationEntityId === entity._id);
+  }, [encounters, entity]);
+
   if (!open || !entity) return null;
 
   const accent = TYPE_ACCENTS[entity.type];
@@ -66,6 +81,11 @@ export function EntityDetailModal({
               <span className="inline-flex items-center gap-1 rounded-md bg-forest/15 px-1.5 py-0.5 text-[10px] text-[hsl(150,50%,55%)]">
                 <Eye className="h-3 w-3" />
                 Public
+              </span>
+            )}
+            {entity.locationType && (
+              <span className="inline-flex items-center rounded-md bg-background/40 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                {LOCATION_TYPE_LABELS[entity.locationType as LocationType] ?? entity.locationType}
               </span>
             )}
           </div>
@@ -199,38 +219,113 @@ export function EntityDetailModal({
           </>
         )}
 
-        {/* Location children */}
-        {(entity.type === 'location' || entity.type === 'location_detail') && (() => {
+        {/* Contained entities (children of this entity) */}
+        {(() => {
           const children = allEntities.filter(
             (e) =>
               (typeof e.parentEntityId === 'string' && e.parentEntityId === entity._id) ||
               (typeof e.parentEntityId === 'object' && e.parentEntityId?._id === entity._id),
           );
           if (children.length === 0) return null;
+
+          // Group children: locations first, then by type
+          const locationChildren = children.filter((c) => c.type === 'location' || c.type === 'location_detail');
+          const otherChildren = children.filter((c) => c.type !== 'location' && c.type !== 'location_detail');
+
+          // Group other children by type
+          const groupedOther = new Map<string, typeof otherChildren>();
+          for (const child of otherChildren) {
+            const key = child.type;
+            if (!groupedOther.has(key)) groupedOther.set(key, []);
+            groupedOther.get(key)!.push(child);
+          }
+
           return (
             <>
               <div className="divider-ornate mt-5 mb-4" />
               <p className="mb-2 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
-                Sub-locations ({children.length})
+                Contains ({children.length})
               </p>
-              <div className="space-y-1.5">
-                {children.map((child) => (
-                  <button
-                    key={child._id}
-                    onClick={() => onViewEntity(child)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50 transition-colors"
-                  >
-                    <MapPin className="h-3.5 w-3.5 text-[hsl(150,50%,55%)]" />
-                    <span className="text-foreground">{child.name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {TYPE_LABELS[child.type]}
-                    </span>
-                  </button>
-                ))}
+              <div className="space-y-1">
+                {locationChildren.map((child) => {
+                  const ChildIcon = TYPE_ICONS[child.type];
+                  const childAccent = TYPE_ACCENTS[child.type];
+                  return (
+                    <button
+                      key={child._id}
+                      onClick={() => onViewEntity(child)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                    >
+                      <ChildIcon className={`h-3.5 w-3.5 ${childAccent.text}`} />
+                      <span className="text-foreground">{child.name}</span>
+                      {child.locationType && (
+                        <span className="rounded bg-background/40 px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider text-muted-foreground">
+                          {LOCATION_TYPE_LABELS[child.locationType as LocationType] ?? child.locationType}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {[...groupedOther.entries()].map(([type, items]) => {
+                  const GroupIcon = TYPE_ICONS[type as keyof typeof TYPE_ICONS];
+                  const groupAccent = TYPE_ACCENTS[type as keyof typeof TYPE_ACCENTS];
+                  return items.map((child) => (
+                    <button
+                      key={child._id}
+                      onClick={() => onViewEntity(child)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                    >
+                      <GroupIcon className={`h-3.5 w-3.5 ${groupAccent.text}`} />
+                      <span className="text-foreground">{child.name}</span>
+                      <span className={`rounded ${groupAccent.bg} px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider ${groupAccent.text}`}>
+                        {TYPE_LABELS[child.type]}
+                      </span>
+                    </button>
+                  ));
+                })}
               </div>
             </>
           );
         })()}
+
+        {/* Linked encounters */}
+        {linkedEncounters.length > 0 && (
+          <>
+            <div className="divider-ornate mt-5 mb-4" />
+            <p className="mb-2 font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+              Encounters ({linkedEncounters.length})
+            </p>
+            <div className="space-y-1">
+              {linkedEncounters.map((enc) => {
+                const diffColors: Record<string, string> = {
+                  easy: 'text-[hsl(150,50%,55%)] bg-forest/15',
+                  medium: 'text-gold bg-gold/15',
+                  hard: 'text-brass bg-brass/15',
+                  deadly: 'text-blood bg-blood/15',
+                };
+                return (
+                  <div
+                    key={enc._id}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors"
+                  >
+                    <Swords className="h-3.5 w-3.5 text-gold" />
+                    <span className="text-foreground">{enc.name}</span>
+                    <span className={`rounded px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider ${diffColors[enc.difficulty] ?? 'text-muted-foreground bg-muted'}`}>
+                      {enc.difficulty}
+                    </span>
+                    <span className={`rounded px-1.5 py-0.5 font-[Cinzel] text-[9px] uppercase tracking-wider ${
+                      enc.status === 'ready' ? 'text-[hsl(150,50%,55%)] bg-forest/15' :
+                      enc.status === 'used' ? 'text-muted-foreground bg-muted' :
+                      'text-brass bg-brass/15'
+                    }`}>
+                      {enc.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Type-specific fields */}
         {fields.length > 0 && entity.typeData && Object.keys(entity.typeData).length > 0 && (
@@ -275,6 +370,40 @@ export function EntityDetailModal({
             </div>
           </>
         )}
+
+        {/* Domain Management (locations only, when feature enabled) */}
+        {isLocation && entity.campaignId && domainFeatureEnabled && (
+          <DomainPanel
+            campaignId={entity.campaignId}
+            locationEntityId={entity._id}
+            canEdit={canEdit}
+            allEntities={allEntities}
+            onViewEntity={onViewEntity}
+          />
+        )}
+
+        {/* Faction Reputation */}
+        <FactionReputationPanel
+          entity={entity}
+          canEdit={canEdit}
+          allEntities={allEntities}
+          onViewEntity={onViewEntity}
+        />
+
+        {/* NPC Secrets & Attitude */}
+        <NPCSecretsPanel
+          entity={entity}
+          canEdit={canEdit}
+          allEntities={allEntities}
+        />
+
+        {/* Quest Outcomes & Stakes */}
+        <QuestOutcomesPanel
+          entity={entity}
+          canEdit={canEdit}
+          allEntities={allEntities}
+          onViewEntity={onViewEntity}
+        />
 
         {/* Related Entities */}
         <EntityRelationships

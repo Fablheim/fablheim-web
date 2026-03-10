@@ -66,7 +66,7 @@ const gmSteps: Step[] = [
     body: 'AI sits in an optional lane for fast support moments, not as a required workflow.',
     bullets: [
       'Tools include NPC, encounter, quest, lore, and rules assistant',
-      `Free tier has ${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits; paid tiers add monthly credits`,
+      'AI credits start with paid plans, and one-time credit packs are available when you need extra help',
       'Credit costs and balance are visible inside the app',
     ],
     icon: Sparkles,
@@ -127,7 +127,7 @@ const howToFaq = [
   },
   {
     question: 'Does free tier include monthly AI credits?',
-    answer: `No. Free tier includes ${BILLING_CONFIG.freeMonthlyCredits} monthly AI credits.`,
+    answer: 'No. AI credits start with paid plans, and the core product works without AI.',
   },
 ];
 
@@ -170,13 +170,13 @@ function Hero({
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[color:var(--mkt-muted)] sm:text-lg">
-            The product follows actual table rhythm: prep what matters, run live with fewer interruptions, then recap
-            into the next session.
+            Fablheim follows the actual rhythm of tabletop play: prep what matters, run live with fewer interruptions,
+            then recap into the next session.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
-              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              {loggedIn ? 'Open Dashboard' : 'Join Beta'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" onClick={onRules} className="text-base">
@@ -317,7 +317,7 @@ function NoAiRequired() {
             speed under pressure, especially for NPCs, encounters, quests, lore, rules questions, and recaps.
           </p>
           <ul className="mt-5 grid gap-3 text-sm text-[color:var(--mkt-muted)] md:grid-cols-2">
-            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Free tier includes {BILLING_CONFIG.freeMonthlyCredits} monthly AI credits</li>
+            <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Free tier includes core app access without monthly AI credits</li>
             <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Paid tiers add monthly AI credits</li>
             <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />Credit costs per tool are visible in-app</li>
             <li className="grid grid-cols-[0.9rem_1fr] items-start gap-3"><Check className="mt-1 h-4 w-4 text-[color:var(--mkt-success)]" />One-time {BILLING_CONFIG.creditPack.credits}-credit pack available for {BILLING_CONFIG.creditPack.price}</li>
@@ -342,7 +342,7 @@ function PricingReality() {
           <article className="mkt-card mkt-card-mounted rounded-xl p-5">
             <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Wanderer (Free)</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$0 / month</p>
-            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.freeMonthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Core app access, no monthly AI credits</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Core campaign + live session tools</p>
           </article>
           <article className="mkt-card rounded-xl p-5">
@@ -414,7 +414,7 @@ function ClosingCta({ loggedIn, onPrimary, onRules }: { loggedIn: boolean; onPri
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Button size="lg" onClick={onPrimary} className="shimmer-gold text-base">
-              {loggedIn ? 'Open Dashboard' : 'Enter the Realm'}
+              {loggedIn ? 'Open Dashboard' : 'Join Beta'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" onClick={onRules} className="text-base">
@@ -441,7 +441,7 @@ export default function HowItWorksPage() {
     <MarketingPage>
       <SEO
         title="How Fablheim Works | Prep, Live Session, Recap"
-        description="See how Fablheim runs tabletop campaigns with a Prep -> Live -> Recap workflow and optional credits-based AI tools."
+        description="See how Fablheim helps GMs prep campaigns, run live sessions, and carry continuity forward with optional AI support."
         canonicalPath="/how-it-works"
       />
       <JsonLd

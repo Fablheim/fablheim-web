@@ -2,18 +2,19 @@ import { type FormEvent, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
-import { Check, Eye, EyeOff, Flame, ShieldCheck } from 'lucide-react';
+import { Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isAxiosError } from 'axios';
 import { MarketingFooter, MarketingNavbar, MarketingPage } from '@/components/marketing/MarketingShell';
 
-const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google`;
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000')}/auth/google`;
 
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/app';
+  const rawRedirect = searchParams.get('redirect') || '/app';
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/app';
   const turnstileRef = useRef<TurnstileInstance>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>();
   const [email, setEmail] = useState('');
@@ -99,7 +100,7 @@ export function LoginPage() {
           Return to the Hall
         </h1>
         <p className="mt-2 font-['IM_Fell_English'] text-sm italic text-[color:var(--mkt-muted)]">
-          Your campaigns are waiting.{' '}
+          Pick up your campaign where you left it.{' '}
           <Link to="/register" className="text-[color:var(--mkt-accent)] hover:underline">
             New here? Create an account
           </Link>
@@ -231,29 +232,22 @@ export function LoginPage() {
           <ul className="mt-4 space-y-3 text-sm text-[color:var(--mkt-muted)]">
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-[color:var(--mkt-success)]" />
-              Your campaigns remember everything
+              Prep, live session control, and recap stay connected
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-[color:var(--mkt-success)]" />
-              AI tools at the ready
+              Session runner tools are ready when game night starts
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-[color:var(--mkt-success)]" />
-              Pick up right where you left off
+              Optional AI support is there when you need speed
             </li>
           </ul>
         </article>
 
-        <blockquote className="mkt-card rounded-xl p-5">
-          <p className="text-sm leading-relaxed text-[color:var(--mkt-text)]">
-            &ldquo;Fablheim finally replaced my Discord + docs + VTT shuffle. I prep less and run cleaner sessions.&rdquo;
-          </p>
-          <footer className="mt-3 text-xs text-[color:var(--mkt-muted)]">&mdash; Closed Beta GM</footer>
-        </blockquote>
-
         <div className="flex items-center gap-2 rounded-xl border border-[color:var(--mkt-border)]/40 bg-black/10 px-4 py-3 text-xs text-[color:var(--mkt-muted)]">
-          <Flame className="h-3.5 w-3.5 text-[color:var(--mkt-accent)]" />
-          One hall. Every tool. Your story.
+          <Check className="h-3.5 w-3.5 text-[color:var(--mkt-success)]" />
+          Players can join free when you invite them into a campaign.
         </div>
       </aside>
     );

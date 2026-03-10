@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, Send, EyeOff, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/context/AuthContext';
 import type { ChatMessage } from '@/types/campaign';
@@ -197,6 +198,12 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
     const socket = getSocket();
     socket.emit('chat:typing', { campaignId, isTyping: false });
 
+    // Timeout guard: if ack never arrives, unblock the input
+    const ackTimeout = setTimeout(() => {
+      setSending(false);
+      toast.error('Message send timed out — try again');
+    }, 8000);
+
     socket.emit(
       'chat:send',
       {
@@ -206,8 +213,11 @@ export function ChatPanel({ campaignId, connectedUsers }: ChatPanelProps) {
         recipientId: mode === 'whisper' ? recipientId : undefined,
       },
       (response: { success: boolean; error?: string }) => {
+        clearTimeout(ackTimeout);
         if (response.success) {
           setInput('');
+        } else {
+          toast.error(response.error || 'Failed to send message');
         }
         setSending(false);
       },

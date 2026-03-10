@@ -62,7 +62,7 @@ export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
                 <Button variant="ghost" onClick={() => go('/login')}>
                   Sign In
                 </Button>
-                <Button onClick={() => go('/register')}>Enter the Realm</Button>
+                <Button onClick={() => go('/register')}>Join Beta</Button>
               </>
             )}
           </div>
@@ -100,7 +100,7 @@ export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
                   Sign In
                 </Button>
                 <Button onClick={() => go('/register')} className="justify-start">
-                  Enter the Realm
+                  Join Beta
                 </Button>
               </>
             )}
@@ -115,7 +115,8 @@ export function MarketingFooter({ links }: MarketingFooterProps) {
   const navigate = useNavigate();
   const footerLinks = links ?? [
     { label: 'How It Works', to: '/how-it-works' },
-    { label: 'Pricing', to: '/how-it-works#pricing' },
+    { label: 'Pricing', to: '/pricing' },
+    { label: 'Rules Library', to: '/srd' },
     { label: 'Terms', to: '/legal/terms' },
     { label: 'Privacy', to: '/legal/privacy' },
     { label: 'Legal & Attributions', to: '/legal' },
@@ -144,7 +145,7 @@ export function MarketingFooter({ links }: MarketingFooterProps) {
               </button>
             ))}
             <p className="text-sm text-[color:var(--mkt-muted)]">
-              &copy; 2026 Fablheim. Forged for Game Masters, by Game Masters.
+              &copy; 2026 Fablheim. One place for prep, live sessions, and recaps.
             </p>
           </div>
         </div>

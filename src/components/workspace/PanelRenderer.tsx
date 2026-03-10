@@ -17,9 +17,16 @@ import { QuickReference } from '@/components/session/QuickReference';
 import DiceRoller from '@/components/session/DiceRoller';
 import { LiveCharacterSheet } from '@/components/session/LiveCharacterSheet';
 
-// Page components used as panels
-import { AIToolsPage } from '@/pages/AIToolsPage';
-import { EncounterPrepPage } from '@/pages/EncounterPrepPage';
+// Page components used as panels (lazy-loaded for code-splitting)
+import { lazy, Suspense } from 'react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+const AIToolsPage = lazy(() =>
+  import('@/pages/AIToolsPage').then((m) => ({ default: m.AIToolsPage })),
+);
+const EncounterPrepPage = lazy(() =>
+  import('@/pages/EncounterPrepPage').then((m) => ({ default: m.EncounterPrepPage })),
+);
 
 // Workspace-specific panels
 import { CampaignOverviewPanel } from './panels/CampaignOverviewPanel';
@@ -43,7 +50,9 @@ export interface PanelRendererProps {
 export function PanelRenderer({ panelId, campaign, isDM, sessionId }: PanelRendererProps) {
   return (
     <PanelProvider>
-      {renderPanel(panelId, campaign, isDM, sessionId)}
+      <Suspense fallback={<LoadingSpinner />}>
+        {renderPanel(panelId, campaign, isDM, sessionId)}
+      </Suspense>
     </PanelProvider>
   );
 }

@@ -6,12 +6,13 @@ import type { PrepSection, PrepSectionDef } from '@/types/workspace';
 interface PrepSidebarProps {
   activeSection: PrepSection;
   onNavigate: (section: PrepSection) => void;
+  isDM: boolean;
 }
 
 const SIDEBAR_EXPANDED_KEY = 'fablheim:prep-sidebar-expanded';
 const SIDEBAR_HINT_COUNT_KEY = 'fablheim:prep-sidebar-hint-count';
 
-export function PrepSidebar({ activeSection, onNavigate }: PrepSidebarProps) {
+export function PrepSidebar({ activeSection, onNavigate, isDM }: PrepSidebarProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
@@ -61,7 +62,11 @@ export function PrepSidebar({ activeSection, onNavigate }: PrepSidebarProps) {
             <span className="prep-sidebar-tooltip">Expand</span>
           )}
         </button>
-        {PREP_SECTIONS.map((section) => renderButton(section))}
+        {PREP_SECTIONS.filter((s) => {
+          if (s.dmOnly && !isDM) return false;
+          if (s.playerOnly && isDM) return false;
+          return true;
+        }).map((section) => renderButton(section))}
       </div>
     </nav>
   );

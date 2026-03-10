@@ -376,7 +376,7 @@ export default function SRDIndexPage({ basePathOverride }: SRDIndexPageProps = {
             <h2 className="font-[Cinzel] text-2xl text-[color:var(--mkt-text)]">Rules Library, built for momentum</h2>
             <p className="mt-2 text-[color:var(--mkt-muted)]">Look up mechanics in seconds without leaving your campaign flow.</p>
             <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button onClick={() => navigate('/register')} className="shimmer-gold">Enter the Realm</Button>
+              <Button onClick={() => navigate('/register')} className="shimmer-gold">Join Beta</Button>
               <Button variant="outline" onClick={() => navigate('/how-it-works')}>See How It Works</Button>
             </div>
           </div>
