@@ -2,7 +2,7 @@ import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import * as Sentry from '@sentry/react';
-import { queryClient } from '@/providers/QueryProvider';
+import { queryClient } from '@/lib/query-client';
 
 interface ErrorBoundaryProps {
   children: ReactNode;

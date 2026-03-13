@@ -21,9 +21,10 @@ export const handoutsApi = {
     return data;
   },
 
-  share: async (campaignId: string, handoutId: string): Promise<Handout> => {
+  share: async (campaignId: string, handoutId: string, playerIds?: string[]): Promise<Handout> => {
     const { data } = await api.post<Handout>(
       `/campaigns/${campaignId}/session/handouts/${handoutId}/share`,
+      playerIds?.length ? { playerIds } : {},
     );
     return data;
   },

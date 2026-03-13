@@ -17,6 +17,7 @@ import { EntityDetailModal } from '@/components/world/EntityDetailModal';
 import { DeleteEntityModal } from '@/components/world/DeleteEntityModal';
 import { LinkEntityModal } from '@/components/world/LinkEntityModal';
 import { WorldTreeBrowser } from '@/components/world/WorldTreeBrowser';
+import { LocationExplorer } from '@/components/world/LocationExplorer';
 import { WORLD_TABS, EMPTY_MESSAGES, TYPE_LABELS, type WorldTab } from '@/components/world/world-constants';
 import type { WorldEntity, WorldEntityType } from '@/types/campaign';
 
@@ -46,6 +47,9 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
 
   // Full campaign data (includes worldMap)
   const { data: fullCampaign } = useCampaign(selectedCampaignId);
+
+  // Location explorer state (for tree tab split view)
+  const [explorerLocationId, setExplorerLocationId] = useState<string | null>(null);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -261,16 +265,36 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
             })}
           </div>
 
-          {/* Tree view tab */}
+          {/* Tree view tab — split layout: tree + location explorer */}
           {activeTab === 'tree' && treeNodes && (
-            <div className="mkt-card mkt-card-mounted rounded-lg border border-border" style={{ minHeight: '400px' }}>
-              <WorldTreeBrowser
-                nodes={treeNodes}
-                onSelectEntity={(entityId) => {
-                  const entity = visibleEntities.find((e) => e._id === entityId);
-                  if (entity) handleView(entity);
-                }}
-              />
+            <div className="flex gap-4" style={{ minHeight: '500px' }}>
+              {/* Left: tree navigation */}
+              <div className="mkt-card mkt-card-mounted w-72 shrink-0 overflow-hidden rounded-lg border border-border">
+                <WorldTreeBrowser
+                  nodes={treeNodes}
+                  selectedEntityId={explorerLocationId}
+                  onSelectEntity={(entityId) => {
+                    const entity = visibleEntities.find((e) => e._id === entityId);
+                    if (!entity) return;
+                    const isLocation = entity.type === 'location' || entity.type === 'location_detail';
+                    if (isLocation) {
+                      setExplorerLocationId(entityId);
+                    } else {
+                      handleView(entity);
+                    }
+                  }}
+                />
+              </div>
+              {/* Right: location explorer */}
+              <div className="mkt-card mkt-card-mounted min-w-0 flex-1 overflow-hidden rounded-lg border border-border">
+                <LocationExplorer
+                  entities={visibleEntities}
+                  locationId={explorerLocationId}
+                  onNavigate={(id) => setExplorerLocationId(id)}
+                  onViewEntity={handleView}
+                  canEdit={isDM}
+                />
+              </div>
             </div>
           )}
 
@@ -341,6 +365,7 @@ export function WorldPage({ campaignId: propCampaignId }: WorldPageProps) {
                   campaignId={selectedCampaignId}
                   isDM={isDM}
                   onViewQuest={handleView}
+                  allEntities={visibleEntities}
                 />
               )}
 

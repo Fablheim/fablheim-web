@@ -29,9 +29,12 @@ export type EquipmentSlot =
   | 'mainHand'
   | 'offHand';
 
+export type ItemScope = 'character' | 'party';
+
 export interface Item {
   _id: string;
-  characterId: string;
+  scope: ItemScope;
+  characterId?: string;
   campaignId: string;
   name: string;
   type: ItemType;
@@ -45,6 +48,9 @@ export interface Item {
   isMagical: boolean;
   requiresAttunement: boolean;
   isAttuned: boolean;
+  bulk?: string;
+  requiresInvestment?: boolean;
+  isInvested?: boolean;
   damageDice?: string;
   damageType?: string;
   weaponProperties?: string[];
@@ -69,7 +75,8 @@ export interface CharacterCurrency {
 }
 
 export interface CreateItemPayload {
-  characterId: string;
+  scope?: ItemScope;
+  characterId?: string;
   campaignId: string;
   name: string;
   type: ItemType;
@@ -80,6 +87,9 @@ export interface CreateItemPayload {
   rarity?: Rarity;
   isMagical?: boolean;
   requiresAttunement?: boolean;
+  bulk?: string;
+  requiresInvestment?: boolean;
+  isInvested?: boolean;
   damageDice?: string;
   damageType?: string;
   weaponProperties?: string[];
@@ -93,7 +103,7 @@ export interface CreateItemPayload {
 }
 
 export type UpdateItemPayload = Partial<
-  Omit<CreateItemPayload, 'characterId' | 'campaignId'>
+  Omit<CreateItemPayload, 'characterId' | 'campaignId' | 'scope'>
 >;
 
 export type UpdateCurrencyPayload = Partial<CharacterCurrency>;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dice5, Eye, Globe, Loader2, MapPin, Plus, ScrollText, Sparkles, Swords, Target, Users } from 'lucide-react';
+import { Dice5, Eye, FileText, Globe, Loader2, MapPin, Plus, ScrollText, Sparkles, Swords, Target, Users } from 'lucide-react';
 import { RequestRollModal } from '@/components/session/RequestRollModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +11,8 @@ import { useBattleMap } from '@/hooks/useBattleMap';
 import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
 import { useInitiative, useRollDice, useUpdateInitiativeEntry } from '@/hooks/useLiveSession';
 import { AIToolsTab } from '@/components/session/AIToolsTab';
+import { HouseRulesPanel } from '@/components/session/HouseRulesPanel';
+import { useRoundLabel } from '@/hooks/useModuleEnabled';
 import { InitiativeTracker } from '@/components/session/InitiativeTracker';
 import { ApplyDamageModal } from '@/components/session/ApplyDamageModal';
 import { ConcentrationBadge } from '@/components/session/ConcentrationBadge';
@@ -20,24 +22,28 @@ import { DownedStatePanel } from '@/components/session/DownedStatePanel';
 import InlineEncounterBuilder from '@/components/session/InlineEncounterBuilder';
 import { PartyStatusPanel } from '@/components/session/PartyStatusPanel';
 import { PassiveChecksTab } from '@/components/session/PassiveChecksTab';
+import { HandoutsTab } from '@/components/session/HandoutsTab';
 import type { WorldEntityType } from '@/types/campaign';
 import type { InitiativeEntry } from '@/types/live-session';
 import type { EnemyAttack, EnemyTemplate } from '@/types/enemy-template';
 import type { CharacterAttack } from '@/types/campaign';
+import {
+  type ActionBudgetState,
+  type ActionCostType,
+  DEFAULT_MOVEMENT_MAX,
+  applyDamage,
+  applyHeal,
+  buildCharacterDamageDice,
+  clamp,
+  extractDamageDice,
+  formatActionCostLabel,
+  getBudgetForEntry,
+  normalizeCombatantName,
+  resolveEnemyTemplateForEntry,
+} from '@/lib/combat-math';
 
-type DMTab = 'world' | 'encounters' | 'notes' | 'party' | 'initiative' | 'passive' | 'ai';
+type DMTab = 'world' | 'encounters' | 'notes' | 'party' | 'initiative' | 'passive' | 'handouts' | 'ai';
 type AIFocusTool = 'npc' | 'encounter' | 'quest' | 'lore' | 'location';
-type ActionCostType = 'action' | 'bonus' | 'reaction' | 'free';
-
-interface ActionBudgetState {
-  actionUsed: boolean;
-  bonusUsed: boolean;
-  reactionUsed: boolean;
-  movementUsed: number;
-  movementMax: number;
-}
-
-const DEFAULT_MOVEMENT_MAX = 30;
 
 interface DMSidebarV2Props {
   campaignId: string;
@@ -81,7 +87,7 @@ export default function DMSidebarV2({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="grid grid-cols-7 gap-1 border-b border-border/70 p-2">
+      <div className="grid grid-cols-8 gap-1 border-b border-border/70 p-2">
         <button type="button" onClick={() => setActiveTab('world')} className={tabClass(activeTab === 'world')} aria-label="World">
           <Globe className="h-4 w-4" />
         </button>
@@ -96,6 +102,9 @@ export default function DMSidebarV2({
         </button>
         <button type="button" onClick={() => setActiveTab('notes')} className={tabClass(activeTab === 'notes')} aria-label="Notes">
           <ScrollText className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => setActiveTab('handouts')} className={tabClass(activeTab === 'handouts')} aria-label="Handouts">
+          <FileText className="h-4 w-4" />
         </button>
         <button type="button" onClick={() => setActiveTab('party')} className={tabClass(activeTab === 'party')} aria-label="Party">
           <Users className="h-4 w-4" />
@@ -158,7 +167,15 @@ export default function DMSidebarV2({
           />
         )}
         {activeTab === 'passive' && <PassiveChecksTab campaignId={campaignId} />}
-        {activeTab === 'notes' && <CompactNotesPanel campaignId={campaignId} />}
+        {activeTab === 'notes' && (
+          <>
+            <CompactNotesPanel campaignId={campaignId} />
+            <div className="mt-4 px-1">
+              <HouseRulesPanel campaignId={campaignId} />
+            </div>
+          </>
+        )}
+        {activeTab === 'handouts' && <HandoutsTab campaignId={campaignId} isDM={isDM} />}
         {activeTab === 'party' && <PartyStatusPanel campaignId={campaignId} />}
         {activeTab === 'ai' && <AIToolsTab campaignId={campaignId} focusSeed={aiFocusSeed} />}
       </div>
@@ -192,6 +209,7 @@ function InitiativeCommandPanel({
   const updateEntry = useUpdateInitiativeEntry(campaignId);
   const updateCharacter = useUpdateCharacter();
   const rollDice = useRollDice(campaignId);
+  const roundLabel = useRoundLabel(campaignId);
   const [actionBudgets, setActionBudgets] = useState<Record<string, ActionBudgetState>>({});
   const [showApplyDamageModal, setShowApplyDamageModal] = useState(false);
   const [lastSpend, setLastSpend] = useState<{
@@ -266,6 +284,7 @@ function InitiativeCommandPanel({
     if (lastSpend.entryId !== focusEntry.id) {
       setLastSpend(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only reacts to focusEntry ID changes
   }, [focusEntry?.id, lastSpend]);
 
   useEffect(() => {
@@ -396,7 +415,7 @@ function InitiativeCommandPanel({
       <div className="sticky top-0 z-10 rounded border border-border/60 bg-background/95 px-2 py-1 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Round {initiative?.round ?? '-'}
+            {roundLabel} {initiative?.round ?? '-'}
           </span>
           <span className="truncate text-[10px] text-muted-foreground">
             Current: <span className="font-medium text-foreground">{currentTurnEntry?.name ?? 'None'}</span>
@@ -798,10 +817,10 @@ function NpcFocusCard({
           <div className="flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
             {entry.conditions.map((condition) => (
               <span
-                key={condition}
+                key={condition.id}
                 className="rounded border border-border/60 bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
               >
-                {condition}
+                {condition.name}{condition.remainingRounds != null ? ` (${condition.remainingRounds}r)` : ''}
               </span>
             ))}
           </div>
@@ -1271,89 +1290,6 @@ function setCustomNpcAttacks(key: string, attacks: EnemyAttack[]): void {
   } catch {
     // Ignore local storage failures
   }
-}
-
-function getBudgetForEntry(
-  budget: ActionBudgetState | undefined,
-  movementMax: number,
-): ActionBudgetState {
-  if (!budget) {
-    return {
-      actionUsed: false,
-      bonusUsed: false,
-      reactionUsed: false,
-      movementUsed: 0,
-      movementMax,
-    };
-  }
-  return {
-    ...budget,
-    movementMax,
-    movementUsed: clamp(budget.movementUsed, 0, movementMax),
-  };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function formatActionCostLabel(cost: ActionCostType): string {
-  if (cost === 'bonus') return 'Bonus';
-  if (cost === 'reaction') return 'Reaction';
-  if (cost === 'free') return 'Free';
-  return 'Action';
-}
-
-function applyDamage(currentHp: number, tempHp: number, damage: number): { currentHp: number; tempHp: number } {
-  const normalizedDamage = Math.max(0, damage);
-  const tempAfter = Math.max(0, tempHp - normalizedDamage);
-  const remainingDamage = Math.max(0, normalizedDamage - tempHp);
-  return {
-    currentHp: Math.max(0, currentHp - remainingDamage),
-    tempHp: tempAfter,
-  };
-}
-
-function applyHeal(currentHp: number, maxHp: number, heal: number): { currentHp: number } {
-  return {
-    currentHp: clamp(currentHp + Math.max(0, heal), 0, Math.max(0, maxHp)),
-  };
-}
-
-function buildCharacterDamageDice(attack: CharacterAttack): string {
-  const bonus = Number.isFinite(attack.damageBonus) ? attack.damageBonus : 0;
-  const sign = bonus >= 0 ? '+' : '';
-  return `${attack.damageDice}${bonus !== 0 ? `${sign}${bonus}` : ''}`;
-}
-
-function resolveEnemyTemplateForEntry(
-  entry: InitiativeEntry,
-  encounterNpcs?: Array<{ name: string }>,
-  templates?: EnemyTemplate[],
-): EnemyTemplate | undefined {
-  if (!templates || templates.length === 0) return undefined;
-  const entryName = normalizeCombatantName(entry.name);
-  const encounterNpcName = encounterNpcs
-    ?.map((npc) => npc.name)
-    .find((name) => {
-      const normalized = normalizeCombatantName(name);
-      return entryName === normalized || entryName.startsWith(`${normalized} `);
-    });
-  const targetName = normalizeCombatantName(encounterNpcName ?? entry.name);
-  return templates.find((template) => normalizeCombatantName(template.name) === targetName);
-}
-
-function normalizeCombatantName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s+#?\d+$/g, '')
-    .trim();
-}
-
-function extractDamageDice(damage: string): string | null {
-  const match = damage.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)/i);
-  if (!match) return null;
-  return match[1].replace(/\s+/g, '');
 }
 
 function tabClass(active: boolean): string {

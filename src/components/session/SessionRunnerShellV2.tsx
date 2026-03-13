@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -12,22 +12,25 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useCampaign } from '@/hooks/useCampaigns';
 import { useAccessibleCampaigns } from '@/hooks/useCampaignMembers';
-import { useEndCombat, useInitiative, useNextTurn } from '@/hooks/useLiveSession';
+import { useInitiative, useNextTurn } from '@/hooks/useLiveSession';
 import { useCampaignStage } from '@/hooks/useCampaignStage';
 import { useBattleMap } from '@/hooks/useBattleMap';
-import { useSessionRoom, useSocketEvent } from '@/hooks/useSocket';
+import { useSessionRoom } from '@/hooks/useSocket';
 import { useCombatSync } from '@/hooks/useCombatSync';
+import { useSessionLifecycle } from '@/hooks/useSessionLifecycle';
+import { useSessionSocketEvents } from '@/hooks/useSessionSocketEvents';
 import { Button } from '@/components/ui/Button';
 import { MapTab } from '@/components/session/MapTab';
 import { ChatPanel } from '@/components/session/ChatPanel';
 import DMMainContent from '@/components/session/DMMainContent';
 import DMSidebarV2 from '@/components/session/DMSidebarV2';
 import PlayerSidebarV2 from '@/components/session/PlayerSidebarV2';
+import InitiativeBanner from '@/components/session/InitiativeBanner';
 import DiceRollerToast from '@/components/session/DiceRollerToast';
 import DiceRoller from '@/components/session/DiceRoller';
 import { EventsFeed } from '@/components/session/EventsFeed';
 import { BottomDrawer } from '@/components/session/BottomDrawer';
-import SessionWorkspaceShell from '@/components/session/SessionWorkspaceShell';
+import { CampaignShell } from '@/components/shell/CampaignShell';
 import { QuickActionBar } from '@/components/session/QuickActionBar';
 import {
   SessionWorkspaceStateProvider,
@@ -63,40 +66,21 @@ export default function SessionRunnerShellV2() {
 
   const [desyncDismissed, setDesyncDismissed] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const [sessionEndedCountdown, setSessionEndedCountdown] = useState<number | null>(null);
-  const prevStageRef = useRef(campaign?.stage);
 
   const { endSession } = useCampaignStage(campaignId);
+  const { sessionEndedCountdown, shouldRedirect } = useSessionLifecycle(campaignId);
 
   // Reset desync dismissed when a new desync occurs
   useEffect(() => {
     if (desynced) setDesyncDismissed(false);
   }, [desynced]);
 
-  // Detect when session ends (stage transitions from live -> non-live)
-  useEffect(() => {
-    const prev = prevStageRef.current;
-    prevStageRef.current = campaign?.stage;
-    if (prev === 'live' && campaign?.stage && campaign.stage !== 'live') {
-      setSessionEndedCountdown(10);
-    }
-  }, [campaign?.stage]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (sessionEndedCountdown === null || sessionEndedCountdown <= 0) return;
-    const timer = setTimeout(() => {
-      setSessionEndedCountdown((v) => (v !== null ? v - 1 : null));
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [sessionEndedCountdown]);
-
   // Auto-redirect when countdown reaches 0
   useEffect(() => {
-    if (sessionEndedCountdown === 0) {
+    if (shouldRedirect) {
       navigate(`/app/campaigns/${campaignId}`);
     }
-  }, [sessionEndedCountdown, campaignId, navigate]);
+  }, [shouldRedirect, campaignId, navigate]);
 
   const campaignName = useMemo(() => campaign?.name ?? 'Live Session', [campaign?.name]);
 
@@ -266,31 +250,7 @@ function SessionWorkspaceContent({
   } = useSessionWorkspaceState();
 
   const nextTurn = useNextTurn(campaignId);
-  const endCombat = useEndCombat(campaignId);
-
-  // Roll request prompt (player side)
-  const [rollRequest, setRollRequest] = useState<{
-    requestId: string;
-    label: string;
-    type: string;
-    expiresAt: string;
-  } | null>(null);
-
-  const dismissRollRequest = useCallback(() => setRollRequest(null), []);
-
-  useSocketEvent('roll:request', (data: { requestId: string; label: string; type: string; expiresAt: string }) => {
-    // DMs don't need the prompt — they have the modal
-    if (isDM) return;
-    setRollRequest(data);
-  });
-
-  useSocketEvent('roll:request:cancelled', (data: { requestId: string }) => {
-    if (rollRequest?.requestId === data.requestId) setRollRequest(null);
-  });
-
-  useSocketEvent('roll:request:expired', (data: { requestId: string }) => {
-    if (rollRequest?.requestId === data.requestId) setRollRequest(null);
-  });
+  const { rollRequest, dismissRollRequest } = useSessionSocketEvents(campaignId, { isDM });
 
   const isCombatActive = !!initiative?.isActive;
   const hasTacticalMap = !!(
@@ -307,8 +267,6 @@ function SessionWorkspaceContent({
       ? initiative.entries[initiative.currentTurn]
       : null;
   const entryToDisplay = focusedEntry ?? activeTurnEntry;
-  const initiativeOrder = initiative ? [...initiative.entries] : [];
-
   useEffect(() => {
     if (!selectedEntryId || !initiative) return;
     const exists = initiative.entries.some((entry) => entry.id === selectedEntryId);
@@ -369,100 +327,17 @@ function SessionWorkspaceContent({
         </div>
       )}
 
-      {isCombatActive && (
-        <div className="flex items-center gap-2 border-b border-[hsla(38,50%,40%,0.22)] px-4 py-2">
-          <span className="shrink-0 text-[10px] font-[Cinzel] uppercase tracking-[0.12em] text-muted-foreground">
-            Round {initiative?.round ?? '-'}
-          </span>
-          <div className="min-w-0 flex flex-1 items-center gap-1 overflow-x-auto pb-0.5">
-            {initiativeOrder.map((entry) => {
-              const isCurrent = activeTurnEntry?.id === entry.id;
-              const isFocused = focusedEntryId === entry.id;
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => selectEntry(entry.id, { pin: true })}
-                  className={`inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-[10px] ${
-                    isCurrent
-                      ? 'border-primary/60 bg-primary/20 text-primary'
-                      : isFocused
-                        ? 'border-blue-400/60 bg-blue-500/15 text-blue-300'
-                        : 'border-border/60 bg-card/60 text-muted-foreground hover:bg-accent'
-                  }`}
-                >
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-background/60 text-[9px] font-semibold">
-                    {entry.name.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="max-w-[120px] truncate">{entry.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </>
   );
 
   const leftPanel = isDM ? (
-    isCombatActive || hasTacticalMap ? (
-      <div className="flex h-full flex-col gap-3 p-3">
-        <div className="rounded border border-border/60 bg-background/30 p-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Round</p>
-          <p className="text-sm font-semibold text-foreground">{initiative?.isActive ? initiative.round : '-'}</p>
-        </div>
-
-        <div className="rounded border border-border/60 bg-background/30 p-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Turn</p>
-          <p className="truncate text-sm font-semibold text-foreground">
-            {activeTurnEntry?.name ?? 'No active turn'}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2">
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => nextTurn.mutate()}
-            disabled={!isCombatActive || nextTurn.isPending}
-          >
-            Next Turn
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => endCombat.mutate()}
-            disabled={!isCombatActive || endCombat.isPending}
-          >
-            End Combat
-          </Button>
-        </div>
-
-        <QuickActionBar
-          campaignId={campaignId}
-          focusedEntry={entryToDisplay}
-          onEndTurn={() => nextTurn.mutate()}
-          onSpawnToken={() => {
-            window.dispatchEvent(new CustomEvent('fablheim:spawn-token', {
-              detail: {
-                name: entryToDisplay?.name ?? 'Token',
-                type: entryToDisplay?.type ?? 'other',
-              },
-            }));
-          }}
-          disableEndTurn={!isCombatActive || nextTurn.isPending}
-          layout="vertical"
-        />
-      </div>
-    ) : (
-      <DMSidebarV2
-        campaignId={campaignId}
-        isDM={isDM}
-        selectedEntry={entryToDisplay}
-        onSelectEntryId={(id) => selectEntry(id, { pin: true })}
-        onClearSelectedEntry={() => selectEntry(null, { pin: true })}
-      />
-    )
+    <DMSidebarV2
+      campaignId={campaignId}
+      isDM={isDM}
+      selectedEntry={entryToDisplay}
+      onSelectEntryId={(id) => selectEntry(id, { pin: true })}
+      onClearSelectedEntry={() => selectEntry(null, { pin: true })}
+    />
   ) : (
     <PlayerSidebarV2 campaignId={campaignId} />
   );
@@ -499,16 +374,46 @@ function SessionWorkspaceContent({
 
   return (
     <>
-      <SessionWorkspaceShell
+      <CampaignShell
         header={header}
-        leftPanel={leftPanel}
-        centerStage={centerStage}
+        sidebar={leftPanel}
+        center={centerStage}
         rightPanel={rightPanel}
+        initiativeBanner={
+          isCombatActive ? (
+            <InitiativeBanner
+              campaignId={campaignId}
+              isDM={isDM}
+              onSelectEntry={(id) => selectEntry(id, { pin: true })}
+              focusedEntryId={focusedEntryId}
+            />
+          ) : undefined
+        }
+        quickActionBar={
+          isDM && isCombatActive ? (
+            <QuickActionBar
+              campaignId={campaignId}
+              focusedEntry={entryToDisplay}
+              onEndTurn={() => nextTurn.mutate()}
+              disableEndTurn={!isCombatActive || nextTurn.isPending}
+              onSpawnToken={() => {
+                window.dispatchEvent(new CustomEvent('fablheim:spawn-token', {
+                  detail: {
+                    name: entryToDisplay?.name ?? 'Token',
+                    type: entryToDisplay?.type ?? 'other',
+                  },
+                }));
+              }}
+              layout="horizontal"
+              isDM={isDM}
+            />
+          ) : undefined
+        }
         mapOverlay={hasTacticalMap ? <DiceRollerToast campaignId={campaignId} /> : undefined}
         bottomDrawer={drawer}
         defaultLeftOpen
         defaultRightOpen
-        mapMode={hasTacticalMap}
+        appState={isCombatActive ? 'combat' : 'narrative'}
       />
 
       {rollRequest && (

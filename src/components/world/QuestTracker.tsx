@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Swords,
   ChevronDown,
@@ -11,9 +11,12 @@ import {
   Clock,
   CheckCheck,
   XCircle,
+  MapPin,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { ExplorerSection } from '@/components/world/ExplorerSection';
 import {
   useUpdateQuestStatus,
   useToggleObjective,
@@ -27,6 +30,8 @@ interface QuestTrackerProps {
   campaignId: string;
   isDM: boolean;
   onViewQuest: (quest: WorldEntity) => void;
+  /** All entities for resolving location names. */
+  allEntities?: WorldEntity[];
 }
 
 type QuestStatusFilter = 'all' | 'available' | 'in_progress' | 'completed' | 'failed';
@@ -40,8 +45,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof Clock; color: 
 
 const STATUS_OPTIONS: QuestStatusFilter[] = ['all', 'available', 'in_progress', 'completed', 'failed'];
 
-export function QuestTracker({ quests, campaignId, isDM, onViewQuest }: QuestTrackerProps) {
+type QuestGroupBy = 'none' | 'giver' | 'location';
+
+export function QuestTracker({ quests, campaignId, isDM, onViewQuest, allEntities }: QuestTrackerProps) {
   const [statusFilter, setStatusFilter] = useState<QuestStatusFilter>('all');
+  const [groupBy, setGroupBy] = useState<QuestGroupBy>('none');
   const [expandedQuests, setExpandedQuests] = useState<Set<string>>(new Set());
   const [newObjectiveText, setNewObjectiveText] = useState<Record<string, string>>({});
 
@@ -49,6 +57,11 @@ export function QuestTracker({ quests, campaignId, isDM, onViewQuest }: QuestTra
   const toggleObjective = useToggleObjective();
   const addObjective = useAddObjective();
   const removeObjective = useRemoveObjective();
+
+  const entityMap = useMemo(
+    () => new Map((allEntities ?? []).map((e) => [e._id, e])),
+    [allEntities],
+  );
 
   const filtered = statusFilter === 'all'
     ? quests
@@ -139,6 +152,27 @@ export function QuestTracker({ quests, campaignId, isDM, onViewQuest }: QuestTra
         })}
       </div>
 
+      {/* Group by toggle */}
+      <div className="flex items-center gap-2">
+        <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Group:</span>
+        <div className="flex gap-0.5 rounded-md border border-border/60 bg-background/40 p-0.5">
+          {(['none', 'giver', 'location'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setGroupBy(mode)}
+              className={`rounded px-2 py-1 font-[Cinzel] text-[10px] uppercase tracking-wider transition-colors ${
+                groupBy === mode
+                  ? 'bg-brass/15 text-brass'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {mode === 'none' ? 'None' : mode === 'giver' ? 'By Giver' : 'By Location'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Quest list */}
       {filtered.length === 0 && (
         <div className="rounded-lg border-2 border-dashed border-gold/30 bg-card/30 p-8 text-center texture-parchment">
@@ -149,7 +183,9 @@ export function QuestTracker({ quests, campaignId, isDM, onViewQuest }: QuestTra
         </div>
       )}
 
-      <div className="space-y-3">
+      {groupBy !== 'none' && renderGroupedQuests()}
+
+      {groupBy === 'none' && <div className="space-y-3">
         {filtered.map((quest) => {
           const status = quest.questStatus ?? 'available';
           const conf = STATUS_CONFIG[status] ?? STATUS_CONFIG.available;
@@ -316,7 +352,205 @@ export function QuestTracker({ quests, campaignId, isDM, onViewQuest }: QuestTra
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
+
+  function renderGroupedQuests() {
+    const groups = new Map<string, { label: string; quests: WorldEntity[] }>();
+    const ungrouped: WorldEntity[] = [];
+
+    for (const quest of filtered) {
+      let key: string | null = null;
+      let label = '';
+
+      if (groupBy === 'giver') {
+        if (quest.questGiver) {
+          if (typeof quest.questGiver === 'object') {
+            key = quest.questGiver._id ?? quest.questGiver.name;
+            label = quest.questGiver.name;
+          } else {
+            key = quest.questGiver;
+            label = quest.questGiver;
+          }
+        }
+      } else if (groupBy === 'location') {
+        const pid = quest.parentEntityId;
+        const parentId = pid ? (typeof pid === 'string' ? pid : pid._id) : null;
+        if (parentId) {
+          key = parentId;
+          label = entityMap.get(parentId)?.name ?? 'Unknown Location';
+        }
+      }
+
+      if (key) {
+        if (!groups.has(key)) groups.set(key, { label, quests: [] });
+        groups.get(key)!.quests.push(quest);
+      } else {
+        ungrouped.push(quest);
+      }
+    }
+
+    const sortedGroups = [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const icon = groupBy === 'giver' ? User : MapPin;
+    const ungroupedLabel = groupBy === 'giver' ? 'Unknown Giver' : 'No Location';
+
+    return (
+      <div className="space-y-2">
+        {sortedGroups.map((group) => (
+          <ExplorerSection key={group.label} title={group.label} icon={icon} count={group.quests.length}>
+            <div className="space-y-3">
+              {group.quests.map((quest) => renderQuestCard(quest))}
+            </div>
+          </ExplorerSection>
+        ))}
+        {ungrouped.length > 0 && (
+          <ExplorerSection title={ungroupedLabel} icon={Swords} count={ungrouped.length}>
+            <div className="space-y-3">
+              {ungrouped.map((quest) => renderQuestCard(quest))}
+            </div>
+          </ExplorerSection>
+        )}
+      </div>
+    );
+  }
+
+  function renderQuestCard(quest: WorldEntity) {
+    const status = quest.questStatus ?? 'available';
+    const conf = STATUS_CONFIG[status] ?? STATUS_CONFIG.available;
+    const StatusIcon = conf.icon;
+    const progress = getProgress(quest.objectives);
+    const isExpanded = expandedQuests.has(quest._id);
+
+    return (
+      <div
+        key={quest._id}
+        className="rounded-lg border border-border border-l-4 border-l-gold/60 bg-card tavern-card texture-leather transition-all"
+      >
+        {renderQuestHeader(quest, conf, StatusIcon, status, progress, isExpanded)}
+        {isExpanded && renderQuestExpanded(quest)}
+      </div>
+    );
+  }
+
+  function renderQuestHeader(
+    quest: WorldEntity,
+    conf: typeof STATUS_CONFIG[string],
+    StatusIcon: typeof Clock,
+    status: string,
+    progress: ReturnType<typeof getProgress>,
+    isExpanded: boolean,
+  ) {
+    return (
+      <div className="flex items-center gap-3 p-4">
+        <button
+          onClick={() => toggleExpanded(quest._id)}
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onViewQuest(quest)}>
+          <div className="flex items-center gap-2">
+            <h3 className="truncate font-[Cinzel] font-semibold text-card-foreground">{quest.name}</h3>
+            <span className={`inline-flex items-center gap-1 rounded-md ${conf.bg} px-2 py-0.5 text-[10px] ${conf.color}`}>
+              <StatusIcon className="h-3 w-3" />
+              {conf.label}
+            </span>
+          </div>
+          {quest.description && (
+            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{quest.description}</p>
+          )}
+        </div>
+        {progress && (
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progress.pct}%` }} />
+            </div>
+            <span className="font-[Cinzel] text-[10px] text-muted-foreground">{progress.done}/{progress.total}</span>
+          </div>
+        )}
+        {isDM && (
+          <select
+            value={status}
+            onChange={(e) => handleStatusChange(quest._id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 rounded-sm border border-input bg-input px-2 py-1 font-[Cinzel] text-[10px] uppercase text-foreground input-carved"
+          >
+            <option value="available">Available</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+        )}
+      </div>
+    );
+  }
+
+  function renderQuestExpanded(quest: WorldEntity) {
+    return (
+      <div className="border-t border-border/50 px-4 py-3">
+        {quest.questGiver && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            <span className="font-[Cinzel] uppercase tracking-wider">Quest Giver:</span>{' '}
+            {typeof quest.questGiver === 'object' ? quest.questGiver.name : quest.questGiver}
+          </p>
+        )}
+        {quest.rewards && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            <span className="font-[Cinzel] uppercase tracking-wider">Rewards:</span>{' '}
+            {quest.rewards}
+          </p>
+        )}
+        <p className="mb-2 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Objectives</p>
+        {(!quest.objectives || quest.objectives.length === 0) && (
+          <p className="text-xs italic text-muted-foreground/60">No objectives set</p>
+        )}
+        <ul className="space-y-1.5">
+          {quest.objectives?.map((obj) => (
+            <li key={obj.id} className="flex items-center gap-2">
+              <button onClick={() => handleToggleObjective(quest._id, obj.id)} className="shrink-0">
+                {obj.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-[hsl(150,50%,55%)]" />
+                ) : (
+                  <Circle className="h-4 w-4 text-muted-foreground hover:text-gold" />
+                )}
+              </button>
+              <span className={`flex-1 text-sm ${obj.completed ? 'line-through text-muted-foreground/60' : 'text-foreground'}`}>
+                {obj.description}
+              </span>
+              {isDM && (
+                <button onClick={() => handleRemoveObjective(quest._id, obj.id)} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {isDM && (
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={newObjectiveText[quest._id] ?? ''}
+              onChange={(e) => setNewObjectiveText((prev) => ({ ...prev, [quest._id]: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddObjective(quest._id); } }}
+              placeholder="Add objective..."
+              className="flex-1 rounded-sm border border-input bg-input px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground input-carved"
+            />
+            <Button size="sm" variant="ghost" onClick={() => handleAddObjective(quest._id)} disabled={!newObjectiveText[quest._id]?.trim()}>
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        {quest.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {quest.tags.map((tag) => (
+              <span key={tag} className="rounded bg-background/40 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 }

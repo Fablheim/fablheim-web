@@ -698,7 +698,7 @@ test.describe.serial('Character creation validation', () => {
   });
 
   test('character creation without name fails', async () => {
-    const { name, ...noName } = TEST_CHARACTER;
+    const { name: _name, ...noName } = TEST_CHARACTER;
     const res = await ownerPage.request.post(`${API_BASE}/characters`, {
       data: { ...noName, campaignId },
     });
@@ -856,7 +856,7 @@ test.describe.serial('Spell management', () => {
     // Verify it's gone
     const listRes = await ownerPage.request.get(`${API_BASE}/spells/character/${characterId}`);
     const list = await listRes.json();
-    const found = list.find((s: any) => s._id === characterSpellId);
+    const found = list.find((s: unknown) => (s as Record<string, unknown>)._id === characterSpellId);
     expect(found).toBeUndefined();
   });
 });

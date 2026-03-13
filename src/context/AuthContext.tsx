@@ -4,7 +4,7 @@ import type { User } from '../types/user';
 import * as authApi from '../api/auth';
 import { registerSessionExpiredHandler } from '../api/client';
 import { identifyUser, resetAnalytics } from '../lib/analytics';
-import { queryClient } from '../providers/QueryProvider';
+import { queryClient } from '../lib/query-client';
 
 interface AuthContextValue {
   user: User | null;
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       queryClient.clear();
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- bootstrap loading state
     refreshUser().finally(() => setIsLoading(false));
   }, []);
 
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- co-located hook is intentional
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

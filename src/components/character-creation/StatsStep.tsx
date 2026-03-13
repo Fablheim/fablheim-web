@@ -51,7 +51,7 @@ function roll4d6DropLowest(): number {
   return rolls[1] + rolls[2] + rolls[3];
 }
 
-function isDnd5eStyle(systemDef: SystemDefinition): boolean {
+function hasClassicAbilityScores(systemDef: SystemDefinition): boolean {
   return (
     systemDef.stats.length === 6 &&
     systemDef.stats.every((s) => (s.min ?? 1) <= 8 && (s.max ?? 30) >= 15) &&
@@ -59,8 +59,8 @@ function isDnd5eStyle(systemDef: SystemDefinition): boolean {
   );
 }
 
-function isFateStyle(systemDef: SystemDefinition): boolean {
-  return systemDef.id === 'fate';
+function isApproachStyle(systemDef: SystemDefinition): boolean {
+  return systemDef.statModifierFormula === null && systemDef.stats.length > 0;
 }
 
 function renderMethodTabs(
@@ -96,8 +96,8 @@ function renderStatCard(
   disabled: boolean,
 ) {
   const mod = computeModifier(formula, value);
-  const isFate = FATE_LADDER[value] !== undefined && formula === null;
-  const ladderLabel = isFate ? FATE_LADDER[value] : null;
+  const hasFateLadderLabel = FATE_LADDER[value] !== undefined && formula === null;
+  const ladderLabel = hasFateLadderLabel ? FATE_LADDER[value] : null;
 
   return (
     <div
@@ -257,8 +257,8 @@ function RollResults({
 // ── Main Component ────────────────────────────────────────────────
 
 export function StatsStep({ draft, systemDef, onUpdateStats, errors }: StatsStepProps) {
-  const showMethods = isDnd5eStyle(systemDef);
-  const isFate = isFateStyle(systemDef);
+  const showMethods = hasClassicAbilityScores(systemDef);
+  const isApproach = isApproachStyle(systemDef);
 
   const [method, setMethod] = useState<GenerationMethod>('manual');
   const [rollResults, setRollResults] = useState<number[]>([]);
@@ -273,6 +273,13 @@ export function StatsStep({ draft, systemDef, onUpdateStats, errors }: StatsStep
       { id: 'roll' as const, label: 'Roll' },
     ];
   }, [showMethods]);
+
+  const handleRoll = useCallback(() => {
+    const results = systemDef.stats.map(() => roll4d6DropLowest());
+    results.sort((a, b) => b - a);
+    setRollResults(results);
+    setRollAssignments({});
+  }, [systemDef]);
 
   const handleMethodChange = useCallback(
     (m: GenerationMethod) => {
@@ -302,15 +309,8 @@ export function StatsStep({ draft, systemDef, onUpdateStats, errors }: StatsStep
         onUpdateStats(newStats);
       }
     },
-    [systemDef, onUpdateStats],
+    [systemDef, onUpdateStats, handleRoll],
   );
-
-  function handleRoll() {
-    const results = systemDef.stats.map(() => roll4d6DropLowest());
-    results.sort((a, b) => b - a);
-    setRollResults(results);
-    setRollAssignments({});
-  }
 
   function handleRollAssign(statKey: string, resultIndex: number) {
     const newAssignments = { ...rollAssignments };
@@ -355,7 +355,7 @@ export function StatsStep({ draft, systemDef, onUpdateStats, errors }: StatsStep
   return (
     <div className="space-y-4">
       <p className="font-[Cinzel] text-xs uppercase tracking-wider text-foreground">
-        {isFate ? 'Approaches' : systemDef.statModifierFormula ? 'Ability Scores' : 'Domain Stats'}
+        {isApproach ? 'Approaches' : systemDef.statModifierFormula ? 'Ability Scores' : 'Domain Stats'}
       </p>
 
       {showMethods && methods.length > 0 && renderMethodTabs(methods, method, handleMethodChange)}
@@ -407,7 +407,7 @@ export function StatsStep({ draft, systemDef, onUpdateStats, errors }: StatsStep
         </div>
       )}
 
-      {isFate && (
+      {isApproach && (
         <p className="text-xs text-muted-foreground">
           Typically: one Great (+4), two Good (+3), two Fair (+2), one Average (+1).
         </p>

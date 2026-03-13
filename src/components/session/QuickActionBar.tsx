@@ -1,9 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Heart, ShieldPlus, SkipForward, Swords, Wand2, PlusCircle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Heart, ShieldPlus, SkipForward, Swords, Wand2, PlusCircle, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplyDamageModal } from '@/components/session/ApplyDamageModal';
 import { useCombatRules, useUpdateInitiativeEntry } from '@/hooks/useLiveSession';
 import { checkSystemDataSize, toggleConditionValue } from '@/lib/system-data';
+import { initiativeUndoApi } from '@/api/initiative-undo';
 import type { InitiativeEntry } from '@/types/live-session';
 
 interface QuickActionBarProps {
@@ -13,6 +15,7 @@ interface QuickActionBarProps {
   onSpawnToken?: () => void;
   disableEndTurn?: boolean;
   layout?: 'horizontal' | 'vertical';
+  isDM?: boolean;
 }
 
 export function QuickActionBar({
@@ -22,20 +25,61 @@ export function QuickActionBar({
   onSpawnToken,
   disableEndTurn = false,
   layout = 'horizontal',
+  isDM = false,
 }: QuickActionBarProps) {
   const { data: rules } = useCombatRules(campaignId);
   const updateEntry = useUpdateInitiativeEntry(campaignId);
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<'damage' | 'heal' | 'temp-hp' | null>(null);
   const [showConditions, setShowConditions] = useState(false);
   const conditionDefs = useMemo(() => rules?.conditions ?? [], [rules?.conditions]);
 
+  // Undo support (DM only)
+  const { data: undoPeek } = useQuery({
+    queryKey: ['undo-peek', campaignId],
+    queryFn: () => initiativeUndoApi.peek(campaignId),
+    enabled: isDM,
+    refetchInterval: 3000,
+  });
+
+  const undoMutation = useMutation({
+    mutationFn: () => initiativeUndoApi.undo(campaignId),
+    onSuccess: (data) => {
+      toast.success(`Undone: ${data.undone.description}`);
+      queryClient.invalidateQueries({ queryKey: ['undo-peek', campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['initiative', campaignId] });
+    },
+    onError: () => toast.error('Nothing to undo in combat'),
+  });
+
+  const handleUndo = useCallback(() => {
+    if (!isDM || !undoPeek?.action || undoMutation.isPending) return;
+    undoMutation.mutate();
+  }, [isDM, undoPeek?.action, undoMutation]);
+
+  // Cmd+Z / Ctrl+Z shortcut (only when not in a text input)
+  useEffect(() => {
+    if (!isDM) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        e.preventDefault();
+        handleUndo();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDM, handleUndo]);
+
   function handleToggleCondition(conditionKey: string) {
     if (!focusedEntry) return;
     const current = focusedEntry.conditions ?? [];
-    const isActive = current.includes(conditionKey);
+    const isActive = current.some((c) => c.name === conditionKey);
     const nextConditions = isActive
-      ? current.filter((c) => c !== conditionKey)
-      : [...current, conditionKey];
+      ? current.filter((c) => c.name !== conditionKey)
+      // eslint-disable-next-line react-hooks/purity -- unique ID generation in event handler
+      : [...current, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: conditionKey }];
     const nextSystemData = toggleConditionValue(focusedEntry.systemData, conditionKey, !isActive);
     const size = checkSystemDataSize(nextSystemData);
     if (!size.ok) {
@@ -97,6 +141,15 @@ export function QuickActionBar({
           onClick={() => (onSpawnToken ? onSpawnToken() : toast.info('Open map controls to place a token'))}
           icon={<PlusCircle className="h-3.5 w-3.5" />}
         />
+        {isDM && (
+          <ActionButton
+            label={undoPeek?.action ? `Undo: ${undoPeek.action.description}` : 'Undo'}
+            tone="neutral"
+            onClick={handleUndo}
+            disabled={!undoPeek?.action || undoMutation.isPending}
+            icon={<Undo2 className="h-3.5 w-3.5" />}
+          />
+        )}
         <ActionButton
           label="End Turn"
           tone="neutral"
@@ -113,7 +166,7 @@ export function QuickActionBar({
             <div className="max-h-44 overflow-y-auto">
               <div className="flex flex-wrap gap-1">
                 {conditionDefs.map((condition) => {
-                  const active = (focusedEntry.conditions ?? []).includes(condition.key);
+                  const active = (focusedEntry.conditions ?? []).some((c) => c.name === condition.key);
                   return (
                     <button
                       key={condition.key}

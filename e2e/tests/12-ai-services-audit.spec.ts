@@ -3,7 +3,7 @@ import { generateAccounts, generateCampaignData, uniqueId } from './helpers/test
 import { signUp } from './helpers/auth-helpers';
 import {
   createCampaign,
-  navigateToCampaign,
+  navigateToCampaign as _navigateToCampaign,
   joinCampaignByCode,
   generateInviteCode,
 } from './helpers/campaign-helpers';
@@ -380,7 +380,7 @@ test.describe.serial('Rate limiting on AI endpoints', () => {
 test.describe.serial('Frontend credit display', () => {
   let dmContext: BrowserContext;
   let dmPage: Page;
-  let campaignId: string;
+  let _campaignId: string;
   const accounts = generateAccounts();
   const campaign = generateCampaignData();
 
@@ -389,7 +389,7 @@ test.describe.serial('Frontend credit display', () => {
     dmPage = await dmContext.newPage();
     await signUp(dmPage, accounts.dm);
     await dmPage.goto('/app/campaigns');
-    campaignId = await createCampaign(dmPage, campaign);
+    _campaignId = await createCampaign(dmPage, campaign);
   });
 
   test.afterAll(async () => {

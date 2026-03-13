@@ -84,7 +84,7 @@ export default function SRDIndexPage({ basePathOverride }: SRDIndexPageProps = {
   const inAppRules = rulesPathContext.startsWith('/app/rules');
   const { user } = useAuth();
   const { data, isLoading, error } = useSRDSystems();
-  const systems = data?.systems ?? [];
+  const systems = useMemo(() => data?.systems ?? [], [data?.systems]);
   const [query, setQuery] = useState('');
   const [systemFilter, setSystemFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -112,6 +112,7 @@ export default function SRDIndexPage({ basePathOverride }: SRDIndexPageProps = {
 
   useEffect(() => {
     if (categoryFilter === 'all') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting filter when available options change
     if (!activeCategories.includes(categoryFilter)) setCategoryFilter('all');
   }, [activeCategories, categoryFilter]);
 

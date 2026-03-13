@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Swords, Heart, Shield, Dices, MessageSquare, Activity } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
-import type { ChatMessage, ChatMessageType } from '@/types/campaign';
+import { combatEventsApi } from '@/api/combat-events';
+import type { ChatMessage, ChatMessageType, CombatEvent } from '@/types/campaign';
 
 interface EventsFeedProps {
   campaignId: string;
@@ -80,14 +81,43 @@ function getEventBorder(type: ChatMessageType): string {
   }
 }
 
+/** Convert a persisted CombatEvent to a ChatMessage-shaped object for display */
+function combatEventToChatMessage(e: CombatEvent): ChatMessage {
+  const actionTypeMap: Record<string, ChatMessageType> = {
+    damage: 'hp_change',
+    healing: 'hp_change',
+    'temp-hp': 'hp_change',
+    'condition-applied': 'condition',
+    'condition-removed': 'condition',
+    'condition-expired': 'condition',
+    'death-save': 'hp_change',
+    'turn-start': 'initiative',
+    'combat-started': 'initiative',
+    'combat-ended': 'initiative',
+  };
+  return {
+    _id: e._id,
+    campaignId: e.campaignId,
+    username: e.actor,
+    message: e.detail ?? `${e.actor}: ${e.action}${e.target ? ` → ${e.target}` : ''}${e.value != null ? ` (${e.value})` : ''}`,
+    type: actionTypeMap[e.action] ?? 'system',
+    metadata: { ...e.metadata, round: e.round, turn: e.turn },
+    createdAt: e.createdAt,
+    updatedAt: e.createdAt,
+  };
+}
+
 export function EventsFeed({ campaignId }: EventsFeedProps) {
   const [events, setEvents] = useState<ChatMessage[]>([]);
   const [filter, setFilter] = useState<ChatMessageType | 'all'>('all');
+  const backfillDone = useRef(false);
 
-  // Load initial events from chat history (filter to event types)
+  // Load initial events from chat history + backfill from combat events REST API
   useEffect(() => {
+    backfillDone.current = false;
     const socket = getSocket();
 
+    // Load chat-based events via WebSocket
     socket.emit(
       'chat:load',
       { campaignId, limit: 100 },
@@ -95,7 +125,24 @@ export function EventsFeed({ campaignId }: EventsFeedProps) {
         const eventMessages = (response.messages || []).filter((m) =>
           isEventType(m.type),
         );
-        setEvents(eventMessages);
+        // Also fetch persisted combat events for backfill
+        combatEventsApi.list(campaignId, { limit: 200 }).then((combatEvents) => {
+          if (combatEvents.length > 0) {
+            const converted = combatEvents.map(combatEventToChatMessage);
+            const existingIds = new Set(eventMessages.map((m) => m._id));
+            const unique = converted.filter((c) => !existingIds.has(c._id));
+            const merged = [...eventMessages, ...unique].sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            );
+            setEvents(merged.slice(-200));
+          } else {
+            setEvents(eventMessages);
+          }
+          backfillDone.current = true;
+        }).catch(() => {
+          setEvents(eventMessages);
+          backfillDone.current = true;
+        });
       },
     );
   }, [campaignId]);

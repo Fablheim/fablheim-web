@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import type { NotebookEntry, NoteCategory, NoteLink, NoteLinkEntityType, LinkSearchResult } from '@/types/notebook';
 import { categoryLabels } from '@/types/notebook';
 import { useLinkSearch } from '@/hooks/useNotebook';
+import { useWorldEntities } from '@/hooks/useWorldEntities';
 
 const CATEGORIES: NoteCategory[] = [
   'session_notes',
@@ -90,6 +91,23 @@ export function NoteFormModal({
   const [folderId, setFolderId] = useState('');
 
   const { data: linkSearchResults } = useLinkSearch(campaignId ?? '', linkQuery, linkEntityTypeFilter);
+  const { data: worldEntities } = useWorldEntities(campaignId ?? '');
+
+  // Merge existing tags + world entity names for autocomplete
+  const mergedSuggestionPool = useMemo(() => {
+    const pool = new Set(allTags.map((t) => t.toLowerCase()));
+    const names: string[] = [...allTags];
+    if (worldEntities) {
+      for (const entity of worldEntities) {
+        const lower = entity.name.toLowerCase();
+        if (!pool.has(lower)) {
+          pool.add(lower);
+          names.push(entity.name);
+        }
+      }
+    }
+    return names.sort();
+  }, [allTags, worldEntities]);
 
   useEffect(() => {
     if (note) {
@@ -117,13 +135,13 @@ export function NoteFormModal({
 
   // Tag suggestions: filter allTags by what's being typed after the last comma
   const tagSuggestions = useMemo(() => {
-    if (!showTagSuggestions || allTags.length === 0) return [];
+    if (!showTagSuggestions || mergedSuggestionPool.length === 0) return [];
     const currentTags = tagsInput.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
     const lastPart = tagsInput.split(',').pop()?.trim().toLowerCase() ?? '';
-    return allTags.filter(
+    return mergedSuggestionPool.filter(
       (t) => !currentTags.includes(t.toLowerCase()) && (lastPart === '' || t.toLowerCase().includes(lastPart)),
     ).slice(0, 8);
-  }, [tagsInput, allTags, showTagSuggestions]);
+  }, [tagsInput, mergedSuggestionPool, showTagSuggestions]);
 
   function addSuggestedTag(tag: string) {
     const parts = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);

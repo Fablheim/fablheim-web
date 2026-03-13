@@ -13,6 +13,7 @@ import {
   setConditionValue,
   toggleConditionValue,
 } from '@/lib/system-data';
+import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
 import type { ConditionDef } from '@/types/combat-rules';
 import type { InitiativeEntry } from '@/types/live-session';
 
@@ -112,6 +113,9 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
   const removeEntry = useRemoveInitiativeEntry(campaignId);
   const { selectedEntryId, selectEntry } = useSessionWorkspaceState();
 
+  const hasSurprise = useCampaignModuleEnabled(campaignId, 'surprise-rounds');
+  const hasConcentration = useCampaignModuleEnabled(campaignId, 'concentration-check');
+
   const [editingHpId, setEditingHpId] = useState<string | null>(null);
   const [hpInput, setHpInput] = useState('');
   const hpInputRef = useRef<HTMLInputElement>(null);
@@ -149,14 +153,13 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
   const normalizeEntryConditions = useCallback(
     (entry: InitiativeEntry): string[] => {
       const raw = entry.conditions ?? [];
-      const normalized = raw.map(resolveConditionKey);
-      return Array.from(new Set(normalized));
+      return Array.from(new Set(raw.map((c) => resolveConditionKey(c.name))));
     },
     [resolveConditionKey],
   );
 
   const persistConditionPatch = useCallback(
-    (entry: InitiativeEntry, nextConditions: string[], nextSystemData: InitiativeEntry['systemData']) => {
+    (entry: InitiativeEntry, nextConditions: import('@/types/live-session').ConditionEntry[], nextSystemData: InitiativeEntry['systemData']) => {
       const sizeCheck = checkSystemDataSize(nextSystemData);
       if (!sizeCheck.ok) {
         toast.error(sizeCheck.error ?? 'systemData is too large to save');
@@ -195,13 +198,13 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
   const handleToggleCondition = useCallback(
     (entry: InitiativeEntry, rawConditionKey: string) => {
       const conditionKey = resolveConditionKey(rawConditionKey);
-      const current = normalizeEntryConditions(entry);
       const conditionDef = conditionByKey.get(conditionKey);
-      const isActive = current.includes(conditionKey);
+      const current = entry.conditions ?? [];
+      const isActive = current.some((c) => resolveConditionKey(c.name) === conditionKey);
 
       const nextConditions = isActive
-        ? current.filter((c) => c !== conditionKey)
-        : [...current, conditionKey];
+        ? current.filter((c) => resolveConditionKey(c.name) !== conditionKey)
+        : [...current, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: conditionKey }];
 
       let nextSystemData = entry.systemData;
       if (conditionDef?.hasValue) {
@@ -210,20 +213,20 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
 
       persistConditionPatch(entry, nextConditions, nextSystemData);
     },
-    [conditionByKey, normalizeEntryConditions, persistConditionPatch, resolveConditionKey],
+    [conditionByKey, persistConditionPatch, resolveConditionKey],
   );
 
   const handleConditionValueChange = useCallback(
     (entry: InitiativeEntry, conditionKey: string, value: number) => {
       const normalizedValue = Math.max(1, Math.floor(value || 1));
       const nextSystemData = setConditionValue(entry.systemData, conditionKey, normalizedValue);
-      const nextConditions = normalizeEntryConditions(entry);
-      if (!nextConditions.includes(conditionKey)) {
-        nextConditions.push(conditionKey);
-      }
+      const current = entry.conditions ?? [];
+      const nextConditions = current.some((c) => resolveConditionKey(c.name) === conditionKey)
+        ? [...current]
+        : [...current, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: conditionKey }];
       persistConditionPatch(entry, nextConditions, nextSystemData);
     },
-    [normalizeEntryConditions, persistConditionPatch],
+    [persistConditionPatch, resolveConditionKey],
   );
 
   const sortedEntries = initiative
@@ -284,7 +287,7 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-sm text-foreground">{entry.name}</span>
-                    {entry.isConcentrating && <Zap className="h-3 w-3 text-amber-400" />}
+                    {hasConcentration && entry.isConcentrating && <Zap className="h-3 w-3 text-amber-400" />}
                     {entry.deathSaves && <Skull className="h-3 w-3 text-red-400" />}
                     {normalizedConditions.some((key) => {
                       const def = conditionByKey.get(key);
@@ -292,7 +295,12 @@ export function InitiativeList({ campaignId, isDM }: InitiativeListProps) {
                     }) && (
                       <TriangleAlert className="h-3 w-3 text-violet-300" />
                     )}
-                    {isCurrent && (
+                    {hasSurprise && entry.isSurprised && (
+                      <span className="rounded bg-gray-500/20 px-1 py-0.5 text-[9px] uppercase tracking-wide text-gray-400">
+                        Surprised
+                      </span>
+                    )}
+                    {isCurrent && !(hasSurprise && entry.isSurprised) && (
                       <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] uppercase tracking-wide text-primary">
                         Acting
                       </span>

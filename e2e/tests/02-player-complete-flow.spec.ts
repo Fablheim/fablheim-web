@@ -11,11 +11,11 @@ import {
   goToCharacterCreation,
   createCharacter,
   expectCharacterVisible,
-  verifyCharacterPersisted,
+  verifyCharacterPersisted as _verifyCharacterPersisted,
 } from './helpers/character-helpers';
 import {
   startSession,
-  goToSession,
+  goToSession as _goToSession,
   sendChatMessage,
   setChatMode,
 } from './helpers/session-helpers';

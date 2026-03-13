@@ -16,6 +16,7 @@ import {
 import { HPTracker } from '@/components/characters/HPTracker';
 import { CombatStats } from '@/components/characters/CombatStats';
 import { SpellSlots } from '@/components/characters/SpellSlots';
+import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
 import type { Character, AbilityRollResult, CharacterAttack } from '@/types/campaign';
 
 interface LiveCharacterSheetProps {
@@ -108,6 +109,7 @@ function CharacterSheetContent({
   const consumeSlot = useConsumeSpellSlot();
   const restoreSlot = useRestoreSpellSlot();
   const updateAttacks = useUpdateAttacks();
+  const hasSpellSlots = useCampaignModuleEnabled(campaignId, 'spell-slots-dnd');
 
   const [abilityResult, setAbilityResult] = useState<AbilityRollResult | null>(null);
   const [rollingAbility, setRollingAbility] = useState<string | null>(null);
@@ -126,7 +128,7 @@ function CharacterSheetContent({
         {renderAbilityScores(character)}
         {renderCombatSection(character)}
         {canEditAttacks && renderAttackEditor()}
-        {renderSpellSlotSection(character)}
+        {hasSpellSlots && renderSpellSlotSection(character)}
       </div>
     </div>
   );

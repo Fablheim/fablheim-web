@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, Copy, Loader2, Download, Pencil, Save } from 'lucide-react';
+import { X, RefreshCw, Copy, Loader2, Download, Pencil, Save, Swords } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSessionRecap, useRegenerateRecap, useUpdateSession } from '@/hooks/useSessions';
+import { useQuery } from '@tanstack/react-query';
+import { combatEventsApi } from '@/api/combat-events';
 import { SessionStatistics } from './SessionStatistics';
-import type { SessionStatistics as SessionStats } from '@/types/campaign';
+import type { SessionStatistics as SessionStats, CombatEvent } from '@/types/campaign';
 
 interface SessionRecapModalProps {
   campaignId: string;
@@ -25,6 +27,10 @@ export function SessionRecapModal({
   onClose,
 }: SessionRecapModalProps) {
   const { data: recapData, isLoading } = useSessionRecap(campaignId, sessionId);
+  const { data: combatEvents } = useQuery({
+    queryKey: ['combat-events', campaignId],
+    queryFn: () => combatEventsApi.list(campaignId),
+  });
   const regenerate = useRegenerateRecap();
   const updateSession = useUpdateSession();
   const [editing, setEditing] = useState(false);
@@ -118,7 +124,31 @@ export function SessionRecapModal({
       }
     }
 
+    if (combatEvents && combatEvents.length > 0) {
+      lines.push('');
+      lines.push('## Combat Log');
+      const byRound = groupByRound(combatEvents);
+      for (const [round, events] of byRound) {
+        lines.push(`\n### Round ${round}`);
+        for (const e of events) {
+          const target = e.target ? ` → ${e.target}` : '';
+          const value = e.value != null ? ` (${e.value})` : '';
+          lines.push(`- **${e.actor}** ${e.action}${target}${value}${e.detail ? ` — ${e.detail}` : ''}`);
+        }
+      }
+    }
+
     return lines.join('\n');
+  }
+
+  function groupByRound(events: CombatEvent[]): Map<number, CombatEvent[]> {
+    const map = new Map<number, CombatEvent[]>();
+    for (const e of events) {
+      const arr = map.get(e.round) ?? [];
+      arr.push(e);
+      map.set(e.round, arr);
+    }
+    return map;
   }
 
   return (
@@ -127,6 +157,7 @@ export function SessionRecapModal({
         {renderHeader()}
         <div className="flex-1 overflow-y-auto p-5">
           {renderRecapContent()}
+          {renderCombatLog()}
           {renderKeyMoments()}
           {renderStatistics()}
         </div>
@@ -243,6 +274,42 @@ export function SessionRecapModal({
           </p>
         )}
       </div>
+    );
+  }
+
+  function renderCombatLog() {
+    if (!combatEvents?.length) return null;
+    const byRound = groupByRound(combatEvents);
+    return (
+      <>
+        <div className="divider-ornate my-4" />
+        <div>
+          <p className="mb-2 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+            Combat Log
+          </p>
+          <div className="space-y-3">
+            {Array.from(byRound.entries()).map(([round, events]) => (
+              <div key={round}>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <Swords className="h-3.5 w-3.5 text-brass" />
+                  <span className="font-[Cinzel] text-xs text-brass">Round {round}</span>
+                </div>
+                <div className="space-y-1 pl-5">
+                  {events.map((e) => (
+                    <div
+                      key={e._id}
+                      className="flex gap-2 rounded border border-border/40 bg-card/30 px-3 py-1.5 text-xs text-foreground/80"
+                    >
+                      <span className="shrink-0 font-semibold text-foreground">{e.actor}</span>
+                      <span>{e.action}{e.target ? ` → ${e.target}` : ''}{e.value != null ? ` (${e.value})` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
     );
   }
 

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/api/client';
 import { getSocket } from '@/lib/socket';
+import { Pbta2d6Result } from './Pbta2d6Result';
+import { DicePoolResult } from './DicePoolResult';
 
 // -- Types ------------------------------------------------------------------
 
@@ -16,6 +18,23 @@ interface RollResult {
   critical?: 'success' | 'failure';
 }
 
+interface PbtaResultData {
+  die1: number;
+  die2: number;
+  modifier: number;
+  finalTotal: number;
+  band: { label: string; description: string };
+}
+
+interface PoolResultData {
+  dice: number[];
+  explodedDice: number[];
+  allDice: number[];
+  successes: number;
+  isSuccess: boolean;
+  threshold: number;
+}
+
 interface DiceRollEvent {
   userId: string;
   username: string;
@@ -23,6 +42,8 @@ interface DiceRollEvent {
   purpose?: string;
   timestamp?: string;
   createdAt?: string;
+  pbtaResult?: PbtaResultData;
+  poolResult?: PoolResultData;
 }
 
 interface DiceRollerProps {
@@ -101,6 +122,17 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
     const saved = localStorage.getItem(SOUND_KEY);
     return saved !== 'false'; // default on
   });
+
+  // PbtA 2d6 section state
+  const [pbtaOpen, setPbtaOpen] = useState(false);
+  const [pbtaModifier, setPbtaModifier] = useState(0);
+
+  // Dice Pool section state
+  const [poolOpen, setPoolOpen] = useState(false);
+  const [poolCount, setPoolCount] = useState(5);
+  const [poolDieSize, setPoolDieSize] = useState<6 | 10>(10);
+  const [poolThreshold, setPoolThreshold] = useState(8);
+  const [poolExploding, setPoolExploding] = useState(true);
 
   // Roll history
   const [history, setHistory] = useState<DiceRollEvent[]>([]);
@@ -207,6 +239,84 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
       onRoll?.(res.data.result);
     } catch {
       toast.error('Dice roll failed');
+    } finally {
+      setRolling(false);
+    }
+  }
+
+  // -- PbtA 2d6 roll --------------------------------------------------------
+
+  async function handlePbtaRoll() {
+    if (rolling) return;
+    setRolling(true);
+
+    try {
+      const body: Record<string, unknown> = { modifier: pbtaModifier };
+      if (purpose.trim()) body.purpose = purpose.trim();
+      if (isPrivate) body.isPrivate = true;
+
+      const res = await api.post<{
+        die1: number;
+        die2: number;
+        total: number;
+        modifier: number;
+        finalTotal: number;
+        band: { label: string; description: string };
+      }>(`/campaigns/${campaignId}/session/dice/pbta-2d6`, body);
+
+      const { die1, die2, finalTotal, modifier: mod, band } = res.data;
+
+      pushHistory({
+        userId: '',
+        username: 'You',
+        result: { dice: '2d6', rolls: [die1, die2], total: finalTotal, modifier: mod },
+        purpose: purpose.trim() || undefined,
+        timestamp: new Date().toISOString(),
+        pbtaResult: { die1, die2, modifier: mod, finalTotal, band },
+      });
+    } catch {
+      toast.error('PbtA roll failed');
+    } finally {
+      setRolling(false);
+    }
+  }
+
+  // -- Dice Pool roll -------------------------------------------------------
+
+  async function handlePoolRoll() {
+    if (rolling) return;
+    setRolling(true);
+
+    try {
+      const body: Record<string, unknown> = {
+        dieSize: poolDieSize,
+        count: poolCount,
+        successThreshold: poolThreshold,
+        exploding: poolExploding,
+      };
+      if (purpose.trim()) body.purpose = purpose.trim();
+      if (isPrivate) body.isPrivate = true;
+
+      const res = await api.post<{
+        dice: number[];
+        explodedDice: number[];
+        allDice: number[];
+        successes: number;
+        isSuccess: boolean;
+      }>(`/campaigns/${campaignId}/session/dice/pool`, body);
+
+      const poolData = res.data;
+
+      pushHistory({
+        userId: '',
+        username: 'You',
+        result: { dice: `${poolCount}d${poolDieSize}`, rolls: poolData.allDice, total: poolData.successes, modifier: 0 },
+        purpose: purpose.trim() || undefined,
+        timestamp: new Date().toISOString(),
+        poolResult: { ...poolData, threshold: poolThreshold },
+      });
+    } catch {
+      toast.error('Dice pool roll failed');
     } finally {
       setRolling(false);
     }
@@ -322,6 +432,117 @@ export default function DiceRoller({ campaignId, onRoll }: DiceRollerProps) {
         {rolling ? 'Rolling...' : 'Roll'}
       </button>
 
+      {/* PbtA 2d6 Section */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setPbtaOpen((v) => !v)}
+          className="flex items-center gap-1 text-carved font-[Cinzel] tracking-wider uppercase text-xs text-foreground hover:text-primary transition-colors"
+        >
+          {pbtaOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          PbtA 2d6
+        </button>
+        {pbtaOpen && (
+          <div className="space-y-3 pl-5">
+            <div className="space-y-1">
+              <label className="text-carved font-[Cinzel] tracking-wider uppercase text-[10px] text-foreground">
+                Modifier
+              </label>
+              <input
+                type="number"
+                value={pbtaModifier}
+                onChange={(e) => setPbtaModifier(Number(e.target.value))}
+                className="w-24 input-carved rounded-sm border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handlePbtaRoll}
+              disabled={rolling}
+              className={`w-full rounded-md bg-primary px-4 py-2.5 text-sm font-[Cinzel] uppercase tracking-widest font-bold text-primary-foreground btn-emboss shimmer-gold hover:bg-primary/90 hover:shadow-glow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                rolling ? 'animate-candle' : ''
+              }`}
+            >
+              {rolling ? 'Rolling...' : 'Roll 2d6'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Dice Pool Section */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setPoolOpen((v) => !v)}
+          className="flex items-center gap-1 text-carved font-[Cinzel] tracking-wider uppercase text-xs text-foreground hover:text-primary transition-colors"
+        >
+          {poolOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          Dice Pool
+        </button>
+        {poolOpen && (
+          <div className="space-y-3 pl-5">
+            <div className="flex flex-wrap gap-3">
+              <div className="space-y-1">
+                <label className="text-carved font-[Cinzel] tracking-wider uppercase text-[10px] text-foreground">
+                  Count
+                </label>
+                <input
+                  type="number"
+                  value={poolCount}
+                  min={1}
+                  max={20}
+                  onChange={(e) => setPoolCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+                  className="w-20 input-carved rounded-sm border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-carved font-[Cinzel] tracking-wider uppercase text-[10px] text-foreground">
+                  Die Size
+                </label>
+                <select
+                  value={poolDieSize}
+                  onChange={(e) => setPoolDieSize(Number(e.target.value) as 6 | 10)}
+                  className="w-20 input-carved rounded-sm border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value={6}>d6</option>
+                  <option value={10}>d10</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-carved font-[Cinzel] tracking-wider uppercase text-[10px] text-foreground">
+                  Threshold
+                </label>
+                <input
+                  type="number"
+                  value={poolThreshold}
+                  onChange={(e) => setPoolThreshold(Number(e.target.value))}
+                  className="w-20 input-carved rounded-sm border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer font-['IM_Fell_English']">
+              <input
+                type="checkbox"
+                checked={poolExploding}
+                onChange={(e) => setPoolExploding(e.target.checked)}
+                className="accent-primary"
+              />
+              Exploding dice
+            </label>
+            <button
+              type="button"
+              onClick={handlePoolRoll}
+              disabled={rolling}
+              className={`w-full rounded-md bg-primary px-4 py-2.5 text-sm font-[Cinzel] uppercase tracking-widest font-bold text-primary-foreground btn-emboss shimmer-gold hover:bg-primary/90 hover:shadow-glow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                rolling ? 'animate-candle' : ''
+              }`}
+            >
+              {rolling ? 'Rolling...' : 'Roll Pool'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Roll History */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -387,44 +608,78 @@ function RollHistoryItem({ event, isNew }: { event: DiceRollEvent; isNew?: boole
         </span>
       </div>
 
-      {/* Formula + purpose */}
-      <div className="text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{result.dice}</span>
-        {purpose && <span className="ml-1">— {purpose}</span>}
-        {result.advantage && (
-          <span className="ml-1 text-[hsl(150,50%,55%)]">(Advantage)</span>
-        )}
-        {result.disadvantage && (
-          <span className="ml-1 text-[hsl(0,55%,55%)]">(Disadvantage)</span>
-        )}
-      </div>
+      {/* Purpose line */}
+      {purpose && (
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{result.dice}</span>
+          <span className="ml-1">— {purpose}</span>
+        </div>
+      )}
 
-      {/* Rolls + total */}
-      <div className="flex items-baseline gap-2">
-        <span className="text-xs text-muted-foreground">
-          [{result.rolls.join(', ')}]
-          {result.modifier !== 0 && (
-            <span>
-              {result.modifier > 0 ? ' + ' : ' - '}
-              {Math.abs(result.modifier)}
-            </span>
+      {/* Rich PbtA 2d6 result */}
+      {event.pbtaResult && (
+        <Pbta2d6Result
+          die1={event.pbtaResult.die1}
+          die2={event.pbtaResult.die2}
+          modifier={event.pbtaResult.modifier}
+          finalTotal={event.pbtaResult.finalTotal}
+          band={event.pbtaResult.band}
+        />
+      )}
+
+      {/* Rich Dice Pool result */}
+      {event.poolResult && (
+        <DicePoolResult
+          dice={event.poolResult.dice}
+          explodedDice={event.poolResult.explodedDice}
+          allDice={event.poolResult.allDice}
+          successes={event.poolResult.successes}
+          isSuccess={event.poolResult.isSuccess}
+          threshold={event.poolResult.threshold}
+        />
+      )}
+
+      {/* Standard roll display (only when no rich result) */}
+      {!event.pbtaResult && !event.poolResult && (
+        <>
+          {!purpose && (
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{result.dice}</span>
+              {result.advantage && (
+                <span className="ml-1 text-[hsl(150,50%,55%)]">(Advantage)</span>
+              )}
+              {result.disadvantage && (
+                <span className="ml-1 text-[hsl(0,55%,55%)]">(Disadvantage)</span>
+              )}
+            </div>
           )}
-        </span>
-        <span
-          className={`font-bold ${
-            isCritSuccess
-              ? 'text-lg text-flame drop-shadow-[0_0_8px_hsla(38,90%,55%,0.5)]'
-              : isCritFailure
-                ? 'text-lg text-[hsl(0,55%,55%)] drop-shadow-[0_0_6px_hsla(0,60%,40%,0.4)]'
-                : 'text-sm text-foreground'
-          }`}
-          style={isNew ? { animation: 'dice-tumble 0.6s cubic-bezier(0.34,1.56,0.64,1)' } : undefined}
-        >
-          {result.total}
-          {isCritSuccess && ' NAT 20!'}
-          {isCritFailure && ' NAT 1'}
-        </span>
-      </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-muted-foreground">
+              [{result.rolls.join(', ')}]
+              {result.modifier !== 0 && (
+                <span>
+                  {result.modifier > 0 ? ' + ' : ' - '}
+                  {Math.abs(result.modifier)}
+                </span>
+              )}
+            </span>
+            <span
+              className={`font-bold ${
+                isCritSuccess
+                  ? 'text-lg text-flame drop-shadow-[0_0_8px_hsla(38,90%,55%,0.5)]'
+                  : isCritFailure
+                    ? 'text-lg text-[hsl(0,55%,55%)] drop-shadow-[0_0_6px_hsla(0,60%,40%,0.4)]'
+                    : 'text-sm text-foreground'
+              }`}
+              style={isNew ? { animation: 'dice-tumble 0.6s cubic-bezier(0.34,1.56,0.64,1)' } : undefined}
+            >
+              {result.total}
+              {isCritSuccess && ' NAT 20!'}
+              {isCritFailure && ' NAT 1'}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -5,12 +5,13 @@ import { useBattleMap } from '@/hooks/useBattleMap';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useEncounters } from '@/hooks/useEncounters';
 import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
-import { useRollDice } from '@/hooks/useLiveSession';
-import { getSystemAdapter } from '@/rules/systems/getSystemAdapter';
+import { useRollDice, useRollHopeFear } from '@/hooks/useLiveSession';
+import { getSystemAdapter, getSystemAdapterFromModules } from '@/rules/systems/getSystemAdapter';
 import { pf2eDegreeOfSuccess } from '@/rules/systems/pathfinder2e/adapter';
 import type { DegreeOfSuccess, SystemAction } from '@/rules/systems/types';
 import type { EnemyAttack } from '@/types/enemy-template';
 import type { InitiativeEntry } from '@/types/live-session';
+import { useCampaignModuleEnabled, useCampaignEnabledModules } from '@/hooks/useModuleEnabled';
 import type { EnemyTemplate } from '@/types/enemy-template';
 
 const DEGREE_STYLES: Record<DegreeOfSuccess, string> = {
@@ -42,6 +43,7 @@ export function ActionListPanel({
   const { data: battleMap } = useBattleMap(campaignId);
   const { data: enemyTemplates } = useEnemyTemplates();
   const rollDice = useRollDice(campaignId);
+  const rollHopeFear = useRollHopeFear(campaignId);
 
   const [search, setSearch] = useState('');
   const [mapPenaltyByAction, setMapPenaltyByAction] = useState<Record<string, number>>({});
@@ -49,9 +51,14 @@ export function ActionListPanel({
   const [lastMessageByAction, setLastMessageByAction] = useState<Record<string, string>>({});
   const [lastDegreeByAction, setLastDegreeByAction] = useState<Record<string, DegreeOfSuccess>>({});
   const [targetDC, setTargetDC] = useState<number | ''>('');
-  const isPf2e = (systemKey ?? '').toLowerCase().includes('pathfinder') || (systemKey ?? '').toLowerCase() === 'pf2e';
+  const hasDegreesOfSuccess = useCampaignModuleEnabled(campaignId, 'degrees-of-success');
+  const hasFateDice = useCampaignModuleEnabled(campaignId, 'fate-dice');
+  const enabledModules = useCampaignEnabledModules(campaignId);
 
-  const adapter = useMemo(() => getSystemAdapter(systemKey), [systemKey]);
+  const adapter = useMemo(
+    () => enabledModules.size > 0 ? getSystemAdapterFromModules(enabledModules) : getSystemAdapter(systemKey),
+    [enabledModules, systemKey],
+  );
   const character = useMemo(
     () => (entry.characterId ? characters?.find((item) => item._id === entry.characterId) ?? null : null),
     [characters, entry.characterId],
@@ -87,6 +94,7 @@ export function ActionListPanel({
         template,
         systemKey,
         rollDice: (request) => rollDice.mutateAsync(request),
+        rollHopeFear: (request) => rollHopeFear.mutateAsync(request),
         isPrivate: !!entry.isHidden,
         options: {
           mode,
@@ -141,7 +149,7 @@ export function ActionListPanel({
             placeholder="Filter actions..."
           />
         </div>
-        {isPf2e && (
+        {hasDegreesOfSuccess && (
           <input
             type="number"
             value={targetDC}
@@ -156,7 +164,6 @@ export function ActionListPanel({
         {filteredActions.map((action) => {
           const mapPenalty = mapPenaltyByAction[action.id] ?? 0;
           const fateModifier = fateModifierByAction[action.id] ?? 0;
-          const isFate = (systemKey ?? '').toLowerCase() === 'fate';
           const canDamageRoll = hasDamageDice(action);
           return (
             <div key={action.id} className="rounded border border-border/60 bg-background/25 px-2 py-1">
@@ -168,7 +175,7 @@ export function ActionListPanel({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  {isPf2e && (
+                  {hasDegreesOfSuccess && (
                     <select
                       value={mapPenalty}
                       onChange={(event) =>
@@ -185,7 +192,7 @@ export function ActionListPanel({
                       <option value={-10}>MAP -10</option>
                     </select>
                   )}
-                  {isFate && (
+                  {hasFateDice && (
                     <input
                       type="number"
                       value={fateModifier}

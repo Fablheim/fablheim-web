@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -13,10 +13,17 @@ import {
   Target,
   Skull,
   BookOpen,
+  Plus,
+  X,
+  CalendarDays,
+  Flag,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSessions, useUpdateSession, useRegenerateRecap } from '@/hooks/useSessions';
-import type { Session } from '@/types/campaign';
+import { Button } from '@/components/ui/Button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { useCreateSession, useSessions, useUpdateSession, useRegenerateRecap } from '@/hooks/useSessions';
+import { useArcs } from '@/hooks/useCampaigns';
+import type { Session, CampaignArc } from '@/types/campaign';
 
 interface SessionsPrepPanelProps {
   campaignId: string;
@@ -24,6 +31,63 @@ interface SessionsPrepPanelProps {
 
 export function SessionsPrepPanel({ campaignId }: SessionsPrepPanelProps) {
   const { data: sessions, isLoading } = useSessions(campaignId);
+  const { data: arcs } = useArcs(campaignId);
+  const createSession = useCreateSession();
+  const [showCreate, setShowCreate] = useState(false);
+  const [title, setTitle] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [summary, setSummary] = useState('');
+
+  const nextSessionNumber = Math.max(...((sessions ?? []).map((session) => session.sessionNumber)), 0) + 1;
+
+  // Group sessions by status
+  const { upcoming, completed, cancelled } = useMemo(() => {
+    const all = sessions ?? [];
+    const up = all
+      .filter((s) => ['draft', 'scheduled', 'ready', 'planned', 'in_progress'].includes(s.status))
+      .sort((a, b) => a.sessionNumber - b.sessionNumber);
+    const done = all
+      .filter((s) => s.status === 'completed')
+      .sort((a, b) => {
+        if (a.completedAt && b.completedAt) {
+          return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+        }
+        return b.sessionNumber - a.sessionNumber;
+      });
+    const can = all
+      .filter((s) => s.status === 'cancelled')
+      .sort((a, b) => b.sessionNumber - a.sessionNumber);
+    return { upcoming: up, completed: done, cancelled: can };
+  }, [sessions]);
+
+  // Active arc for focus banner
+  const activeArc = useMemo(() => {
+    if (!arcs?.length) return null;
+    return arcs.find((a: CampaignArc) => a.status === 'active') ?? null;
+  }, [arcs]);
+
+  // Next planned session for focus banner
+  const nextSession = upcoming[0] ?? null;
+
+  async function handleCreateSession() {
+    try {
+      await createSession.mutateAsync({
+        campaignId,
+        sessionNumber: nextSessionNumber,
+        title: title.trim() || `Session ${nextSessionNumber}`,
+        summary: summary.trim() || undefined,
+        scheduledDate: scheduledDate || undefined,
+        status: 'planned',
+      });
+      toast.success(`Session ${nextSessionNumber} planned`);
+      setShowCreate(false);
+      setTitle('');
+      setScheduledDate('');
+      setSummary('');
+    } catch {
+      toast.error('Failed to create session plan');
+    }
+  }
 
   if (isLoading) {
     return (
@@ -33,32 +97,278 @@ export function SessionsPrepPanel({ campaignId }: SessionsPrepPanelProps) {
     );
   }
 
-  const sorted = [...(sessions ?? [])].sort((a, b) => {
-    if (a.status === 'completed' && b.status !== 'completed') return -1;
-    if (b.status === 'completed' && a.status !== 'completed') return 1;
-    if (a.completedAt && b.completedAt) {
-      return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
-    }
-    return b.sessionNumber - a.sessionNumber;
-  });
-
-  if (sorted.length === 0) {
+  if (!sessions?.length) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
         <BookOpen className="h-10 w-10 text-muted-foreground/30" />
         <p className="text-sm text-muted-foreground/60">
-          No sessions yet. Start your first session to begin tracking your story.
+          No session plans yet. Create one here so prep has somewhere to live before game night.
         </p>
+        <Button onClick={() => setShowCreate(true)}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Plan Session 1
+        </Button>
+        {showCreate && (
+          <SessionPlanForm
+            sessionNumber={nextSessionNumber}
+            title={title}
+            scheduledDate={scheduledDate}
+            summary={summary}
+            isPending={createSession.isPending}
+            onTitleChange={setTitle}
+            onScheduledDateChange={setScheduledDate}
+            onSummaryChange={setSummary}
+            onCancel={() => setShowCreate(false)}
+            onSubmit={handleCreateSession}
+          />
+        )}
       </div>
     );
   }
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="divide-y divide-[hsla(38,30%,25%,0.15)]">
-        {sorted.map((session) => (
-          <SessionCard key={session._id} session={session} campaignId={campaignId} />
-        ))}
+      {renderHeader()}
+      {renderFocusBanner()}
+      {renderSessionGroups()}
+    </div>
+  );
+
+  function renderHeader() {
+    return (
+      <div className="sticky top-0 z-10 border-b border-[hsla(38,30%,25%,0.15)] bg-[hsl(24,18%,9%)]/95 px-4 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-['IM_Fell_English'] text-lg text-foreground">Session Plans</p>
+            <p className="text-xs text-muted-foreground">
+              Plan upcoming sessions, keep prep notes attached, and review completed recaps.
+            </p>
+          </div>
+          {!showCreate && (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Plan Session {nextSessionNumber}
+            </Button>
+          )}
+        </div>
+        {showCreate && (
+          <div className="mt-3">
+            <SessionPlanForm
+              sessionNumber={nextSessionNumber}
+              title={title}
+              scheduledDate={scheduledDate}
+              summary={summary}
+              isPending={createSession.isPending}
+              onTitleChange={setTitle}
+              onScheduledDateChange={setScheduledDate}
+              onSummaryChange={setSummary}
+              onCancel={() => setShowCreate(false)}
+              onSubmit={handleCreateSession}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderFocusBanner() {
+    if (!activeArc && !nextSession) return null;
+    return (
+      <div className="border-b border-[hsla(38,30%,25%,0.15)] bg-[hsla(38,30%,25%,0.06)] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-4">
+          {activeArc && (
+            <div className="flex items-center gap-2">
+              <Flag className="h-3.5 w-3.5 text-brass" />
+              <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                Active Arc
+              </span>
+              <span className="font-['IM_Fell_English'] text-sm text-foreground">
+                {activeArc.name}
+              </span>
+              {activeArc.milestones.length > 0 && (
+                <ArcProgressPill milestones={activeArc.milestones} />
+              )}
+            </div>
+          )}
+          {nextSession && (
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" />
+              <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                Next
+              </span>
+              <span className="font-['IM_Fell_English'] text-sm text-foreground">
+                {nextSession.title ?? `Session ${nextSession.sessionNumber}`}
+              </span>
+              {nextSession.scheduledDate && (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                  {new Date(nextSession.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderSessionGroups() {
+    return (
+      <div>
+        {upcoming.length > 0 && (
+          <CollapsibleSection title={`Upcoming (${upcoming.length})`} defaultOpen>
+            <div className="divide-y divide-[hsla(38,30%,25%,0.1)]">
+              {upcoming.map((session) => (
+                <SessionCard key={session._id} session={session} campaignId={campaignId} />
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+        {completed.length > 0 && (
+          <CollapsibleSection title={`Completed (${completed.length})`}>
+            <div className="divide-y divide-[hsla(38,30%,25%,0.1)]">
+              {completed.map((session) => (
+                <SessionCard key={session._id} session={session} campaignId={campaignId} />
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+        {cancelled.length > 0 && (
+          <CollapsibleSection title={`Cancelled (${cancelled.length})`}>
+            <div className="divide-y divide-[hsla(38,30%,25%,0.1)]">
+              {cancelled.map((session) => (
+                <SessionCard key={session._id} session={session} campaignId={campaignId} />
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+      </div>
+    );
+  }
+}
+
+// ── Arc Progress Pill ────────────────────────────────────────
+
+function ArcProgressPill({ milestones }: { milestones: CampaignArc['milestones'] }) {
+  const done = milestones.filter((m) => m.completed).length;
+  const total = milestones.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted/30">
+        <div
+          className="h-full rounded-full bg-brass transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[10px] text-muted-foreground">
+        {done}/{total}
+      </span>
+    </div>
+  );
+}
+
+// ── Session Plan Form ───────────────────────────────────────
+
+interface SessionPlanFormProps {
+  sessionNumber: number;
+  title: string;
+  scheduledDate: string;
+  summary: string;
+  isPending: boolean;
+  onTitleChange: (value: string) => void;
+  onScheduledDateChange: (value: string) => void;
+  onSummaryChange: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}
+
+function SessionPlanForm({
+  sessionNumber,
+  title,
+  scheduledDate,
+  summary,
+  isPending,
+  onTitleChange,
+  onScheduledDateChange,
+  onSummaryChange,
+  onCancel,
+  onSubmit,
+}: SessionPlanFormProps) {
+  return (
+    <div className="rounded-xl border border-[hsla(38,30%,25%,0.18)] bg-[hsla(38,30%,18%,0.08)] p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            New Session Plan
+          </p>
+          <p className="mt-1 font-['IM_Fell_English'] text-base text-foreground">
+            Session {sessionNumber}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-background/50 hover:text-foreground"
+          aria-label="Close session plan form"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[1.4fr_0.9fr]">
+        <label className="space-y-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Title
+          </span>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder={`Session ${sessionNumber}`}
+            maxLength={200}
+            className="w-full rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/45 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </label>
+
+        <label className="space-y-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Scheduled Date
+          </span>
+          <input
+            type="date"
+            value={scheduledDate}
+            onChange={(e) => onScheduledDateChange(e.target.value)}
+            className="w-full rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </label>
+      </div>
+
+      <label className="mt-3 block space-y-1.5">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+          Prep Summary
+        </span>
+        <textarea
+          value={summary}
+          onChange={(e) => onSummaryChange(e.target.value)}
+          placeholder="What is this session about? Add the expected scene, hook, or problem to solve."
+          rows={4}
+          maxLength={10000}
+          className="w-full resize-y rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/45 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+        />
+      </label>
+
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <Button variant="secondary" onClick={onCancel} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button onClick={onSubmit} disabled={isPending}>
+          {isPending ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="mr-1.5 h-4 w-4" />
+          )}
+          Create Session Plan
+        </Button>
       </div>
     </div>
   );
@@ -70,6 +380,9 @@ function SessionCard({ session, campaignId }: { session: Session; campaignId: st
   const [expanded, setExpanded] = useState(false);
 
   const statusLabel: Record<Session['status'], string> = {
+    draft: 'Draft',
+    scheduled: 'Scheduled',
+    ready: 'Ready',
     planned: 'Planned',
     in_progress: 'In Progress',
     completed: 'Completed',
@@ -77,6 +390,9 @@ function SessionCard({ session, campaignId }: { session: Session; campaignId: st
   };
 
   const statusColor: Record<Session['status'], string> = {
+    draft: 'text-muted-foreground/60 bg-muted/20',
+    scheduled: 'text-primary bg-primary/10',
+    ready: 'text-emerald-400 bg-emerald-400/10',
     planned: 'text-muted-foreground/60 bg-muted/20',
     in_progress: 'text-amber-400 bg-amber-400/10',
     completed: 'text-emerald-400 bg-emerald-400/10',

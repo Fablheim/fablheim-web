@@ -1,5 +1,8 @@
 import type { GenerationMeta } from './ai-tools';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic MongoDB schema data
+export type DynamicSchemaData = Record<string, any>;
+
 export type CampaignSystem = 'dnd5e' | 'pathfinder2e' | 'daggerheart' | 'fate' | 'custom';
 export type CampaignStatus = 'active' | 'paused' | 'completed' | 'archived';
 
@@ -56,6 +59,41 @@ export interface WorldStateTracker {
   visibility: 'public' | 'dm-only';
 }
 
+// ── Calendar types ───────────────────────────────────────
+
+export type CalendarPresetType = 'forgotten_realms' | 'greyhawk' | 'custom';
+
+export interface CalendarMonth {
+  name: string;
+  days: number;
+}
+
+export interface CalendarEvent {
+  id: string;
+  name: string;
+  year: number;
+  month: number;
+  day: number;
+  recurring?: boolean;
+  entityId?: string;
+  notes?: string;
+}
+
+export interface CampaignCalendar {
+  preset: CalendarPresetType;
+  months: CalendarMonth[];
+  weekdays: string[];
+  currentDate: { year: number; month: number; day: number };
+  events: CalendarEvent[];
+}
+
+export interface CampaignRulesConfig {
+  presetId?: string;
+  enabledModules: string[];
+  moduleConfig: Record<string, Record<string, unknown>>;
+  customModules?: string[];
+}
+
 export interface CampaignFeatures {
   arcs?: boolean;
   worldStateTrackers?: boolean;
@@ -95,6 +133,13 @@ export interface Campaign {
   arcs?: CampaignArc[];
   worldStateTrackers?: WorldStateTracker[];
   features?: CampaignFeatures;
+  safetyTools?: {
+    lines: string[];
+    veils: string[];
+    xCardEnabled: boolean;
+  };
+  rulesConfig?: CampaignRulesConfig | null;
+  calendar?: CampaignCalendar | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -164,8 +209,8 @@ export interface Character {
     insight: number;
     investigation: number;
   };
-  systemData?: Record<string, any>;
-  mechanicData?: Record<string, any>;
+  systemData?: DynamicSchemaData;
+  mechanicData?: DynamicSchemaData;
   portrait?: {
     url: string;
     key: string;
@@ -179,8 +224,18 @@ export interface Character {
   initiativeBonus: number;
   attacks: CharacterAttack[];
   spellSlots: SpellSlots;
+  spellSlotsPf2e?: Record<string, { max: number; current: number; spellId?: string }[]>;
+  casterType?: 'prepared' | 'spontaneous';
   conditions: string[];
   deathSaves: DeathSaves | null;
+  exhaustionLevel: number;
+  deathEvents?: Array<{
+    sessionId?: string;
+    date: string;
+    successes: number;
+    failures: number;
+    outcome: 'stabilized' | 'revived' | 'died';
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -198,7 +253,7 @@ export interface CreateCharacterPayload {
     insight: number;
     investigation: number;
   };
-  systemData?: Record<string, any>;
+  systemData?: DynamicSchemaData;
   hp?: { current: number; max: number; temp: number };
   ac?: number;
   speed?: number;
@@ -209,10 +264,12 @@ export interface CreateCharacterPayload {
     width: number;
     height: number;
   };
+  exhaustionLevel?: number;
 }
 
 export type UpdateCharacterPayload = Partial<Omit<CreateCharacterPayload, 'campaignId'>> & {
-  mechanicData?: Record<string, any>;
+  mechanicData?: DynamicSchemaData;
+  wealthTier?: string;
 };
 
 // ── Roll Results ─────────────────────────────────────────
@@ -240,7 +297,7 @@ export interface AbilityRollResult {
 
 // ── World Entities (NPCs) ────────────────────────────────
 
-export type WorldEntityType = 'location' | 'location_detail' | 'faction' | 'npc' | 'npc_minor' | 'item' | 'quest' | 'event' | 'lore';
+export type WorldEntityType = 'location' | 'location_detail' | 'faction' | 'npc' | 'npc_minor' | 'item' | 'quest' | 'event' | 'lore' | 'trap';
 export type WorldEntityVisibility = 'public' | 'dm-only';
 export type LocationType =
   | 'continent' | 'region' | 'kingdom' | 'city' | 'town' | 'village'
@@ -309,7 +366,7 @@ export interface WorldEntity {
   tags: string[];
   relatedEntities: Array<{ entityId: string; relationshipType: string }>;
   visibility: WorldEntityVisibility;
-  typeData: Record<string, any>;
+  typeData: DynamicSchemaData;
   aiGenerated: boolean;
   createdBy: string;
   // Map pin (percentage coords 0–1 on campaign world map)
@@ -342,6 +399,9 @@ export interface WorldEntity {
   motivations?: string[];
   loyalties?: NpcLoyalty[];
   attitudeHistory?: AttitudeEvent[];
+  // Discovery
+  discoveredByParty?: boolean;
+  discoveredAt?: string;
   createdAt: string;
   updatedAt: string;
   _meta?: GenerationMeta;
@@ -354,7 +414,7 @@ export interface CreateWorldEntityPayload {
   tags?: string[];
   relatedEntities?: Array<{ entityId: string; relationshipType: string }>;
   visibility?: WorldEntityVisibility;
-  typeData?: Record<string, any>;
+  typeData?: DynamicSchemaData;
   mapPin?: { x: number; y: number } | null;
   parentEntityId?: string;
   locationType?: LocationType;
@@ -365,6 +425,7 @@ export interface CreateWorldEntityPayload {
   rewards?: string;
   prerequisiteQuests?: string[];
   nextQuests?: string[];
+  motivations?: string[];
 }
 
 export type UpdateWorldEntityPayload = Partial<CreateWorldEntityPayload>;
@@ -376,6 +437,7 @@ export interface WorldTreeNode {
   locationType?: LocationType;
   parentEntityId?: string;
   childCount: number;
+  discoveredByParty?: boolean;
 }
 
 // ── Handouts ──────────────────────────────────────────────
@@ -388,7 +450,8 @@ export interface Handout {
   type: 'image' | 'text' | 'map';
   content: string;
   imageUrl?: string;
-  visibleTo: 'all' | 'dm_only';
+  visibleTo: 'all' | 'dm_only' | 'selected';
+  sharedWith?: string[];
   sharedAt?: string;
   createdBy: string;
   createdAt: string;
@@ -421,6 +484,34 @@ export interface ChatMessage {
   updatedAt: string;
 }
 
+// ── Combat Events ────────────────────────────────────────
+
+export type CombatEventAction =
+  | 'damage'
+  | 'healing'
+  | 'temp-hp'
+  | 'condition-applied'
+  | 'condition-removed'
+  | 'condition-expired'
+  | 'death-save'
+  | 'turn-start'
+  | 'combat-started'
+  | 'combat-ended';
+
+export interface CombatEvent {
+  _id: string;
+  campaignId: string;
+  round: number;
+  turn: number;
+  actor: string;
+  action: CombatEventAction;
+  target?: string;
+  value?: number;
+  detail?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
 // ── Sessions ─────────────────────────────────────────────
 
 export interface SessionStatistics {
@@ -438,6 +529,28 @@ export interface SessionStatistics {
   keyMoments: string[];
 }
 
+export interface PrepChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+  category?: string;
+}
+
+export interface RestEvent {
+  id: string;
+  type: 'short' | 'long';
+  timestamp: string;
+  note?: string;
+}
+
+export interface SessionScene {
+  id: string;
+  title: string;
+  description?: string;
+  locationId?: string;
+  npcIds?: string[];
+}
+
 export interface Session {
   _id: string;
   campaignId: string;
@@ -446,10 +559,15 @@ export interface Session {
   summary?: string;
   notes?: string;
   scheduledDate?: string;
-  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'draft' | 'scheduled' | 'ready' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
   startedAt?: string;
   completedAt?: string;
   durationMinutes: number;
+  npcIds?: string[];
+  locationIds?: string[];
+  questIds?: string[];
+  encounterIds?: string[];
+  scenes?: SessionScene[];
   statistics: SessionStatistics;
   aiRecap?: string;
   aiRecapGeneratedAt?: string;
@@ -460,6 +578,9 @@ export interface Session {
     moodPace: string;
     generatedAt: string;
   };
+  prepChecklist?: PrepChecklistItem[];
+  restEvents?: RestEvent[];
+  weather?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -471,7 +592,13 @@ export interface CreateSessionRequest {
   summary?: string;
   notes?: string;
   scheduledDate?: string;
-  status?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'draft' | 'scheduled' | 'ready' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  durationMinutes?: number;
+  npcIds?: string[];
+  locationIds?: string[];
+  questIds?: string[];
+  encounterIds?: string[];
+  scenes?: SessionScene[];
 }
 
 export interface UpdateSessionRequest {
@@ -479,8 +606,17 @@ export interface UpdateSessionRequest {
   summary?: string;
   notes?: string;
   scheduledDate?: string;
-  status?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  status?: 'draft' | 'scheduled' | 'ready' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  durationMinutes?: number;
+  npcIds?: string[];
+  locationIds?: string[];
+  questIds?: string[];
+  encounterIds?: string[];
+  scenes?: SessionScene[];
   aiRecap?: string;
+  prepChecklist?: PrepChecklistItem[];
+  restEvents?: RestEvent[];
+  weather?: string;
 }
 
 // ── Domains ─────────────────────────────────────────────
@@ -552,3 +688,130 @@ export interface CreateDomainPayload {
 }
 
 export type UpdateDomainPayload = Partial<Omit<CreateDomainPayload, 'locationEntityId'>>;
+
+// ── Allies ──────────────────────────────────────────────
+
+export type AllyKind =
+  | 'npc'
+  | 'familiar'
+  | 'summon'
+  | 'pet'
+  | 'mount'
+  | 'retainer'
+  | 'custom';
+
+export type AllySourceType = 'world_entity' | 'custom' | 'template';
+export type AllyDurationType = 'permanent' | 'session' | 'timed' | 'concentration';
+
+export interface AllyVisibility {
+  summary: boolean;
+  statBlock: boolean;
+  currentHp: boolean;
+  maxHp: boolean;
+  ac: boolean;
+  owner: boolean;
+  duration: boolean;
+  notes: boolean;
+}
+
+export interface AllyHp {
+  current?: number;
+  max?: number;
+  temp?: number;
+}
+
+export interface AllyAbilities {
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wis?: number;
+  cha?: number;
+}
+
+export interface AllyStatBlock {
+  name?: string;
+  size?: string;
+  creatureType?: string;
+  alignment?: string;
+  ac?: number;
+  hp?: AllyHp;
+  speed?: string;
+  initiativeBonus?: number;
+  cr?: number;
+  proficiencyBonus?: number;
+  abilities?: AllyAbilities;
+  senses?: string;
+  languages?: string;
+  skills?: string;
+  saves?: string;
+  resistances?: string;
+  immunities?: string;
+  vulnerabilities?: string;
+  traits?: string;
+  actions?: string;
+  bonusActions?: string;
+  reactions?: string;
+  notes?: string;
+  rawText?: string;
+}
+
+export interface Ally {
+  _id: string;
+  campaignId: string;
+  sourceType: AllySourceType;
+  sourceId?: string;
+  sourceEntity?: WorldEntity | null;
+  kind: AllyKind;
+  name: string;
+  addedBy: string;
+  ownerCharacterId?: string;
+  ownerCharacter?: Pick<Character, '_id' | 'name' | 'userId' | 'class' | 'level'> | null;
+  controllerUserId?: string;
+  description?: string;
+  role?: string;
+  personality?: string;
+  durationType: AllyDurationType;
+  expiresAt?: string;
+  dismissedAt?: string;
+  visibility: AllyVisibility;
+  statBlock: AllyStatBlock;
+  notes?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAllyPayload {
+  sourceType: AllySourceType;
+  sourceId?: string;
+  kind: AllyKind;
+  name?: string;
+  ownerCharacterId?: string;
+  controllerUserId?: string;
+  description?: string;
+  role?: string;
+  personality?: string;
+  durationType?: AllyDurationType;
+  expiresAt?: string;
+  visibility?: Partial<AllyVisibility>;
+  statBlock?: AllyStatBlock;
+  notes?: string;
+}
+
+export interface UpdateAllyPayload {
+  kind?: AllyKind;
+  name?: string;
+  ownerCharacterId?: string;
+  controllerUserId?: string;
+  description?: string;
+  role?: string;
+  personality?: string;
+  durationType?: AllyDurationType;
+  expiresAt?: string | null;
+  dismissedAt?: string | null;
+  visibility?: Partial<AllyVisibility>;
+  statBlock?: AllyStatBlock;
+  notes?: string;
+  sortOrder?: number;
+}

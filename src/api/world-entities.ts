@@ -14,21 +14,36 @@ export interface PaginatedResult<T> {
 }
 
 export const worldEntitiesApi = {
-  list: async (campaignId: string, type?: string): Promise<WorldEntity[]> => {
+  list: async (
+    campaignId: string,
+    type?: string,
+    parentEntityId?: string | null,
+  ): Promise<WorldEntity[]> => {
+    const params: Record<string, string | undefined> = {};
+    if (type) params.type = type;
+    if (parentEntityId === null) params.parentEntityId = 'null';
+    else if (parentEntityId) params.parentEntityId = parentEntityId;
     const { data } = await api.get<PaginatedResult<WorldEntity>>(
       `/campaigns/${campaignId}/world/entities`,
-      { params: type ? { type } : undefined },
+      { params: Object.keys(params).length ? params : undefined },
     );
     return data.data;
   },
 
   listPaginated: async (
     campaignId: string,
-    opts?: { type?: string; limit?: number; skip?: number },
+    opts?: { type?: string; parentEntityId?: string | null; limit?: number; skip?: number },
   ): Promise<PaginatedResult<WorldEntity>> => {
     const { data } = await api.get<PaginatedResult<WorldEntity>>(
       `/campaigns/${campaignId}/world/entities`,
-      { params: { type: opts?.type, limit: opts?.limit, skip: opts?.skip } },
+      {
+        params: {
+          type: opts?.type,
+          parentEntityId: opts?.parentEntityId === null ? 'null' : opts?.parentEntityId,
+          limit: opts?.limit,
+          skip: opts?.skip,
+        },
+      },
     );
     return data;
   },
@@ -93,6 +108,15 @@ export const worldEntitiesApi = {
     await api.delete(`/campaigns/${campaignId}/world/entities/${entityId}/objectives/${objectiveId}`);
   },
 
+  // References (reverse lookup)
+
+  getReferences: async (campaignId: string, entityId: string): Promise<WorldEntity[]> => {
+    const { data } = await api.get<WorldEntity[]>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/references`,
+    );
+    return data;
+  },
+
   // Hierarchy methods
 
   getChildren: async (campaignId: string, entityId: string): Promise<WorldEntity[]> => {
@@ -105,6 +129,16 @@ export const worldEntitiesApi = {
   getTree: async (campaignId: string): Promise<WorldTreeNode[]> => {
     const { data } = await api.get<WorldTreeNode[]>(
       `/campaigns/${campaignId}/world/entities/tree`,
+    );
+    return data;
+  },
+
+  // ── Discovery ──────────────────────────────────────────
+
+  toggleDiscovery: async (campaignId: string, entityId: string, discovered: boolean): Promise<WorldEntity> => {
+    const { data } = await api.patch<WorldEntity>(
+      `/campaigns/${campaignId}/world/entities/${entityId}/discover`,
+      { discovered },
     );
     return data;
   },

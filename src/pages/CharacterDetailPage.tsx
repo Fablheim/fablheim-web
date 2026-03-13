@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Loader2, Pencil, Trash2, Dice5 } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Trash2, Dice5, Swords, BarChart3, Backpack, BookOpenText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CharacterDetailPageProps {
@@ -17,6 +17,9 @@ import {
   useRollDeathSave,
   useConsumeSpellSlot,
   useRestoreSpellSlot,
+  useCastSpellPf2e,
+  useResetSpellSlotsPf2e,
+  useUpdateFateSkill,
   useRollAttack,
   useRollAbility,
 } from '@/hooks/useCharacterCombat';
@@ -28,10 +31,14 @@ import { DeleteCharacterModal } from '@/components/characters/DeleteCharacterMod
 import { HPTracker } from '@/components/characters/HPTracker';
 import { CombatStats } from '@/components/characters/CombatStats';
 import { SpellSlots } from '@/components/characters/SpellSlots';
+import { SpellSlotsPf2e } from '@/components/characters/SpellSlotsPf2e';
+import { FateCoreSkillsPanel } from '@/components/characters/FateCoreSkillsPanel';
 import { XPTracker } from '@/components/character/progression/XPTracker';
 import { InventoryPanel } from '@/components/character/inventory/InventoryPanel';
 import { SpellBook } from '@/components/character/spells/SpellBook';
-import type { Character, AbilityRollResult } from '@/types/campaign';
+import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
+import { ExperiencesPanel } from '@/components/character/ExperiencesPanel';
+import type { Character, AbilityRollResult, DynamicSchemaData } from '@/types/campaign';
 
 function computeModifier(value: number, formula: string | null): string | null {
   if (!formula) return null;
@@ -51,6 +58,10 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const { data: character, isLoading, error } = useCharacter(id!);
   const { data: campaign } = useCampaign(character?.campaignId ?? '');
   const { data: systemDef } = useSystemDefinition(campaign?.system ?? 'dnd5e');
+  const hasSpellSlots = useCampaignModuleEnabled(character?.campaignId ?? '', 'spell-slots-dnd');
+  const hasSpellSlotsPf2e = useCampaignModuleEnabled(character?.campaignId ?? '', 'spell-slots-pf2e');
+  const hasFateSkills = useCampaignModuleEnabled(character?.campaignId ?? '', 'skills-fate-core');
+  const hasExperiences = useCampaignModuleEnabled(character?.campaignId ?? '', 'experiences-daggerheart');
   const updateCharacter = useUpdateCharacter();
   const deleteCharacter = useDeleteCharacter();
 
@@ -61,12 +72,16 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   const rollDeathSave = useRollDeathSave();
   const consumeSpellSlot = useConsumeSpellSlot();
   const restoreSpellSlot = useRestoreSpellSlot();
+  const castSpellPf2e = useCastSpellPf2e();
+  const resetSpellSlotsPf2e = useResetSpellSlotsPf2e();
+  const updateFateSkill = useUpdateFateSkill();
   const rollAttackMutation = useRollAttack();
   const rollAbilityMutation = useRollAbility();
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [abilityRollResult, setAbilityRollResult] = useState<AbilityRollResult | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'combat' | 'stats' | 'gear' | 'roleplay'>('combat');
   const fromPath = (location.state as { from?: string } | null)?.from;
 
   const isOwner = character?.userId === user?._id;
@@ -181,10 +196,12 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
       }
     >
       <div className="space-y-0 animate-unfurl">
-        {renderHeaderAndCombat(character, isOwner)}
-        {renderAbilityScores(character)}
-        {renderCharacterDepth(character, isOwner)}
-        {renderRPSections(character, isOwner, saveField, saveMechanicField)}
+        {renderHeader(character)}
+        {renderTabBar()}
+        {activeTab === 'combat' && renderCombatTab(character, isOwner)}
+        {activeTab === 'stats' && renderAbilityScores(character)}
+        {activeTab === 'gear' && renderCharacterDepth(character, isOwner)}
+        {activeTab === 'roleplay' && renderRPSections(character, isOwner, saveField, saveMechanicField)}
       </div>
 
       {/* Modals */}
@@ -209,39 +226,72 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
 
   // ── Render helpers (avoid TS 5.9 JSX children inference bug) ──
 
-  function renderHeaderAndCombat(char: Character, canEdit: boolean) {
+  function renderHeader(char: Character) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6 tavern-card texture-parchment iron-brackets">
+        <div className="flex items-start gap-4">
+          {char.portrait?.url ? (
+            <img
+              src={char.portrait.url}
+              alt={`${char.name} portrait`}
+              className="h-20 w-20 shrink-0 rounded-lg border-2 border-brass/40 object-cover shadow-warm"
+            />
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border-2 border-border/60 bg-accent/30 font-[Cinzel] text-2xl text-muted-foreground/50">
+              {char.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1">
+            <h2 className="font-['IM_Fell_English'] text-2xl text-card-foreground">
+              {char.name}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {[char.race, char.class].filter(Boolean).join(' ') || 'Adventurer'}
+            </p>
+          </div>
+          {char.level != null && (
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-blood/60 bg-blood/90 font-[Cinzel] text-base font-bold text-parchment shadow-lg">
+              {char.level}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderTabBar() {
+    const tabs = [
+      { key: 'combat' as const, label: 'Combat', icon: Swords },
+      { key: 'stats' as const, label: 'Stats', icon: BarChart3 },
+      { key: 'gear' as const, label: 'Gear', icon: Backpack },
+      { key: 'roleplay' as const, label: 'Roleplay', icon: BookOpenText },
+    ];
+    return (
+      <div className="my-4 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card/50 p-1">
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-md px-4 py-2 font-[Cinzel] text-xs uppercase tracking-wider transition-colors ${
+                activeTab === tab.key
+                  ? 'bg-brass/15 text-brass'
+                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+              }`}
+            >
+              <TabIcon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderCombatTab(char: Character, canEdit: boolean) {
     return (
       <>
-        {/* ── Header Card ────────────────────────────────── */}
-        <div className="rounded-lg border border-border bg-card p-6 tavern-card texture-parchment iron-brackets">
-          <div className="flex items-start gap-4">
-            {char.portrait?.url ? (
-              <img
-                src={char.portrait.url}
-                alt={`${char.name} portrait`}
-                className="h-20 w-20 shrink-0 rounded-lg border-2 border-brass/40 object-cover shadow-warm"
-              />
-            ) : (
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border-2 border-border/60 bg-accent/30 font-[Cinzel] text-2xl text-muted-foreground/50">
-                {char.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1">
-              <h2 className="font-['IM_Fell_English'] text-2xl text-card-foreground">
-                {char.name}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {[char.race, char.class].filter(Boolean).join(' ') || 'Adventurer'}
-              </p>
-            </div>
-            {char.level != null && (
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-blood/60 bg-blood/90 font-[Cinzel] text-base font-bold text-parchment shadow-lg">
-                {char.level}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* ── HP Tracker (only for systems with HP) ──────── */}
         {(!systemDef || systemDef.combat.hp) && (
           <>
@@ -303,8 +353,8 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
           </>
         )}
 
-        {/* ── Spell Slots (only for systems with spell slots) ── */}
-        {(!systemDef || systemDef.combat.spellSlots) && char.spellSlots && (
+        {/* ── Spell Slots (gated on spell-slots-dnd module) ── */}
+        {hasSpellSlots && char.spellSlots && (
           <>
             <div className="divider-ornate my-6" />
             <SpellSlots
@@ -325,9 +375,35 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
             />
           </>
         )}
+
+        {/* ── PF2e Spell Slots (gated on spell-slots-pf2e module) ── */}
+        {hasSpellSlotsPf2e && char.spellSlotsPf2e && (
+          <>
+            <div className="divider-ornate my-6" />
+            <SpellSlotsPf2e
+              slots={char.spellSlotsPf2e}
+              onCast={(level, slotIndex) =>
+                castSpellPf2e.mutate(
+                  { id: char._id, level, slotIndex },
+                  { onError: () => toast.error('Failed to cast spell') },
+                )
+              }
+              onReset={() =>
+                resetSpellSlotsPf2e.mutate(
+                  { id: char._id },
+                  { onError: () => toast.error('Failed to reset spell slots') },
+                )
+              }
+              editable={canEdit}
+              isPrepared={char.casterType === 'prepared'}
+            />
+          </>
+        )}
       </>
     );
   }
+
+  // renderHeaderAndCombat is no longer used — split into renderHeader + renderCombatTab
 
   function handleAbilityRoll(char: Character, ability: string, type: 'check' | 'save') {
     rollAbilityMutation.mutate(
@@ -446,6 +522,28 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
             </div>
           </>
         )}
+
+        {renderFateSkills(char)}
+      </>
+    );
+  }
+
+  function renderFateSkills(char: Character) {
+    if (!hasFateSkills) return null;
+    const skills = (char.systemData?.fateSkills ?? {}) as Record<string, number>;
+    return (
+      <>
+        <div className="divider-ornate my-6" />
+        <FateCoreSkillsPanel
+          skills={skills}
+          onUpdate={(skill, rating) =>
+            updateFateSkill.mutate(
+              { id: char._id, skill, rating },
+              { onError: () => toast.error('Failed to update skill') },
+            )
+          }
+          editable={isOwner}
+        />
       </>
     );
   }
@@ -461,6 +559,14 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
         </p>
         <XPTracker characterId={char._id} isDM={isDM || canEdit} />
 
+        {/* ── Experiences (Daggerheart) ────────────────── */}
+        {hasExperiences && (
+          <>
+            <div className="divider-ornate my-6" />
+            <ExperiencesPanel character={char} canEdit={canEdit} />
+          </>
+        )}
+
         {/* ── Inventory ─────────────────────────────────── */}
         <div className="divider-ornate my-6" />
         <InventoryPanel character={char} campaignId={char.campaignId} />
@@ -471,7 +577,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   }
 
   function renderSpellBookSection(char: Character) {
-    if (systemDef && !systemDef.combat.spellSlots) return null;
+    if (!hasSpellSlots) return null;
     return (
       <>
         <div className="divider-ornate my-6" />
@@ -506,7 +612,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
   }
 
   function renderTraitsAndNotes(
-    md: Record<string, any>,
+    md: DynamicSchemaData,
     canEdit: boolean,
     onSave: (field: string, value: string) => void,
   ) {

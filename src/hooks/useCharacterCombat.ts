@@ -81,6 +81,38 @@ export function useRollDeathSave() {
   );
 }
 
+// ── PF2e Spell Slots ──
+
+export function useAssignSpellToSlotPf2e() {
+  return useCharacterCombatMutation(
+    ({ id, level, slotIndex, spellId }: { id: string; level: number; slotIndex: number; spellId: string }) =>
+      charactersApi.assignSpellToSlotPf2e(id, level, slotIndex, spellId),
+  );
+}
+
+export function useCastSpellPf2e() {
+  return useCharacterCombatMutation(
+    ({ id, level, slotIndex }: { id: string; level: number; slotIndex: number }) =>
+      charactersApi.castSpellPf2e(id, level, slotIndex),
+  );
+}
+
+export function useResetSpellSlotsPf2e() {
+  return useCharacterCombatMutation(
+    ({ id }: { id: string }) =>
+      charactersApi.resetSpellSlotsPf2e(id),
+  );
+}
+
+// ── Fate Core Skills ──
+
+export function useUpdateFateSkill() {
+  return useCharacterCombatMutation(
+    ({ id, skill, rating }: { id: string; skill: string; rating: number }) =>
+      charactersApi.updateFateSkill(id, skill, rating),
+  );
+}
+
 // ── Roll Actions (return results, don't invalidate character) ──
 
 export function useRollAttack() {

@@ -28,8 +28,15 @@ export function useCreateHandout() {
 export function useShareHandout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ campaignId, handoutId }: { campaignId: string; handoutId: string }) =>
-      handoutsApi.share(campaignId, handoutId),
+    mutationFn: ({
+      campaignId,
+      handoutId,
+      playerIds,
+    }: {
+      campaignId: string;
+      handoutId: string;
+      playerIds?: string[];
+    }) => handoutsApi.share(campaignId, handoutId, playerIds),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['handouts', v.campaignId] });
     },

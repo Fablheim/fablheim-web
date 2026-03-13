@@ -9,6 +9,8 @@ export interface KeyLocation {
   name: string;
   description: string;
   importance: 'major' | 'minor' | 'background';
+  /** Optional link to a WorldEntity location. */
+  entityId?: string;
 }
 
 export interface KeyFaction {
@@ -16,6 +18,8 @@ export interface KeyFaction {
   goals: string;
   power: 'dominant' | 'major' | 'minor';
   attitude: string;
+  /** Optional link to a WorldEntity faction. */
+  entityId?: string;
 }
 
 export interface KeyNPC {
@@ -23,6 +27,8 @@ export interface KeyNPC {
   role: string;
   importance: 'critical' | 'important' | 'supporting';
   secrets: string[];
+  /** Optional link to a WorldEntity NPC. */
+  entityId?: string;
 }
 
 export interface PlotThread {

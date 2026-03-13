@@ -9,9 +9,10 @@ import {
   ScrollText,
   Map,
   Network,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
-import type { WorldEntityType, LocationType } from '@/types/campaign';
+import type { WorldEntityType, LocationType, FactionDisposition } from '@/types/campaign';
 
 export type WorldTab = 'all' | 'tree' | 'locations' | 'factions' | 'npcs' | 'items' | 'quests' | 'lore' | 'events' | 'map';
 
@@ -45,6 +46,7 @@ export const TYPE_ACCENTS: Record<WorldEntityType, { bg: string; text: string; b
   quest:           { bg: 'bg-gold/20',    text: 'text-gold',               border: 'border-l-gold/60' },
   event:           { bg: 'bg-primary/20', text: 'text-primary',            border: 'border-l-primary/60' },
   lore:            { bg: 'bg-muted',      text: 'text-muted-foreground',   border: 'border-l-muted-foreground/40' },
+  trap:            { bg: 'bg-red-500/20', text: 'text-red-400',            border: 'border-l-red-500/60' },
 };
 
 export const TYPE_LABELS: Record<WorldEntityType, string> = {
@@ -57,6 +59,7 @@ export const TYPE_LABELS: Record<WorldEntityType, string> = {
   quest: 'Quest',
   event: 'Event',
   lore: 'Lore',
+  trap: 'Trap',
 };
 
 export const TYPE_ICONS: Record<WorldEntityType, LucideIcon> = {
@@ -69,6 +72,7 @@ export const TYPE_ICONS: Record<WorldEntityType, LucideIcon> = {
   quest: Swords,
   event: Calendar,
   lore: ScrollText,
+  trap: TriangleAlert,
 };
 
 export interface TypeDataField {
@@ -83,11 +87,13 @@ export const TYPE_DATA_FIELDS: Record<WorldEntityType, TypeDataField[]> = {
     { key: 'terrain', label: 'Terrain', inputType: 'text', placeholder: 'Forest, mountain, coastal...' },
     { key: 'climate', label: 'Climate', inputType: 'text', placeholder: 'Temperate, arid, arctic...' },
     { key: 'population', label: 'Population', inputType: 'text', placeholder: 'Large city, small village...' },
+    { key: 'ambianceCues', label: 'Ambiance Cues', inputType: 'textarea', placeholder: 'Sounds, music, or atmosphere notes for this location...' },
   ],
   location_detail: [
     { key: 'terrain', label: 'Terrain', inputType: 'text', placeholder: 'Interior, subterranean...' },
     { key: 'climate', label: 'Climate', inputType: 'text', placeholder: 'Damp, warm, magical...' },
     { key: 'population', label: 'Population', inputType: 'text', placeholder: 'Inhabitants, occupants...' },
+    { key: 'ambianceCues', label: 'Ambiance Cues', inputType: 'textarea', placeholder: 'Sounds, music, or atmosphere notes...' },
   ],
   faction: [
     { key: 'leader', label: 'Leader', inputType: 'text', placeholder: 'Name of the faction leader...' },
@@ -98,10 +104,16 @@ export const TYPE_DATA_FIELDS: Record<WorldEntityType, TypeDataField[]> = {
     { key: 'role', label: 'Role', inputType: 'text', placeholder: 'Merchant, guard captain, sage...' },
     { key: 'personality', label: 'Personality', inputType: 'textarea', placeholder: 'Gruff but kind, suspicious of strangers...' },
     { key: 'secrets', label: 'Secrets', inputType: 'textarea', placeholder: 'Hidden knowledge or motives...' },
+    { key: 'statBlock', label: 'Stat Block', inputType: 'textarea', placeholder: 'AC 15, HP 45, STR 16 (+3), DEX 12 (+1)...' },
+    { key: 'knowledgeOfParty', label: 'Knowledge of Party', inputType: 'textarea', placeholder: 'What does this NPC know about the PCs?' },
+    { key: 'schedule', label: 'Schedule', inputType: 'textarea', placeholder: 'Morning: opens shop. Afternoon: visits temple. Evening: tavern...' },
+    { key: 'persistentHp', label: 'Persistent HP', inputType: 'text', placeholder: 'Current/Max HP that persists across encounters...' },
   ],
   npc_minor: [
     { key: 'role', label: 'Role', inputType: 'text', placeholder: 'Townsperson, servant, messenger...' },
     { key: 'personality', label: 'Personality', inputType: 'text', placeholder: 'A brief trait or quirk...' },
+    { key: 'statBlock', label: 'Stat Block', inputType: 'textarea', placeholder: 'AC 12, HP 10...' },
+    { key: 'knowledgeOfParty', label: 'Knowledge of Party', inputType: 'textarea', placeholder: 'What does this NPC know about the PCs?' },
   ],
   item: [
     { key: 'properties', label: 'Properties', inputType: 'textarea', placeholder: '+1 to hit, deals fire damage...' },
@@ -121,6 +133,15 @@ export const TYPE_DATA_FIELDS: Record<WorldEntityType, TypeDataField[]> = {
   lore: [
     { key: 'era', label: 'Era', inputType: 'text', placeholder: 'Age of Dragons, First Era...' },
     { key: 'significance', label: 'Significance', inputType: 'textarea', placeholder: 'Why this matters to the world...' },
+  ],
+  trap: [
+    { key: 'triggerType', label: 'Trigger Type', inputType: 'text', placeholder: 'Pressure plate, tripwire, proximity...' },
+    { key: 'triggerDescription', label: 'Trigger Description', inputType: 'textarea', placeholder: 'How the trap is activated...' },
+    { key: 'effectDescription', label: 'Effect', inputType: 'textarea', placeholder: 'What happens when triggered...' },
+    { key: 'detectionDC', label: 'Detection DC', inputType: 'text', placeholder: 'DC 15 Perception...' },
+    { key: 'disarmDC', label: 'Disarm DC', inputType: 'text', placeholder: 'DC 15 Thieves\' Tools...' },
+    { key: 'saveDC', label: 'Save DC / Ability', inputType: 'text', placeholder: 'DC 14 DEX save...' },
+    { key: 'damage', label: 'Damage', inputType: 'text', placeholder: '3d6 piercing, 2d10 fire...' },
   ],
 };
 
@@ -164,4 +185,14 @@ export const EMPTY_MESSAGES: Record<WorldTab, { title: string; description: stri
   lore: { title: 'No lore recorded', description: 'Write the history and legends of your world' },
   events: { title: 'No events chronicled', description: 'Record the events that shape your world' },
   map: { title: 'No world map', description: 'Upload a map of your campaign world' },
+};
+
+// ── Disposition ──────────────────────────────────────────────
+
+export const DISPOSITION_CONFIG: Record<FactionDisposition, { label: string; color: string; bg: string }> = {
+  hostile: { label: 'Hostile', color: 'text-blood', bg: 'bg-blood/15' },
+  unfriendly: { label: 'Unfriendly', color: 'text-brass', bg: 'bg-brass/15' },
+  neutral: { label: 'Neutral', color: 'text-muted-foreground', bg: 'bg-muted' },
+  friendly: { label: 'Friendly', color: 'text-gold', bg: 'bg-gold/15' },
+  allied: { label: 'Allied', color: 'text-[hsl(150,50%,55%)]', bg: 'bg-forest/15' },
 };

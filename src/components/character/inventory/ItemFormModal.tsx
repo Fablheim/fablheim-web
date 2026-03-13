@@ -10,6 +10,8 @@ interface ItemFormModalProps {
   item?: Item | null;
   isPending?: boolean;
   containers?: Item[];
+  showBulk?: boolean;
+  showInvestment?: boolean;
 }
 
 export interface ItemFormData {
@@ -32,6 +34,8 @@ export interface ItemFormData {
   isContainer: boolean;
   containerCapacity: number;
   parentItemId?: string;
+  bulk?: string;
+  requiresInvestment?: boolean;
 }
 
 const ITEM_TYPES: { value: ItemType; label: string }[] = [
@@ -91,6 +95,8 @@ function createDefaultForm(): ItemFormData {
     isContainer: false,
     containerCapacity: 0,
     parentItemId: undefined,
+    bulk: '',
+    requiresInvestment: false,
   };
 }
 
@@ -115,13 +121,16 @@ function formFromItem(item: Item): ItemFormData {
     isContainer: item.isContainer,
     containerCapacity: item.containerCapacity || 0,
     parentItemId: item.parentItemId,
+    bulk: (item as any).bulk || '',
+    requiresInvestment: (item as any).requiresInvestment || false,
   };
 }
 
-export function ItemFormModal({ open, onClose, onSubmit, item, isPending, containers }: ItemFormModalProps) {
+export function ItemFormModal({ open, onClose, onSubmit, item, isPending, containers, showBulk, showInvestment }: ItemFormModalProps) {
   const isEdit = !!item;
   const [form, setForm] = useState<ItemFormData>(createDefaultForm);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- syncing form state from prop */
   useEffect(() => {
     if (item) {
       setForm(formFromItem(item));
@@ -129,6 +138,7 @@ export function ItemFormModal({ open, onClose, onSubmit, item, isPending, contai
       setForm(createDefaultForm());
     }
   }, [item]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
@@ -170,6 +180,7 @@ export function ItemFormModal({ open, onClose, onSubmit, item, isPending, contai
           {renderBasicFields(form, update)}
           {renderTypeAndRarity(form, update)}
           {renderQuantityWeightValue(form, update)}
+          {(showBulk || showInvestment) && renderBulkInvestmentFields(form, update, showBulk, showInvestment)}
           {renderMagicFields(form, update)}
           {renderContainerFields(form, update, containers, item)}
           {form.type === 'weapon' && renderWeaponFields(form, update, toggleWeaponProperty)}
@@ -295,6 +306,43 @@ function renderQuantityWeightValue(
           className={inputClass}
         />
       </div>
+    </div>
+  );
+}
+
+function renderBulkInvestmentFields(
+  form: ItemFormData,
+  update: <K extends keyof ItemFormData>(key: K, value: ItemFormData[K]) => void,
+  showBulk?: boolean,
+  showInvestment?: boolean,
+) {
+  return (
+    <div className="flex items-end gap-4">
+      {showBulk && (
+        <div className="w-24">
+          <label htmlFor="item-bulk" className={labelClass}>Bulk</label>
+          <input
+            id="item-bulk"
+            type="text"
+            value={form.bulk ?? ''}
+            onChange={(e) => update('bulk', e.target.value)}
+            placeholder="L, 1, 2..."
+            className={inputClass}
+            title="PF2e Bulk value: L for light, - for negligible, or a number"
+          />
+        </div>
+      )}
+      {showInvestment && (
+        <label className="flex items-center gap-2 pb-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={form.requiresInvestment ?? false}
+            onChange={(e) => update('requiresInvestment', e.target.checked)}
+            className="rounded border-input"
+          />
+          Requires Investment
+        </label>
+      )}
     </div>
   );
 }

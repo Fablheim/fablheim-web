@@ -198,11 +198,13 @@ function ConditionEditor({
   const [open, setOpen] = useState(false);
   const updateEntry = useUpdateInitiativeEntry(campaignId);
   const activeConditions = entry.conditions ?? [];
+  const activeConditionNames = new Set(activeConditions.map((c) => c.name));
 
   function toggleCondition(condition: string) {
-    const updated = activeConditions.includes(condition)
-      ? activeConditions.filter((c) => c !== condition)
-      : [...activeConditions, condition];
+    const updated = activeConditionNames.has(condition)
+      ? activeConditions.filter((c) => c.name !== condition)
+      // eslint-disable-next-line react-hooks/purity -- unique ID generation in event handler
+      : [...activeConditions, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: condition }];
     updateEntry.mutate({ entryId: entry.id, body: { conditions: updated } });
   }
 
@@ -222,7 +224,7 @@ function ConditionEditor({
               key={c}
               onClick={() => toggleCondition(c)}
               className={`font-[Cinzel] text-[10px] rounded-sm tracking-wider px-2 py-0.5 transition-colors ${
-                activeConditions.includes(c)
+                activeConditionNames.has(c)
                   ? 'bg-arcane/25 text-arcane'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
@@ -343,10 +345,10 @@ function CharacterCard({
         <div className="mt-2 flex flex-wrap gap-1">
           {entry.conditions.map((c) => (
             <span
-              key={c}
-              className="rounded-full bg-arcane/20 px-2 py-0.5 text-xs text-arcane"
+              key={c.id}
+              className={`rounded-full px-2 py-0.5 text-xs ${c.remainingRounds != null && c.remainingRounds <= 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-arcane/20 text-arcane'}`}
             >
-              {c}
+              {c.name}{c.remainingRounds != null ? ` (${c.remainingRounds}r)` : ''}
             </span>
           ))}
         </div>

@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { MapPin, Loader2, Library, Globe, ChevronDown, ChevronRight, Tags, Trash2, ArrowUp, ArrowDown, Minus, Plus, ArrowDownAZ, ArrowDown10 } from 'lucide-react';
+import { MapPin, Loader2, Library, Globe, ChevronDown, ChevronRight, Tags, Trash2, ArrowUp, ArrowDown, Minus, Plus, ArrowDownAZ, ArrowDown10, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAddEncounterToken, useUpdateEncounter } from '@/hooks/useEncounters';
 import { useCreateWorldEntity } from '@/hooks/useWorldEntities';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SpawnEnemiesModal } from '@/components/enemies/SpawnEnemiesModal';
+import { AddWorldNPCModal } from '@/components/encounters/AddWorldNPCModal';
 import type { Encounter, EncounterNPC } from '@/types/encounter';
 import type { SpawnedEnemy } from '@/types/enemy-template';
 
@@ -23,6 +24,7 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
   const updateEncounter = useUpdateEncounter(campaignId, encounter._id);
   const createWorldEntity = useCreateWorldEntity();
   const [showSpawnModal, setShowSpawnModal] = useState(false);
+  const [showWorldNPCModal, setShowWorldNPCModal] = useState(false);
   const [savedNPCs, setSavedNPCs] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [editingGroupIndex, setEditingGroupIndex] = useState<number | null>(null);
@@ -126,6 +128,16 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
       {
         onSuccess: () => toast.success(`Added ${enemies.length} creatures`),
         onError: () => toast.error('Failed to add creatures'),
+      },
+    );
+  }
+
+  function handleAddWorldNPC(npc: EncounterNPC) {
+    updateEncounter.mutate(
+      { npcs: [...encounter.npcs, npc] },
+      {
+        onSuccess: () => toast.success(`Added ${npc.name}`),
+        onError: () => toast.error('Failed to add NPC'),
       },
     );
   }
@@ -257,6 +269,13 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
         onSpawn={handleSpawn}
         existingGroups={existingGroups}
       />
+      <AddWorldNPCModal
+        open={showWorldNPCModal}
+        onClose={() => setShowWorldNPCModal(false)}
+        onAdd={handleAddWorldNPC}
+        campaignId={campaignId}
+        existingGroups={existingGroups}
+      />
       <ConfirmDialog
         open={deleteConfirmIndex !== null}
         title="Remove Creature"
@@ -279,6 +298,14 @@ export function EncounterNPCList({ campaignId, encounter }: EncounterNPCListProp
             : 'Creatures'}
         </p>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setShowWorldNPCModal(true)}
+            className="flex items-center gap-1 rounded-md border border-brass/40 bg-brass/10 px-2 py-1 text-[10px] text-brass hover:bg-brass/20 transition-colors font-[Cinzel] uppercase tracking-wider"
+          >
+            <User className="h-3 w-3" />
+            World
+          </button>
           <button
             type="button"
             onClick={() => setShowSpawnModal(true)}

@@ -18,6 +18,7 @@ import {
   Brain,
   Library,
   ScrollText,
+  Heart,
 } from 'lucide-react';
 import type { PanelDefinition, PanelId, CampaignStage } from '@/types/workspace';
 
@@ -125,6 +126,12 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
     id: 'party-overview',
     title: 'Party',
     icon: Users,
+    stages: ['prep', 'live'],
+  },
+  'allies': {
+    id: 'allies',
+    title: 'Allies',
+    icon: Heart,
     stages: ['prep', 'live'],
   },
   'quick-reference': {

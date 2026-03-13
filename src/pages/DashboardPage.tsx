@@ -1,11 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coins, Plus, Users } from 'lucide-react';
+import { Plus, Users, Library, BookOpen } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useMyCharacters } from '@/hooks/useCharacters';
 import { useMyCampaignMemberships } from '@/hooks/useCampaignMembers';
-import { useCreditBalance } from '@/hooks/useCredits';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { Button } from '@/components/ui/Button';
 import { AppEmptyState } from '@/components/app/AppEmptyState';
@@ -13,7 +12,6 @@ import { WelcomeTour } from '@/components/onboarding/WelcomeTour';
 import { GMChecklist } from '@/components/onboarding/GMChecklist';
 import { LiveSessionAlert } from '@/components/dashboard/LiveSessionAlert';
 import { CampaignCardGrid } from '@/components/dashboard/CampaignCardGrid';
-import { QuickAccessBar } from '@/components/dashboard/QuickAccessBar';
 import type { Character } from '@/types/campaign';
 
 export function DashboardPage() {
@@ -28,25 +26,20 @@ export function DashboardPage() {
     completeStep,
   } = useFirstTimeUser();
 
-  // ── Data fetching ────────────────────────────────────────
   const { data: dmCampaigns, isLoading: dmLoading, error: dmError } = useCampaigns();
   const { data: memberships, isLoading: membershipsLoading, error: membershipsError } = useMyCampaignMemberships();
   const { data: myCharacters, isLoading: charsLoading, error: charsError } = useMyCharacters();
-  const { data: creditBalance } = useCreditBalance();
 
-  // ── Player memberships (excluding DM-owned) ──────────────
   const playerMemberships = useMemo(() => {
     if (!memberships) return [];
     const dmIds = new Set(dmCampaigns?.map((c) => c._id) ?? []);
     return memberships.filter((m) => !dmIds.has(m.campaignId._id));
   }, [memberships, dmCampaigns]);
 
-  // ── Live campaign detection ──────────────────────────────
   const liveCampaign = useMemo(() => {
     return dmCampaigns?.find((c) => c.stage === 'live') ?? null;
   }, [dmCampaigns]);
 
-  // ── Onboarding step tracking ─────────────────────────────
   useEffect(() => {
     if (dmCampaigns && dmCampaigns.length > 0) completeStep('create-campaign');
     if (myCharacters && myCharacters.length > 0) completeStep('create-character');
@@ -56,77 +49,46 @@ export function DashboardPage() {
 
   const isLoading = dmLoading || membershipsLoading || charsLoading;
   const hasError = !!(dmError || membershipsError || charsError);
-  const isPaidUser = user.subscriptionTier !== 'free';
   const hasCharacters = !!(myCharacters && myCharacters.length > 0);
 
-  function getSessionPath(campaignId: string): string {
-    return `/app/campaigns/${campaignId}/session`;
-  }
-
   return (
-    <div className="mkt-section mkt-hero-stage mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 animate-unfurl">
-      {renderGreeting()}
+    <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 lg:px-8 animate-unfurl">
+      {renderHeader()}
       {showChecklist && !isLoading && (
         <GMChecklist completedSteps={completedSteps} onDismiss={dismissChecklist} />
       )}
-      {renderCreditsWarning()}
       {renderLiveAlert()}
-      {renderQuickAccess()}
-      <CampaignCardGrid
-        dmCampaigns={dmCampaigns}
-        playerMemberships={playerMemberships}
-        characters={myCharacters ?? []}
-        isLoading={isLoading}
-        error={hasError}
-        onNavigate={(path) => navigate(path)}
-      />
+      {renderCampaigns()}
       {!isLoading && !hasError && renderCharacterRoster()}
+      {renderTools()}
       {isFirstTime && <WelcomeTour onComplete={completeTour} />}
     </div>
   );
 
-  // ── Render helpers ───────────────────────────────────────
-
-  function renderGreeting() {
+  function renderHeader() {
     return (
-      <div className="mkt-card mkt-card-mounted border-medieval rounded-xl px-4 py-4 sm:px-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mkt-chip mb-2 inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">
             Command Center
           </p>
-          <h1 className="font-[Cinzel] text-3xl font-semibold text-[color:var(--mkt-text)]">
+          <h1
+            className="text-2xl text-[hsl(35,24%,92%)]"
+            style={{ fontFamily: "'IM Fell English', 'Cinzel', serif" }}
+          >
             Command Hall
           </h1>
-          <p className="text-base text-[color:var(--mkt-muted)]">
+          <p className="mt-0.5 text-[13px] text-[hsl(30,12%,58%)]">
             Welcome back, {user!.username}.
           </p>
         </div>
-        <Button onClick={() => navigate('/app/campaigns')} className="shimmer-gold">
+        <Button
+          onClick={() => navigate('/app/campaigns')}
+          className="shimmer-gold self-start sm:self-auto"
+        >
           <Plus className="mr-1.5 h-4 w-4" />
           New Campaign
         </Button>
-      </div>
-      </div>
-    );
-  }
-
-  function renderCreditsWarning() {
-    if (!creditBalance || !isPaidUser || creditBalance.total >= 10) return null;
-    return (
-      <div className="mkt-card rounded-lg border border-brass/35 px-3 py-2.5 text-sm text-brass">
-        <div className="flex items-center gap-3">
-          <Coins className="h-4 w-4 shrink-0" />
-          <span className="font-medium">Only {creditBalance.total} credits remaining</span>
-          <span className="hidden text-xs text-muted-foreground md:inline">AI tools may pause when credits reach zero.</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('/app/credits')}
-          className="app-focus-ring ml-auto inline-flex items-center rounded-md border border-brass/40 bg-brass/12 px-3 py-1.5 font-[Cinzel] text-[10px] uppercase tracking-wider hover:bg-brass/20 hover:text-primary"
-        >
-          Top up
-        </button>
       </div>
     );
   }
@@ -136,33 +98,48 @@ export function DashboardPage() {
     return (
       <LiveSessionAlert
         campaign={liveCampaign}
-        onResume={() => navigate(getSessionPath(liveCampaign._id))}
+        onResume={() => navigate(`/app/campaigns/${liveCampaign._id}/session`)}
       />
     );
   }
 
-  function renderQuickAccess() {
-    if (isLoading || hasError) return null;
-    const recentCampaigns = dmCampaigns?.slice(0, 3) ?? [];
+  function renderCampaigns() {
     return (
-      <QuickAccessBar
-        recentCampaigns={recentCampaigns}
-        onNavigate={(path) => navigate(path)}
-      />
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <h2
+            className="text-[11px] uppercase tracking-[0.08em] text-[hsl(38,36%,72%)]"
+            style={{ fontFamily: "'Cinzel', serif" }}
+          >
+            Your Campaigns
+          </h2>
+        </div>
+        <CampaignCardGrid
+          dmCampaigns={dmCampaigns}
+          playerMemberships={playerMemberships}
+          characters={myCharacters ?? []}
+          isLoading={isLoading}
+          error={hasError}
+          onNavigate={(path) => navigate(path)}
+        />
+      </section>
     );
   }
 
   function renderCharacterRoster() {
     return (
-      <section className="mkt-card rounded-xl p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-[Cinzel] text-sm font-semibold uppercase tracking-widest text-[color:var(--mkt-muted)]">
-            Your Characters
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2
+            className="text-[11px] uppercase tracking-[0.08em] text-[hsl(38,36%,72%)]"
+            style={{ fontFamily: "'Cinzel', serif" }}
+          >
+            Characters
           </h2>
           <button
             type="button"
             onClick={() => navigate('/app/characters')}
-            className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            className="text-[11px] text-[hsl(38,82%,63%)] hover:text-[hsl(38,90%,70%)]"
           >
             Open roster
           </button>
@@ -174,7 +151,7 @@ export function DashboardPage() {
 
   function renderCharacterGrid() {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {myCharacters!.slice(0, 8).map((char) => renderCharacterCard(char))}
       </div>
     );
@@ -186,14 +163,17 @@ export function DashboardPage() {
         key={char._id}
         type="button"
         onClick={() => navigate(`/app/characters/${char._id}`, { state: { from: '/app' } })}
-        className="mkt-card mkt-card-mounted flex items-center gap-3 rounded-md px-3 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-[color:var(--mkt-accent)]/45"
+        className="group flex items-center gap-2.5 rounded-lg border border-[hsla(32,26%,26%,0.5)] bg-[hsl(24,14%,11%)] px-3 py-2.5 text-left transition-colors hover:border-[hsla(32,26%,26%,0.75)] hover:bg-[hsl(24,20%,13%)]"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blood/60 bg-blood/80 font-[Cinzel] text-xs font-bold text-parchment">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[hsl(0,55%,28%)]/50 bg-[hsl(0,55%,28%)]/20 text-[11px] font-bold text-[hsl(35,24%,92%)]"
+          style={{ fontFamily: "'Cinzel', serif" }}
+        >
           {char.level}
         </div>
         <div className="min-w-0">
-          <p className="truncate font-[Cinzel] text-sm font-semibold text-foreground">{char.name}</p>
-          <p className="truncate text-xs text-[color:var(--mkt-muted)]">
+          <p className="truncate text-[13px] text-[hsl(35,24%,92%)]">{char.name}</p>
+          <p className="truncate text-[11px] text-[hsl(30,12%,58%)]">
             {[char.race, char.class].filter(Boolean).join(' ') || 'Adventurer'}
           </p>
         </div>
@@ -216,4 +196,60 @@ export function DashboardPage() {
       />
     );
   }
+
+  function renderTools() {
+    return (
+      <section>
+        <h2
+          className="mb-3 text-[11px] uppercase tracking-[0.08em] text-[hsl(38,36%,72%)]"
+          style={{ fontFamily: "'Cinzel', serif" }}
+        >
+          Tools
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <ToolButton
+            icon={Plus}
+            label="Create Campaign"
+            onClick={() => navigate('/app/campaigns')}
+          />
+          <ToolButton
+            icon={Users}
+            label="Character Roster"
+            onClick={() => navigate('/app/characters')}
+          />
+          <ToolButton
+            icon={Library}
+            label="Rules Compendium"
+            onClick={() => navigate('/app/rules')}
+          />
+          <ToolButton
+            icon={BookOpen}
+            label="Enemy Library"
+            onClick={() => navigate('/app/enemies')}
+          />
+        </div>
+      </section>
+    );
+  }
+}
+
+function ToolButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-2 rounded-lg border border-[hsla(32,26%,26%,0.4)] bg-[hsl(24,14%,11%)] px-3 py-2 text-[12px] text-[hsl(30,12%,58%)] transition-colors hover:border-[hsla(32,26%,26%,0.7)] hover:bg-[hsl(24,20%,13%)] hover:text-[hsl(35,24%,92%)]"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
 }

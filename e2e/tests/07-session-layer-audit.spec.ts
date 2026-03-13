@@ -14,9 +14,9 @@ import {
   sendChatMessage,
   setChatMode,
   clickDMTab,
-  startCombat,
-  nextTurn,
-  endCombat,
+  startCombat as _startCombat,
+  nextTurn as _nextTurn,
+  endCombat as _endCombat,
 } from './helpers/session-helpers';
 
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3000';
@@ -86,7 +86,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.entries).toBeDefined();
-    expect(body.entries.some((e: any) => e.name === 'Goblin Boss')).toBeTruthy();
+    expect(body.entries.some((e: unknown) => (e as Record<string, unknown>).name === 'Goblin Boss')).toBeTruthy();
   });
 
   test('Initiative: Player cannot add monster entry (ownership check)', async () => {
@@ -178,7 +178,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
     );
     expect(startRes.status()).toBe(403);
 
-    const endRes = await p1Page.request.post(
+    const _endRes = await p1Page.request.post(
       `${API_BASE}/campaigns/${campaignId}/session/initiative/end`,
     );
     expect(startRes.status()).toBe(403);
@@ -231,7 +231,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     // Player should NOT see hidden tokens
-    const hiddenTokens = (body.tokens ?? []).filter((t: any) => t.isHidden === true);
+    const hiddenTokens = (body.tokens ?? []).filter((t: unknown) => (t as Record<string, unknown>).isHidden === true);
     expect(hiddenTokens).toHaveLength(0);
   });
 
@@ -241,7 +241,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
     );
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    const hiddenTokens = (body.tokens ?? []).filter((t: any) => t.isHidden === true);
+    const hiddenTokens = (body.tokens ?? []).filter((t: unknown) => (t as Record<string, unknown>).isHidden === true);
     expect(hiddenTokens.length).toBeGreaterThan(0);
   });
 
@@ -367,7 +367,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
     );
     expect(pendingRes.ok()).toBeTruthy();
     const pendingChecks = await pendingRes.json();
-    expect(pendingChecks.every((c: any) => c.status === 'pending')).toBeTruthy();
+    expect(pendingChecks.every((c: unknown) => (c as Record<string, unknown>).status === 'pending')).toBeTruthy();
   });
 
   test('Passive checks: DM can reveal a check', async () => {
@@ -461,7 +461,7 @@ test.describe.serial('Session Layer Audit — Security & Functionality', () => {
       `${API_BASE}/campaigns/${campaignId}/encounters`,
     );
     const encounters = await listRes.json();
-    const enc = encounters.find((e: any) => e.name === 'Audit Test Encounter');
+    const enc = encounters.find((e: unknown) => (e as Record<string, unknown>).name === 'Audit Test Encounter');
     expect(enc).toBeDefined();
 
     const res = await dmPage.request.post(

@@ -3,6 +3,9 @@ import type { LucideIcon } from 'lucide-react';
 
 export type CampaignStage = 'prep' | 'live' | 'recap';
 
+/** Derived UI state: stage + combat status. Not stored — computed from server state. */
+export type AppState = 'prep' | 'narrative' | 'combat' | 'recap';
+
 // ── Panel IDs ────────────────────────────────────────────
 
 export type PrepPanelId =
@@ -25,6 +28,7 @@ export type LivePanelId =
   | 'handouts'
   | 'ai-tools-live'
   | 'party-overview'
+  | 'allies'
   | 'quick-reference'
   | 'dice-roller'
   | 'character-sheet';
@@ -60,16 +64,39 @@ export type PrepSection =
   | 'rules'
   | 'arcs'
   | 'trackers'
+  | 'calendar'
+  | 'random-tables'
+  | 'downtime'
+  | 'relationships'
+  | 'campaign-health'
+  | 'economy'
+  | 'modules'
+  | 'safety-tools'
+  | 'handouts'
   | 'my-notes';
+
+export type PrepSectionGroupId =
+  | 'campaign'
+  | 'world'
+  | 'prep'
+  | 'tracking'
+  | 'system'
+  | 'player';
 
 export interface PrepSectionDef {
   id: PrepSection;
   label: string;
   icon: LucideIcon;
+  group: PrepSectionGroupId;
   /** When true, section is only visible to the DM / co-DM */
   dmOnly?: boolean;
   /** When true, section is only visible to players (hidden from DM) */
   playerOnly?: boolean;
+}
+
+export interface PrepSectionGroupDef {
+  id: PrepSectionGroupId;
+  label: string;
 }
 
 // ── Workspace Preset ─────────────────────────────────────

@@ -70,10 +70,10 @@ function fromNpcAttacks(npcAttacks: EnemyAttack[]): SystemAction[] {
   });
 }
 
-function fromSystemData(systemData: Record<string, any> | undefined): SystemAction[] {
+function fromSystemData(systemData: Record<string, unknown> | undefined): SystemAction[] {
   const actions = Array.isArray(systemData?.actions) ? systemData.actions : [];
   return actions
-    .filter((action): action is Record<string, any> => !!action && typeof action === 'object')
+    .filter((action): action is Record<string, unknown> => !!action && typeof action === 'object')
     .map((action, index) => {
       const attackBonus = Number.isFinite(action.attackBonus) ? Number(action.attackBonus) : 0;
       const damageDice = typeof action.damageDice === 'string' ? action.damageDice.trim() : undefined;

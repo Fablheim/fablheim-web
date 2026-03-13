@@ -3,7 +3,7 @@ import { generateAccounts, generateCampaignData, uniqueId } from './helpers/test
 import { signUp } from './helpers/auth-helpers';
 import {
   createCampaign,
-  navigateToCampaign,
+  navigateToCampaign as _navigateToCampaign,
 } from './helpers/campaign-helpers';
 
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3000';
@@ -460,7 +460,7 @@ test.describe('Correlation ID handling', () => {
     const requestId = res.headers()['x-request-id'];
     expect(requestId).toBeTruthy();
     // Should be a valid UUID format
-    expect(requestId).toMatch(/^[a-f0-9\-]{36}$/);
+    expect(requestId).toMatch(/^[a-f0-9-]{36}$/);
   });
 
   test('sanitizes malicious X-Request-Id header', async ({ request }) => {
@@ -470,7 +470,7 @@ test.describe('Correlation ID handling', () => {
     const requestId = res.headers()['x-request-id'];
     // Should be a generated UUID, NOT the injected value
     expect(requestId).not.toContain('<script>');
-    expect(requestId).toMatch(/^[a-f0-9\-]{36}$/);
+    expect(requestId).toMatch(/^[a-f0-9-]{36}$/);
   });
 
   test('accepts valid X-Request-Id header', async ({ request }) => {

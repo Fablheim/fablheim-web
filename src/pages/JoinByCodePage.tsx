@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -9,17 +9,17 @@ export function JoinByCodePage() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const joinViaCode = useJoinViaCode();
-  const [hasAttempted, setHasAttempted] = useState(false);
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (authLoading || !user || !inviteCode || hasAttempted) return;
-    setHasAttempted(true);
+    if (authLoading || !user || !inviteCode || hasAttemptedRef.current) return;
+    hasAttemptedRef.current = true;
     joinViaCode.mutate(inviteCode, {
       onSuccess: (data) => {
         navigate(`/app/campaigns/${data.campaign._id}`, { replace: true });
       },
     });
-  }, [authLoading, user, inviteCode, hasAttempted, joinViaCode, navigate]);
+  }, [authLoading, user, inviteCode, joinViaCode, navigate]);
 
   if (authLoading) {
     return (

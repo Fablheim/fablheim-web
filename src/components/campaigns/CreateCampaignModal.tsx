@@ -37,6 +37,7 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
   const updateCampaign = useUpdateCampaign();
 
   // Populate form when editing
+  /* eslint-disable react-hooks/set-state-in-effect -- syncing form state from prop is intentional */
   useEffect(() => {
     if (campaign) {
       setName(campaign.name);
@@ -66,6 +67,7 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
       setSessionFrequency('');
     }
   }, [campaign]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
@@ -309,6 +311,14 @@ export function CampaignFormModal({ open, onClose, campaign }: CampaignFormModal
               </div>
             )}
           </div>
+
+          {!isEdit && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              After creating your campaign, configure{' '}
+              <strong className="text-foreground">Safety Tools</strong>{' '}
+              (lines, veils, X-card) from the prep workspace sidebar before your first session.
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={handleClose}>

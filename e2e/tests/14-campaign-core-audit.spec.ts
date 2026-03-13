@@ -1,9 +1,9 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
 import { generateAccounts, generateCampaignData, uniqueId } from './helpers/test-data';
-import { signUp, login } from './helpers/auth-helpers';
+import { signUp, login as _login } from './helpers/auth-helpers';
 import {
   createCampaign,
-  navigateToCampaign,
+  navigateToCampaign as _navigateToCampaign,
   generateInviteCode,
   joinCampaignByCode,
 } from './helpers/campaign-helpers';
@@ -359,7 +359,7 @@ test.describe.serial('Campaign data isolation', () => {
     const res = await dmPage.request.get(`${API_BASE}/campaigns`);
     expect(res.ok()).toBeTruthy();
     const campaigns = await res.json();
-    const ids = campaigns.map((c: any) => c._id);
+    const ids = campaigns.map((c: unknown) => (c as Record<string, unknown>)._id);
     expect(ids).toContain(campaignId1);
     expect(ids).not.toContain(campaignId2);
   });
@@ -404,7 +404,7 @@ test.describe.serial('Member role management', () => {
     const members = await res.json();
     expect(members.length).toBeGreaterThanOrEqual(1);
     // Find the player member
-    const playerMember = members.find((m: any) => m.role === 'player');
+    const playerMember = members.find((m: unknown) => (m as Record<string, unknown>).role === 'player');
     expect(playerMember).toBeTruthy();
     memberId = playerMember._id;
   });

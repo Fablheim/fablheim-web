@@ -21,7 +21,16 @@ const AIToolsPage = lazy(() =>
 );
 import { ArcsPanel } from './panels/ArcsPanel';
 import { TrackersPanel } from './panels/TrackersPanel';
+import { CalendarPanel } from './panels/CalendarPanel';
+import { RandomTablePanel } from './panels/RandomTablePanel';
+import { DowntimePanel } from './panels/DowntimePanel';
+import { RelationshipPanel } from './panels/RelationshipPanel';
+import { CampaignHealthPanel } from './panels/CampaignHealthPanel';
+import { ShopPanel } from './panels/ShopPanel';
 import { PlayerNotesPanel } from './panels/PlayerNotesPanel';
+import { ModuleBrowserPanel } from './panels/ModuleBrowserPanel';
+import { SafetyToolsPanel } from './panels/SafetyToolsPanel';
+import { HandoutsTab } from '@/components/session/HandoutsTab';
 
 interface PrepContentAreaProps {
   activeSection: PrepSection;
@@ -62,8 +71,26 @@ export function PrepContentArea({ activeSection, campaign, isDM }: PrepContentAr
         return <ArcsPanel campaignId={campaign._id} isDM={isDM} />;
       case 'trackers':
         return <TrackersPanel campaignId={campaign._id} isDM={isDM} />;
+      case 'calendar':
+        return <CalendarPanel campaignId={campaign._id} />;
+      case 'random-tables':
+        return <RandomTablePanel campaignId={campaign._id} />;
+      case 'downtime':
+        return <DowntimePanel campaignId={campaign._id} />;
+      case 'relationships':
+        return <RelationshipPanel campaignId={campaign._id} />;
+      case 'campaign-health':
+        return <CampaignHealthPanel campaignId={campaign._id} />;
+      case 'economy':
+        return <ShopPanel campaignId={campaign._id} />;
       case 'my-notes':
         return <PlayerNotesPanel campaignId={campaign._id} />;
+      case 'modules':
+        return <ModuleBrowserPanel campaignId={campaign._id} />;
+      case 'handouts':
+        return <HandoutsTab campaignId={campaign._id} isDM={isDM} />;
+      case 'safety-tools':
+        return <SafetyToolsPanel campaignId={campaign._id} />;
       case 'rules':
         return <RulesPanel campaignId={campaign._id} system={campaign.system} />;
       default:

@@ -14,15 +14,29 @@ export function useItems(characterId?: string) {
   });
 }
 
+export function usePartyItems(campaignId?: string) {
+  return useQuery({
+    queryKey: ['party-items', campaignId],
+    queryFn: () => itemsApi.listParty(campaignId!),
+    enabled: !!campaignId,
+  });
+}
+
 export function useCreateItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: CreateItemPayload) => itemsApi.create(data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['items', variables.characterId],
-      });
+      if (variables.scope === 'party') {
+        queryClient.invalidateQueries({
+          queryKey: ['party-items', variables.campaignId],
+        });
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ['items', variables.characterId],
+        });
+      }
     },
   });
 }
@@ -33,13 +47,21 @@ export function useUpdateItem() {
   return useMutation({
     mutationFn: (variables: {
       id: string;
-      characterId: string;
+      characterId?: string;
+      campaignId?: string;
       data: UpdateItemPayload;
     }) => itemsApi.update(variables.id, variables.data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['items', variables.characterId],
-      });
+      if (variables.characterId) {
+        queryClient.invalidateQueries({
+          queryKey: ['items', variables.characterId],
+        });
+      }
+      if (variables.campaignId) {
+        queryClient.invalidateQueries({
+          queryKey: ['party-items', variables.campaignId],
+        });
+      }
     },
   });
 }
@@ -48,12 +70,19 @@ export function useDeleteItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (variables: { id: string; characterId: string }) =>
+    mutationFn: (variables: { id: string; characterId?: string; campaignId?: string }) =>
       itemsApi.delete(variables.id),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['items', variables.characterId],
-      });
+      if (variables.characterId) {
+        queryClient.invalidateQueries({
+          queryKey: ['items', variables.characterId],
+        });
+      }
+      if (variables.campaignId) {
+        queryClient.invalidateQueries({
+          queryKey: ['party-items', variables.campaignId],
+        });
+      }
     },
   });
 }

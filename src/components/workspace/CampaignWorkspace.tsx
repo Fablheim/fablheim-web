@@ -27,10 +27,22 @@ function getTreeStorageKey(campaignId: string, stage: CampaignStage) {
   return `fablheim:workspace-tree:${campaignId}:${stage}`;
 }
 
+function migrateLegacyPanelIds(node: MosaicNode<PanelId | 'companions'> | null): MosaicNode<PanelId> | null {
+  if (!node) return null;
+  if (typeof node === 'string') {
+    return (node === 'companions' ? 'allies' : node) as PanelId;
+  }
+  return {
+    ...node,
+    first: migrateLegacyPanelIds(node.first)!,
+    second: migrateLegacyPanelIds(node.second)!,
+  };
+}
+
 function loadTree(campaignId: string, stage: CampaignStage): MosaicNode<PanelId> | null {
   try {
     const raw = localStorage.getItem(getTreeStorageKey(campaignId, stage));
-    return raw ? JSON.parse(raw) : null;
+    return raw ? migrateLegacyPanelIds(JSON.parse(raw) as MosaicNode<PanelId | 'companions'>) : null;
   } catch {
     return null;
   }
@@ -80,6 +92,7 @@ export function CampaignWorkspace({ campaignId, campaign }: CampaignWorkspacePro
     if (prevStageRef.current !== stage) {
       prevStageRef.current = stage;
       const saved = loadTree(campaignId, stage);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing layout from stage change
       setTree(saved ?? getDefaultLayout(stage));
     }
   }, [stage, campaignId]);

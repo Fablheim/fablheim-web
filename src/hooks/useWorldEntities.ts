@@ -67,6 +67,7 @@ export function useDeleteWorldEntity() {
       worldEntitiesApi.delete(campaignId, id),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['allies', variables.campaignId] });
     },
   });
 }
@@ -76,6 +77,44 @@ export function useWorldTree(campaignId: string) {
     queryKey: ['world-entities', campaignId, 'tree'],
     queryFn: () => worldEntitiesApi.getTree(campaignId),
     enabled: !!campaignId,
+  });
+}
+
+export function useUnassignedEntities(campaignId: string, type?: string) {
+  return useQuery({
+    queryKey: ['world-entities', campaignId, 'unassigned', type ?? 'all'],
+    queryFn: () => worldEntitiesApi.list(campaignId, type, null),
+    enabled: !!campaignId,
+  });
+}
+
+export function useWorldEntityChildren(campaignId: string, entityId: string) {
+  return useQuery({
+    queryKey: ['world-entities', campaignId, 'children', entityId],
+    queryFn: () => worldEntitiesApi.getChildren(campaignId, entityId),
+    enabled: !!campaignId && !!entityId,
+  });
+}
+
+export function useWorldEntityReferences(campaignId: string, entityId: string) {
+  return useQuery({
+    queryKey: ['world-entities', campaignId, 'references', entityId],
+    queryFn: () => worldEntitiesApi.getReferences(campaignId, entityId),
+    enabled: !!campaignId && !!entityId,
+  });
+}
+
+// ── Discovery ─────────────────────────────────────────
+
+export function useToggleDiscovery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, entityId, discovered }: { campaignId: string; entityId: string; discovered: boolean }) =>
+      worldEntitiesApi.toggleDiscovery(campaignId, entityId, discovered),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', v.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['world-entities', 'detail', v.entityId] });
+    },
   });
 }
 

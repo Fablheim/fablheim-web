@@ -2,6 +2,7 @@ import { type FormEvent, useState, useEffect } from 'react';
 import { X, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useCreateWorldEntity, useUpdateWorldEntity, useWorldEntities } from '@/hooks/useWorldEntities';
 import { TYPE_LABELS, TYPE_DATA_FIELDS } from './world-constants';
 import type { WorldEntity, WorldEntityType, WorldEntityVisibility, LocationType, CreateWorldEntityPayload } from '@/types/campaign';
@@ -173,6 +174,310 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
 
   const isPending = createEntity.isPending || updateEntity.isPending;
   const fields = TYPE_DATA_FIELDS[entityType] ?? [];
+  const isLocationType = entityType === 'location' || entityType === 'location_detail';
+
+  function renderBasicInfo() {
+    return (
+      <CollapsibleSection title="Basic Info" defaultOpen>
+        <div>
+          <label htmlFor="entity-name" className={labelClass}>Name</label>
+          <input
+            id="entity-name"
+            type="text"
+            required
+            maxLength={100}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name this entity..."
+            className={inputClass}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="entity-type" className={labelClass}>Type</label>
+            <select
+              id="entity-type"
+              value={entityType}
+              onChange={(e) => setEntityType(e.target.value as WorldEntityType)}
+              className={inputClass}
+            >
+              {ALL_TYPES.map((t) => (
+                <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Visibility</label>
+            <button
+              type="button"
+              onClick={() => setVisibility(visibility === 'public' ? 'dm-only' : 'public')}
+              className={`mt-1 flex w-full items-center gap-2 rounded-sm border px-3 py-2 text-sm transition-colors ${
+                visibility === 'dm-only'
+                  ? 'border-arcane/40 bg-arcane/10 text-arcane'
+                  : 'border-forest/40 bg-forest/10 text-[hsl(150,50%,55%)]'
+              }`}
+            >
+              {visibility === 'dm-only' ? (
+                <>
+                  <EyeOff className="h-4 w-4" />
+                  <span className="font-[Cinzel] text-xs uppercase tracking-wider">GM Only</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4" />
+                  <span className="font-[Cinzel] text-xs uppercase tracking-wider">Public</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="entity-description" className={labelClass}>Description</label>
+          <textarea
+            id="entity-description"
+            rows={4}
+            maxLength={5000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe this entity..."
+            className={inputClass}
+          />
+        </div>
+      </CollapsibleSection>
+    );
+  }
+
+  function renderTypeDetails() {
+    if (fields.length === 0) return null;
+    return (
+      <CollapsibleSection title={`${TYPE_LABELS[entityType]} Details`} defaultOpen>
+        {fields.map((field) => (
+          <div key={field.key}>
+            <label htmlFor={`entity-${field.key}`} className={labelClass}>
+              {field.label}
+            </label>
+            {field.inputType === 'textarea' ? (
+              <textarea
+                id={`entity-${field.key}`}
+                rows={3}
+                maxLength={2000}
+                value={typeData[field.key] ?? ''}
+                onChange={(e) => handleTypeDataChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className={inputClass}
+              />
+            ) : (
+              <input
+                id={`entity-${field.key}`}
+                type="text"
+                maxLength={200}
+                value={typeData[field.key] ?? ''}
+                onChange={(e) => handleTypeDataChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className={inputClass}
+              />
+            )}
+          </div>
+        ))}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderLocationSection() {
+    return (
+      <CollapsibleSection title={isLocationType ? 'Location' : 'Placement'} defaultOpen={isLocationType}>
+        {isLocationType && (
+          <div>
+            <label htmlFor="location-type" className={labelClass}>Location Scale</label>
+            <select
+              id="location-type"
+              value={locationType}
+              onChange={(e) => setLocationType(e.target.value as LocationType | '')}
+              className={inputClass}
+            >
+              <option value="">Unspecified</option>
+              {LOCATION_TYPES.map((lt) => (
+                <option key={lt.value} value={lt.value}>{lt.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div>
+          <label htmlFor="parent-location" className={labelClass}>
+            {isLocationType ? 'Parent Location' : 'Located In'}
+          </label>
+          <select
+            id="parent-location"
+            value={parentEntityId}
+            onChange={(e) => setParentEntityId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">{isLocationType ? 'None (top-level)' : 'None'}</option>
+            {(allEntities ?? [])
+              .filter((e) => (e.type === 'location' || e.type === 'location_detail') && e._id !== entity?._id)
+              .map((loc) => (
+                <option key={loc._id} value={loc._id}>
+                  {loc.locationType ? `[${loc.locationType}] ` : ''}{loc.name}
+                </option>
+              ))}
+          </select>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Place this {TYPE_LABELS[entityType].toLowerCase()} inside a location
+          </p>
+        </div>
+      </CollapsibleSection>
+    );
+  }
+
+  function renderQuestSection() {
+    if (entityType !== 'quest') return null;
+    return (
+      <CollapsibleSection title="Quest Config" defaultOpen>
+        {renderQuestFields()}
+        {renderObjectives()}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderQuestFields() {
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="quest-status" className={labelClass}>Status</label>
+            <select
+              id="quest-status"
+              value={questStatus}
+              onChange={(e) => setQuestStatus(e.target.value)}
+              className={inputClass}
+            >
+              <option value="available">Available</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="quest-giver" className={labelClass}>Quest Giver</label>
+            <select
+              id="quest-giver"
+              value={questGiver}
+              onChange={(e) => setQuestGiver(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">None</option>
+              {(allEntities ?? [])
+                .filter((e) => e.type === 'npc' || e.type === 'npc_minor')
+                .map((npc) => (
+                  <option key={npc._id} value={npc._id}>{npc.name}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="quest-rewards" className={labelClass}>Rewards</label>
+          <input
+            id="quest-rewards"
+            type="text"
+            maxLength={500}
+            value={rewards}
+            onChange={(e) => setRewards(e.target.value)}
+            placeholder="500gp, magic sword, faction reputation..."
+            className={inputClass}
+          />
+        </div>
+      </>
+    );
+  }
+
+  function renderObjectives() {
+    return (
+      <div>
+        <label className={labelClass}>Objectives</label>
+        <ul className="mt-1 space-y-1.5">
+          {objectives.map((obj, i) => (
+            <li key={obj.id} className="flex items-center gap-2">
+              <span className="flex-1 rounded-sm border border-input bg-input px-2 py-1 text-xs text-foreground">
+                {obj.description}
+              </span>
+              <button
+                type="button"
+                onClick={() => setObjectives((prev) => prev.filter((_, j) => j !== i))}
+                className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={newObjText}
+            onChange={(e) => setNewObjText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newObjText.trim()) {
+                e.preventDefault();
+                setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
+                setNewObjText('');
+              }
+            }}
+            placeholder="Add an objective..."
+            className={inputClass + ' !mt-0'}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!newObjText.trim()}
+            onClick={() => {
+              if (newObjText.trim()) {
+                setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
+                setNewObjText('');
+              }
+            }}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderTagsSection() {
+    return (
+      <CollapsibleSection title="Tags">
+        <div>
+          <label htmlFor="entity-tags" className={labelClass}>Tags</label>
+          <input
+            id="entity-tags"
+            type="text"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="tavern, quest-giver, dangerous..."
+            className={inputClass}
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">Separate tags with commas</p>
+          {tagsInput && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {tagsInput.split(',').map((tag, i) => {
+                const trimmed = tag.trim();
+                if (!trimmed) return null;
+                return (
+                  <span
+                    key={i}
+                    className="rounded bg-background/40 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground"
+                  >
+                    {trimmed}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -190,301 +495,14 @@ export function CreateEntityModal({ open, onClose, campaignId, entity, defaultTy
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Name */}
-          <div>
-            <label htmlFor="entity-name" className={labelClass}>Name</label>
-            <input
-              id="entity-name"
-              type="text"
-              required
-              maxLength={100}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name this entity..."
-              className={inputClass}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="mt-4">
+          {renderBasicInfo()}
+          {renderTypeDetails()}
+          {renderLocationSection()}
+          {renderQuestSection()}
+          {renderTagsSection()}
 
-          {/* Type + Visibility row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="entity-type" className={labelClass}>Type</label>
-              <select
-                id="entity-type"
-                value={entityType}
-                onChange={(e) => setEntityType(e.target.value as WorldEntityType)}
-                className={inputClass}
-              >
-                {ALL_TYPES.map((t) => (
-                  <option key={t} value={t}>{TYPE_LABELS[t]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelClass}>Visibility</label>
-              <button
-                type="button"
-                onClick={() => setVisibility(visibility === 'public' ? 'dm-only' : 'public')}
-                className={`mt-1 flex w-full items-center gap-2 rounded-sm border px-3 py-2 text-sm transition-colors ${
-                  visibility === 'dm-only'
-                    ? 'border-arcane/40 bg-arcane/10 text-arcane'
-                    : 'border-forest/40 bg-forest/10 text-[hsl(150,50%,55%)]'
-                }`}
-              >
-                {visibility === 'dm-only' ? (
-                  <>
-                    <EyeOff className="h-4 w-4" />
-                    <span className="font-[Cinzel] text-xs uppercase tracking-wider">GM Only</span>
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4" />
-                    <span className="font-[Cinzel] text-xs uppercase tracking-wider">Public</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="entity-description" className={labelClass}>Description</label>
-            <textarea
-              id="entity-description"
-              rows={4}
-              maxLength={5000}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this entity..."
-              className={inputClass}
-            />
-          </div>
-
-          {/* Type-specific fields */}
-          {fields.length > 0 && (
-            <>
-              <div className="divider-ornate" />
-              <p className="font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
-                {TYPE_LABELS[entityType]} Details
-              </p>
-              {fields.map((field) => (
-                <div key={field.key}>
-                  <label htmlFor={`entity-${field.key}`} className={labelClass}>
-                    {field.label}
-                  </label>
-                  {field.inputType === 'textarea' ? (
-                    <textarea
-                      id={`entity-${field.key}`}
-                      rows={3}
-                      maxLength={2000}
-                      value={typeData[field.key] ?? ''}
-                      onChange={(e) => handleTypeDataChange(field.key, e.target.value)}
-                      placeholder={field.placeholder}
-                      className={inputClass}
-                    />
-                  ) : (
-                    <input
-                      id={`entity-${field.key}`}
-                      type="text"
-                      maxLength={200}
-                      value={typeData[field.key] ?? ''}
-                      onChange={(e) => handleTypeDataChange(field.key, e.target.value)}
-                      placeholder={field.placeholder}
-                      className={inputClass}
-                    />
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Location scale (for location types only) */}
-          {(entityType === 'location' || entityType === 'location_detail') && (
-            <>
-              <div className="divider-ornate" />
-              <div>
-                <label htmlFor="location-type" className={labelClass}>Location Scale</label>
-                <select
-                  id="location-type"
-                  value={locationType}
-                  onChange={(e) => setLocationType(e.target.value as LocationType | '')}
-                  className={inputClass}
-                >
-                  <option value="">Unspecified</option>
-                  {LOCATION_TYPES.map((lt) => (
-                    <option key={lt.value} value={lt.value}>{lt.label}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-
-          {/* Parent location — available for ALL entity types */}
-          <div className="divider-ornate" />
-          <div>
-            <label htmlFor="parent-location" className={labelClass}>
-              {entityType === 'location' || entityType === 'location_detail'
-                ? 'Parent Location'
-                : 'Located In'}
-            </label>
-            <select
-              id="parent-location"
-              value={parentEntityId}
-              onChange={(e) => setParentEntityId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">{entityType === 'location' || entityType === 'location_detail' ? 'None (top-level)' : 'None'}</option>
-              {(allEntities ?? [])
-                .filter((e) => (e.type === 'location' || e.type === 'location_detail') && e._id !== entity?._id)
-                .map((loc) => (
-                  <option key={loc._id} value={loc._id}>
-                    {loc.locationType ? `[${loc.locationType}] ` : ''}{loc.name}
-                  </option>
-                ))}
-            </select>
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              Place this {TYPE_LABELS[entityType].toLowerCase()} inside a location
-            </p>
-          </div>
-
-          {/* Quest-specific fields */}
-          {entityType === 'quest' && (
-            <>
-              <div className="divider-ornate" />
-              <p className="font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
-                Quest Details
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="quest-status" className={labelClass}>Status</label>
-                  <select
-                    id="quest-status"
-                    value={questStatus}
-                    onChange={(e) => setQuestStatus(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="available">Available</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="failed">Failed</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="quest-giver" className={labelClass}>Quest Giver</label>
-                  <select
-                    id="quest-giver"
-                    value={questGiver}
-                    onChange={(e) => setQuestGiver(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">None</option>
-                    {(allEntities ?? [])
-                      .filter((e) => e.type === 'npc' || e.type === 'npc_minor')
-                      .map((npc) => (
-                        <option key={npc._id} value={npc._id}>{npc.name}</option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="quest-rewards" className={labelClass}>Rewards</label>
-                <input
-                  id="quest-rewards"
-                  type="text"
-                  maxLength={500}
-                  value={rewards}
-                  onChange={(e) => setRewards(e.target.value)}
-                  placeholder="500gp, magic sword, faction reputation..."
-                  className={inputClass}
-                />
-              </div>
-              {/* Objectives list */}
-              <div>
-                <label className={labelClass}>Objectives</label>
-                <ul className="mt-1 space-y-1.5">
-                  {objectives.map((obj, i) => (
-                    <li key={obj.id} className="flex items-center gap-2">
-                      <span className="flex-1 rounded-sm border border-input bg-input px-2 py-1 text-xs text-foreground">
-                        {obj.description}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setObjectives((prev) => prev.filter((_, j) => j !== i))}
-                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    type="text"
-                    value={newObjText}
-                    onChange={(e) => setNewObjText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newObjText.trim()) {
-                        e.preventDefault();
-                        setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
-                        setNewObjText('');
-                      }
-                    }}
-                    placeholder="Add an objective..."
-                    className={inputClass + ' !mt-0'}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={!newObjText.trim()}
-                    onClick={() => {
-                      if (newObjText.trim()) {
-                        setObjectives((prev) => [...prev, { id: crypto.randomUUID(), description: newObjText.trim() }]);
-                        setNewObjText('');
-                      }
-                    }}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Tags */}
-          <div className="divider-ornate" />
-          <div>
-            <label htmlFor="entity-tags" className={labelClass}>Tags</label>
-            <input
-              id="entity-tags"
-              type="text"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              placeholder="tavern, quest-giver, dangerous..."
-              className={inputClass}
-            />
-            <p className="mt-1 text-[10px] text-muted-foreground">Separate tags with commas</p>
-            {tagsInput && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {tagsInput.split(',').map((tag, i) => {
-                  const trimmed = tag.trim();
-                  if (!trimmed) return null;
-                  return (
-                    <span
-                      key={i}
-                      className="rounded bg-background/40 px-2 py-0.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground"
-                    >
-                      {trimmed}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 px-4 pt-3 pb-1">
             <Button type="button" variant="ghost" onClick={handleClose}>
               Cancel
             </Button>

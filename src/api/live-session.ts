@@ -2,8 +2,17 @@ import { api } from './client';
 import type {
   RollDiceRequest,
   RollResult,
+  HopeFearRollRequest,
+  HopeFearRollResult,
+  PbtaRollRequest,
+  Pbta2d6Result,
+  DicePoolRollRequest,
+  DicePoolResult,
   DiceRollRecord,
   Initiative,
+  GmResource,
+  SceneAspect,
+  CountdownClock,
   AddInitiativeEntryRequest,
   UpdateInitiativeEntryRequest,
   UpdateDeathSavesRequest,
@@ -22,6 +31,30 @@ export const liveSessionApi = {
   rollDice: async (campaignId: string, body: RollDiceRequest): Promise<RollResult> => {
     const { data } = await api.post<RollResult>(
       `/campaigns/${campaignId}/session/dice/roll`,
+      body,
+    );
+    return data;
+  },
+
+  rollHopeFear: async (campaignId: string, body: HopeFearRollRequest): Promise<HopeFearRollResult> => {
+    const { data } = await api.post<HopeFearRollResult>(
+      `/campaigns/${campaignId}/session/dice/hope-fear`,
+      body,
+    );
+    return data;
+  },
+
+  rollPbta2d6: async (campaignId: string, body: PbtaRollRequest): Promise<Pbta2d6Result> => {
+    const { data } = await api.post<Pbta2d6Result>(
+      `/campaigns/${campaignId}/session/dice/pbta-2d6`,
+      body,
+    );
+    return data;
+  },
+
+  rollDicePool: async (campaignId: string, body: DicePoolRollRequest): Promise<DicePoolResult> => {
+    const { data } = await api.post<DicePoolResult>(
+      `/campaigns/${campaignId}/session/dice/pool`,
       body,
     );
     return data;
@@ -103,6 +136,98 @@ export const liveSessionApi = {
   endCombat: async (campaignId: string): Promise<Initiative> => {
     const { data } = await api.post<Initiative>(
       `/campaigns/${campaignId}/session/initiative/end`,
+    );
+    return data;
+  },
+
+  // ── GM Resource Pools ────────────────────────────────────
+  getGmResources: async (campaignId: string): Promise<GmResource[]> => {
+    const { data } = await api.get<GmResource[]>(
+      `/campaigns/${campaignId}/session/gm-resources`,
+    );
+    return data;
+  },
+
+  upsertGmResource: async (campaignId: string, resource: GmResource): Promise<void> => {
+    await api.patch(`/campaigns/${campaignId}/session/gm-resources/${resource.id}`, resource);
+  },
+
+  adjustGmResource: async (campaignId: string, resourceId: string, delta: number): Promise<void> => {
+    await api.patch(`/campaigns/${campaignId}/session/gm-resources/${resourceId}/adjust`, { delta });
+  },
+
+  removeGmResource: async (campaignId: string, resourceId: string): Promise<void> => {
+    await api.delete(`/campaigns/${campaignId}/session/gm-resources/${resourceId}`);
+  },
+
+  // ── Scene Aspects ──────────────────────────────────────
+  getSceneAspects: async (campaignId: string): Promise<SceneAspect[]> => {
+    const { data } = await api.get<SceneAspect[]>(
+      `/campaigns/${campaignId}/session/scene-aspects`,
+    );
+    return data;
+  },
+
+  upsertSceneAspect: async (campaignId: string, aspect: SceneAspect): Promise<void> => {
+    await api.patch(`/campaigns/${campaignId}/session/scene-aspects/${aspect.id}`, aspect);
+  },
+
+  invokeSceneAspect: async (campaignId: string, aspectId: string): Promise<void> => {
+    await api.post(`/campaigns/${campaignId}/session/scene-aspects/${aspectId}/invoke`);
+  },
+
+  removeSceneAspect: async (campaignId: string, aspectId: string): Promise<void> => {
+    await api.delete(`/campaigns/${campaignId}/session/scene-aspects/${aspectId}`);
+  },
+
+  // ── Countdown Clocks ──────────────────────────────────
+  getCountdowns: async (campaignId: string): Promise<CountdownClock[]> => {
+    const { data } = await api.get<CountdownClock[]>(
+      `/campaigns/${campaignId}/session/countdowns`,
+    );
+    return data;
+  },
+
+  upsertCountdown: async (campaignId: string, clock: CountdownClock): Promise<void> => {
+    await api.patch(`/campaigns/${campaignId}/session/countdowns/${clock.id}`, clock);
+  },
+
+  advanceCountdown: async (campaignId: string, clockId: string, delta?: number): Promise<void> => {
+    await api.post(`/campaigns/${campaignId}/session/countdowns/${clockId}/advance`, { delta });
+  },
+
+  removeCountdown: async (campaignId: string, clockId: string): Promise<void> => {
+    await api.delete(`/campaigns/${campaignId}/session/countdowns/${clockId}`);
+  },
+
+  // ── PF2e Dying ─────────────────────────────────────────
+  pf2eRecoveryCheck: async (campaignId: string, entryId: string) => {
+    const { data } = await api.post<{
+      roll: number; dc: number; degree: string;
+      dyingValue: number; woundedValue: number; dead: boolean;
+    }>(`/campaigns/${campaignId}/session/initiative/entries/${entryId}/pf2e-recovery`);
+    return data;
+  },
+
+  pf2eSetDying: async (campaignId: string, entryId: string, dyingValue: number, woundedValue?: number): Promise<Initiative> => {
+    const { data } = await api.patch<Initiative>(
+      `/campaigns/${campaignId}/session/initiative/entries/${entryId}/pf2e-dying`,
+      { dyingValue, woundedValue },
+    );
+    return data;
+  },
+
+  // ── Wound Levels ─────────────────────────────────────────
+  woundAdvance: async (campaignId: string, entryId: string): Promise<Initiative> => {
+    const { data } = await api.post<Initiative>(
+      `/campaigns/${campaignId}/session/initiative/entries/${entryId}/wound-advance`,
+    );
+    return data;
+  },
+
+  woundReduce: async (campaignId: string, entryId: string): Promise<Initiative> => {
+    const { data } = await api.post<Initiative>(
+      `/campaigns/${campaignId}/session/initiative/entries/${entryId}/wound-reduce`,
     );
     return data;
   },
@@ -220,6 +345,7 @@ export const liveSessionApi = {
 // If a legacy backend returns a v1 shape (no profileVersion), convert it
 // to a v2 CombatRulesProfile so the rest of the FE can assume v2 always.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy v1 shape is untyped
 function normalizeCombatRules(raw: any): CombatRulesProfile {
   if (raw.profileVersion === 2) return raw as CombatRulesProfile;
 
@@ -247,6 +373,7 @@ function normalizeCombatRules(raw: any): CombatRulesProfile {
       : {
           type: 'categorical' as const,
           config: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy untyped data
             categories: (raw.damageTypes ?? []).map((dt: any) => ({
               key: dt.key,
               label: dt.label,

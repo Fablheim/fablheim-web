@@ -1,3 +1,5 @@
+import type { DynamicSchemaData } from './campaign';
+
 // ── Dice Rolling ─────────────────────────────────────────────
 
 export interface RollDiceRequest {
@@ -31,10 +33,86 @@ export interface DiceRollRecord {
 
 // ── WebSocket Events ─────────────────────────────────────────
 
+export type HopeFearOutcome = 'with-hope' | 'with-fear' | 'critical-success';
+
+export interface HopeFearRollResult {
+  hopeDie: number;
+  fearDie: number;
+  total: number;
+  modifier: number;
+  outcome: HopeFearOutcome;
+  withHope: boolean;
+  withFear: boolean;
+  isCritical: boolean;
+  allDice: number[];
+  advantage?: boolean;
+  disadvantage?: boolean;
+}
+
+export interface HopeFearRollRequest {
+  modifier?: number;
+  advantage?: boolean;
+  disadvantage?: boolean;
+  purpose?: string;
+  isPrivate?: boolean;
+}
+
+// ── PbtA 2d6 ──────────────────────────────────────────────────
+
+export interface Pbta2d6Band {
+  min?: number;
+  max?: number;
+  label: string;
+  description: string;
+}
+
+export interface Pbta2d6Result {
+  die1: number;
+  die2: number;
+  total: number;
+  modifier: number;
+  finalTotal: number;
+  band: { label: string; description: string };
+}
+
+export interface PbtaRollRequest {
+  modifier?: number;
+  purpose?: string;
+  isPrivate?: boolean;
+  bands?: Pbta2d6Band[];
+}
+
+// ── Dice Pool ─────────────────────────────────────────────────
+
+export interface DicePoolResult {
+  dice: number[];
+  explodedDice: number[];
+  allDice: number[];
+  successes: number;
+  isSuccess: boolean;
+}
+
+export interface DicePoolRollRequest {
+  dieSize: 6 | 10;
+  count: number;
+  successThreshold: number;
+  exploding: boolean;
+  purpose?: string;
+  isPrivate?: boolean;
+}
+
 export interface DiceRolledEvent {
   userId: string;
   username: string;
   result: RollResult;
+  purpose?: string;
+  timestamp: string;
+}
+
+export interface HopeFearRolledEvent {
+  userId: string;
+  username: string;
+  result: HopeFearRollResult;
   purpose?: string;
   timestamp: string;
 }
@@ -59,6 +137,18 @@ export interface SyncResponse {
 
 // ── Initiative ───────────────────────────────────────────────
 
+export interface ConditionEntry {
+  id: string;
+  name: string;
+  durationRounds?: number;
+  remainingRounds?: number;
+  source?: string;
+  saveDC?: number;
+  saveAbility?: string;
+  endsOn?: 'start' | 'end';
+  appliedRound?: number;
+}
+
 export interface InitiativeEntry {
   id: string;
   type: 'pc' | 'npc' | 'monster' | 'other';
@@ -68,7 +158,7 @@ export interface InitiativeEntry {
   currentHp?: number;
   maxHp?: number;
   ac?: number;
-  conditions?: string[];
+  conditions?: ConditionEntry[];
   notes?: string;
   characterId?: string;
   isHidden?: boolean;
@@ -83,7 +173,12 @@ export interface InitiativeEntry {
     successes: number;
     failures: number;
   } | null;
-  systemData?: Record<string, any>;
+  systemData?: DynamicSchemaData;
+  legendaryActions?: { total: number; remaining: number };
+  lairInitiative?: number;
+  turnState?: 'normal' | 'readied' | 'delayed';
+  readiedAction?: { action: string; trigger: string };
+  isSurprised?: boolean;
 }
 
 export interface AddInitiativeEntryRequest {
@@ -94,12 +189,15 @@ export interface AddInitiativeEntryRequest {
   currentHp?: number;
   maxHp?: number;
   ac?: number;
-  conditions?: string[];
+  conditions?: ConditionEntry[];
   notes?: string;
   characterId?: string;
   isHidden?: boolean;
   imageUrl?: string;
-  systemData?: Record<string, any>;
+  systemData?: DynamicSchemaData;
+  legendaryActions?: { total: number; remaining: number };
+  lairInitiative?: number;
+  isSurprised?: boolean;
 }
 
 export interface UpdateInitiativeEntryRequest {
@@ -108,7 +206,7 @@ export interface UpdateInitiativeEntryRequest {
   maxHp?: number;
   tempHp?: number;
   ac?: number;
-  conditions?: string[];
+  conditions?: ConditionEntry[];
   notes?: string;
   resistances?: string[];
   vulnerabilities?: string[];
@@ -116,13 +214,49 @@ export interface UpdateInitiativeEntryRequest {
   isConcentrating?: boolean;
   concentrationSpell?: string;
   isHidden?: boolean;
-  systemData?: Record<string, any>;
+  systemData?: DynamicSchemaData;
+  legendaryActions?: { total: number; remaining: number };
+  lairInitiative?: number;
+  turnState?: 'normal' | 'readied' | 'delayed';
+  readiedAction?: { action: string; trigger: string };
+  isSurprised?: boolean;
 }
 
 export interface UpdateDeathSavesRequest {
   successes?: number;
   failures?: number;
   clear?: boolean;
+}
+
+// ── GM Resource Pool (gm-resource-pool module) ──────────────
+export interface GmResource {
+  id: string;
+  name: string;
+  current: number;
+  max: number;
+  color?: string;
+}
+
+// ── Scene Aspects (situation-aspects module) ────────────────
+export interface SceneAspect {
+  id: string;
+  name: string;
+  freeInvokes: number;
+  isBoost: boolean;
+  isHidden: boolean;
+  source?: string;
+  createdRound?: number;
+}
+
+// ── Countdown Clocks (countdown-clocks module) ──────────────
+export interface CountdownClock {
+  id: string;
+  name: string;
+  segments: number;
+  filled: number;
+  isHidden: boolean;
+  color?: string;
+  description?: string;
 }
 
 export interface Initiative {
@@ -137,6 +271,9 @@ export interface Initiative {
   lastUpdatedAt: string;
   createdAt: string;
   updatedAt: string;
+  gmResources?: GmResource[];
+  sceneAspects?: SceneAspect[];
+  countdowns?: CountdownClock[];
 }
 
 // ── Battle Map ──────────────────────────────────────────────

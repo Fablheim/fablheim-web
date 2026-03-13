@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -9,17 +9,17 @@ export function JoinByEmailPage() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const acceptInvite = useAcceptEmailInvite();
-  const [hasAttempted, setHasAttempted] = useState(false);
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (authLoading || !user || !token || hasAttempted) return;
-    setHasAttempted(true);
+    if (authLoading || !user || !token || hasAttemptedRef.current) return;
+    hasAttemptedRef.current = true;
     acceptInvite.mutate(token, {
       onSuccess: (data) => {
         navigate(`/app/campaigns/${data.campaign._id}`, { replace: true });
       },
     });
-  }, [authLoading, user, token, hasAttempted, acceptInvite, navigate]);
+  }, [authLoading, user, token, acceptInvite, navigate]);
 
   if (authLoading) {
     return (

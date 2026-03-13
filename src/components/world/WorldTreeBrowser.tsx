@@ -11,6 +11,9 @@ import {
   ScrollText,
   Castle,
   FolderOpen,
+  TriangleAlert,
+  Search,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import type { WorldTreeNode, WorldEntityType, LocationType } from '@/types/campaign';
@@ -32,6 +35,7 @@ const TYPE_TREE_ICONS: Record<WorldEntityType, LucideIcon> = {
   quest: Swords,
   event: Calendar,
   lore: ScrollText,
+  trap: TriangleAlert,
 };
 
 interface TreeNodeData {
@@ -92,6 +96,19 @@ function buildTree(nodes: WorldTreeNode[]): TreeNodeData[] {
   return roots;
 }
 
+function highlightMatch(text: string, query: string) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-gold/30 text-foreground">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
 function TreeItem({
   data,
   depth,
@@ -99,6 +116,8 @@ function TreeItem({
   onToggle,
   onSelect,
   selectedId,
+  visibleIds,
+  searchQuery,
 }: {
   data: TreeNodeData;
   depth: number;
@@ -106,6 +125,8 @@ function TreeItem({
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   selectedId?: string | null;
+  visibleIds?: Set<string> | null;
+  searchQuery?: string;
 }) {
   const { node, children } = data;
   const isExpanded = expanded.has(node._id);
@@ -114,6 +135,12 @@ function TreeItem({
   const Icon = TYPE_TREE_ICONS[node.type];
   const accent = TYPE_ACCENTS[node.type];
   const isLocation = node.type === 'location' || node.type === 'location_detail';
+
+  // When filtering, skip nodes not in the visible set
+  if (visibleIds && !visibleIds.has(node._id)) return null;
+
+  // When filtering, auto-expand nodes that have visible children
+  const effectiveExpanded = visibleIds ? true : isExpanded;
 
   return (
     <>
@@ -137,7 +164,7 @@ function TreeItem({
             }}
             className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
           >
-            {isExpanded ? (
+            {effectiveExpanded ? (
               <ChevronDown className="h-3.5 w-3.5" />
             ) : (
               <ChevronRight className="h-3.5 w-3.5" />
@@ -152,7 +179,7 @@ function TreeItem({
 
         {/* Name */}
         <span className="min-w-0 truncate font-[Cinzel] text-xs">
-          {node.name}
+          {highlightMatch(node.name, searchQuery ?? '')}
         </span>
 
         {/* Scale badge for locations */}
@@ -178,7 +205,7 @@ function TreeItem({
       </button>
 
       {/* Children */}
-      {isExpanded && children.map((child) => (
+      {effectiveExpanded && children.map((child) => (
         <TreeItem
           key={child.node._id}
           data={child}
@@ -187,6 +214,8 @@ function TreeItem({
           onToggle={onToggle}
           onSelect={onSelect}
           selectedId={selectedId}
+          visibleIds={visibleIds}
+          searchQuery={searchQuery}
         />
       ))}
     </>
@@ -195,8 +224,38 @@ function TreeItem({
 
 export function WorldTreeBrowser({ nodes, onSelectEntity, selectedEntityId }: WorldTreeBrowserProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const tree = useMemo(() => buildTree(nodes), [nodes]);
+
+  // Build parent lookup for ancestor chain
+  const parentMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of nodes) {
+      if (n.parentEntityId) m.set(n._id, n.parentEntityId);
+    }
+    return m;
+  }, [nodes]);
+
+  // Compute visible node IDs when searching
+  const visibleIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return null;
+    const matching = new Set<string>();
+    const ancestors = new Set<string>();
+    for (const n of nodes) {
+      if (n.name.toLowerCase().includes(q)) {
+        matching.add(n._id);
+        // Walk up parent chain
+        let current = parentMap.get(n._id);
+        while (current) {
+          ancestors.add(current);
+          current = parentMap.get(current);
+        }
+      }
+    }
+    return new Set([...matching, ...ancestors]);
+  }, [nodes, searchQuery, parentMap]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpanded((prev) => {
@@ -236,7 +295,14 @@ export function WorldTreeBrowser({ nodes, onSelectEntity, selectedEntityId }: Wo
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
+      {renderHeaderBar()}
+      {renderSearchInput()}
+      {renderTree()}
+    </div>
+  );
+
+  function renderHeaderBar() {
+    return (
       <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
         <p className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
           {totalCount} entities &middot; {locationCount} locations &middot; {rootCount} top-level
@@ -258,10 +324,43 @@ export function WorldTreeBrowser({ nodes, onSelectEntity, selectedEntityId }: Wo
           </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Tree */}
+  function renderSearchInput() {
+    return (
+      <div className="flex items-center gap-2 border-b border-border/40 px-3 py-1.5">
+        <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Filter entities..."
+          className="min-w-0 flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/50 outline-none"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function renderTree() {
+    const hasResults = !visibleIds || visibleIds.size > 0;
+    return (
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
-        {tree.map((item) => (
+        {!hasResults && (
+          <p className="px-3 py-4 text-center font-['IM_Fell_English'] text-xs italic text-muted-foreground">
+            No entities match &ldquo;{searchQuery}&rdquo;
+          </p>
+        )}
+        {hasResults && tree.map((item) => (
           <TreeItem
             key={item.node._id}
             data={item}
@@ -270,9 +369,11 @@ export function WorldTreeBrowser({ nodes, onSelectEntity, selectedEntityId }: Wo
             onToggle={toggleExpanded}
             onSelect={onSelectEntity}
             selectedId={selectedEntityId}
+            visibleIds={visibleIds}
+            searchQuery={searchQuery}
           />
         ))}
       </div>
-    </div>
-  );
+    );
+  }
 }

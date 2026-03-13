@@ -10,6 +10,8 @@ import {
   Pencil,
   X,
   Sparkles,
+  Users,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +24,7 @@ import {
   useUpdateHandout,
   useDeleteHandout,
 } from '@/hooks/useHandouts';
+import { useCampaignMembers } from '@/hooks/useCampaignMembers';
 import { useSocketEvent } from '@/hooks/useSocket';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Handout } from '@/types/campaign';
@@ -57,6 +60,11 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
   const [editingHandout, setEditingHandout] = useState<Handout | null>(null);
   const [viewingHandout, setViewingHandout] = useState<Handout | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [shareMenuId, setShareMenuId] = useState<string | null>(null);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+
+  const { data: members } = useCampaignMembers(campaignId);
+  const players = members?.filter((m) => m.role === 'player') ?? [];
 
   // Create form state
   const [title, setTitle] = useState('');
@@ -133,13 +141,34 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
     );
   }
 
-  function handleShare(handoutId: string) {
+  function handleShareAll(handoutId: string) {
     shareHandout.mutate(
       { campaignId, handoutId },
       {
-        onSuccess: () => toast.success('Handout shared with players'),
+        onSuccess: () => { toast.success('Handout shared with all players'); setShareMenuId(null); },
         onError: () => toast.error('Failed to share handout'),
       },
+    );
+  }
+
+  function handleShareSelected(handoutId: string) {
+    if (selectedPlayerIds.length === 0) return;
+    shareHandout.mutate(
+      { campaignId, handoutId, playerIds: selectedPlayerIds },
+      {
+        onSuccess: () => {
+          toast.success(`Handout shared with ${selectedPlayerIds.length} player(s)`);
+          setShareMenuId(null);
+          setSelectedPlayerIds([]);
+        },
+        onError: () => toast.error('Failed to share handout'),
+      },
+    );
+  }
+
+  function togglePlayer(playerId: string) {
+    setSelectedPlayerIds((prev) =>
+      prev.includes(playerId) ? prev.filter((id) => id !== playerId) : [...prev, playerId],
     );
   }
 
@@ -300,7 +329,7 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
         <div className="space-y-3">
           {handouts.map((h) => {
             const Icon = TYPE_ICONS[h.type as keyof typeof TYPE_ICONS] ?? FileText;
-            const isShared = h.visibleTo === 'all';
+            const isShared = h.visibleTo === 'all' || h.visibleTo === 'selected';
             const isNew = !isDM && h.sharedAt && !seenIds.has(h._id);
 
             return (
@@ -331,8 +360,14 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
                         <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] ${
                           isShared ? 'bg-forest/15 text-[hsl(150,50%,55%)]' : 'bg-arcane/15 text-arcane'
                         }`}>
-                          {isShared ? <Share2 className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                          {isShared ? 'Shared' : 'DM Only'}
+                          {isShared ? (
+                            h.visibleTo === 'selected' ? <Users className="h-3 w-3" /> : <Share2 className="h-3 w-3" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                          {h.visibleTo === 'selected'
+                            ? `${h.sharedWith?.length ?? 0} player(s)`
+                            : isShared ? 'Shared' : 'DM Only'}
                         </span>
                       )}
                     </div>
@@ -351,7 +386,10 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleShare(h._id)}
+                          onClick={() => {
+                            setShareMenuId(shareMenuId === h._id ? null : h._id);
+                            setSelectedPlayerIds([]);
+                          }}
                           className="rounded-md p-1 text-muted-foreground hover:bg-forest/20 hover:text-[hsl(150,50%,55%)]"
                           title="Share with players"
                         >
@@ -373,6 +411,61 @@ export function HandoutsTab({ campaignId, isDM }: HandoutsTabProps) {
                     </div>
                   )}
                 </div>
+
+                {/* Share menu */}
+                {shareMenuId === h._id && isDM && (
+                  <div className="mt-3 rounded-md border border-border bg-card/80 p-3 space-y-2">
+                    <p className="font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+                      Share with...
+                    </p>
+                    <button
+                      onClick={() => handleShareAll(h._id)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Share2 className="h-3.5 w-3.5 text-brass" />
+                      All Players
+                    </button>
+                    {players.length > 0 && (
+                      <div className="border-t border-border/50 pt-2 space-y-1">
+                        {players.map((p) => (
+                          <button
+                            key={p.userId._id}
+                            onClick={() => togglePlayer(p.userId._id)}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+                          >
+                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                              selectedPlayerIds.includes(p.userId._id)
+                                ? 'border-brass bg-brass/20'
+                                : 'border-muted-foreground/40'
+                            }`}>
+                              {selectedPlayerIds.includes(p.userId._id) && (
+                                <Check className="h-3 w-3 text-brass" />
+                              )}
+                            </span>
+                            {p.userId.username}
+                          </button>
+                        ))}
+                        {selectedPlayerIds.length > 0 && (
+                          <Button
+                            size="sm"
+                            className="mt-1 w-full"
+                            onClick={() => handleShareSelected(h._id)}
+                            disabled={shareHandout.isPending}
+                          >
+                            <Users className="mr-1.5 h-3.5 w-3.5" />
+                            Share with {selectedPlayerIds.length} selected
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setShareMenuId(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Expanded content */}
                 {viewingHandout?._id === h._id && (

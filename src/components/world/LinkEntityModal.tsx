@@ -1,4 +1,4 @@
-import { type FormEvent, useState, useMemo } from 'react';
+import { type FormEvent, useState, useMemo, useRef } from 'react';
 import { X, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -20,10 +20,17 @@ const inputClass =
 const labelClass =
   'block font-[Cinzel] text-xs uppercase tracking-wider text-foreground';
 
+const RELATIONSHIP_SUGGESTIONS = [
+  'allied with', 'enemy of', 'located in', 'member of',
+  'created by', 'guards', 'serves', 'owns', 'mentor of', 'reports to',
+];
+
 export function LinkEntityModal({ open, onClose, campaignId, entity, allEntities }: LinkEntityModalProps) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [relationshipType, setRelationshipType] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const updateEntity = useUpdateWorldEntity();
 
@@ -129,7 +136,7 @@ export function LinkEntityModal({ open, onClose, campaignId, entity, allEntities
           </div>
 
           {/* Relationship type */}
-          <div>
+          <div className="relative">
             <label htmlFor="relationship-type" className={labelClass}>Relationship</label>
             <input
               id="relationship-type"
@@ -137,10 +144,44 @@ export function LinkEntityModal({ open, onClose, campaignId, entity, allEntities
               required
               maxLength={100}
               value={relationshipType}
-              onChange={(e) => setRelationshipType(e.target.value)}
+              onChange={(e) => {
+                setRelationshipType(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                blurTimeoutRef.current = setTimeout(() => setShowSuggestions(false), 200);
+              }}
               placeholder="allied with, located in, created by..."
               className={inputClass}
+              autoComplete="off"
             />
+            {showSuggestions && (() => {
+              const q = relationshipType.toLowerCase();
+              const filtered = RELATIONSHIP_SUGGESTIONS.filter(
+                (s) => !q || s.includes(q),
+              );
+              if (filtered.length === 0) return null;
+              return (
+                <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-sm border border-border bg-card shadow-lg max-h-40 overflow-y-auto">
+                  {filtered.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setRelationshipType(s);
+                        setShowSuggestions(false);
+                        if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+                      }}
+                      className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted/50 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

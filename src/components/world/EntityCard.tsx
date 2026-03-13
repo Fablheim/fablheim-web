@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Pencil, Trash2, Eye, EyeOff, MapPin, CheckCircle2, ArrowRight, Compass } from 'lucide-react';
 import type { WorldEntity, LocationType } from '@/types/campaign';
 import { TYPE_ACCENTS, TYPE_LABELS, TYPE_ICONS, LOCATION_TYPE_LABELS } from './world-constants';
 
@@ -58,6 +58,12 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
                 Public
               </span>
             )}
+            {canEdit && entity.discoveredByParty === false && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-400">
+                <Compass className="h-3 w-3" />
+                Undiscovered
+              </span>
+            )}
           </div>
         </div>
         {canEdit && (
@@ -105,10 +111,22 @@ export function EntityCard({ entity, canEdit, onEdit, onDelete, onClick }: Entit
           )}
         </div>
       )}
+      {entity.type === 'quest' && entity.objectives && entity.objectives.length > 0 && (() => {
+        const completed = entity.objectives.filter((o) => o.completed).length;
+        const pct = Math.round((completed / entity.objectives.length) * 100);
+        return (
+          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gold transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        );
+      })()}
 
       {/* Description */}
       {entity.description && (
-        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+        <p className="mt-2 line-clamp-1 text-sm text-muted-foreground">
           {entity.description}
         </p>
       )}

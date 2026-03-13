@@ -1,6 +1,7 @@
 import { Play, SkipForward, Square } from 'lucide-react';
 import { useInitiative, useStartCombat, useNextTurn, useEndCombat } from '@/hooks/useLiveSession';
 import { useSessionWorkspaceState } from '@/components/session/SessionWorkspaceState';
+import { useRoundLabel } from '@/hooks/useModuleEnabled';
 import { Button } from '@/components/ui/Button';
 
 interface CombatHeaderProps {
@@ -14,6 +15,7 @@ export function CombatHeader({ campaignId, isDM }: CombatHeaderProps) {
   const startCombat = useStartCombat(campaignId);
   const nextTurn = useNextTurn(campaignId);
   const endCombat = useEndCombat(campaignId);
+  const roundLabel = useRoundLabel(campaignId);
 
   const currentTurnEntry = currentTurnEntryId
     ? initiative?.entries.find((entry) => entry.id === currentTurnEntryId)
@@ -24,7 +26,7 @@ export function CombatHeader({ campaignId, isDM }: CombatHeaderProps) {
     <div className="border-b border-border/60 bg-card/80 px-3 py-2.5">
       <div className="mb-2.5 rounded border border-primary/25 bg-primary/5 px-2 py-1.5">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Round</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{roundLabel}</span>
           <span className="text-xs font-semibold text-foreground">
             {initiative?.isActive ? initiative.round : '-'}
           </span>

@@ -15,6 +15,11 @@ export const itemsApi = {
     return data;
   },
 
+  listParty: async (campaignId: string): Promise<Item[]> => {
+    const { data } = await api.get<Item[]>(`/items/party/${campaignId}`);
+    return data;
+  },
+
   get: async (id: string): Promise<Item> => {
     const { data } = await api.get<Item>(`/items/${id}`);
     return data;

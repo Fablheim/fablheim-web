@@ -6,6 +6,7 @@ import type {
   Session,
   CampaignArc,
   WorldStateTracker,
+  CalendarPresetType,
 } from '@/types/campaign';
 
 export const campaignsApi = {
@@ -48,6 +49,40 @@ export const campaignsApi = {
 
   deletePermanently: async (id: string): Promise<void> => {
     await api.delete(`/campaigns/${id}/permanent`, { data: { confirm: true } });
+  },
+
+  // ── Safety Tools ─────────────────────────────────────────
+
+  updateSafetyTools: async (
+    id: string,
+    body: { lines?: string[]; veils?: string[]; xCardEnabled?: boolean },
+  ): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/safety-tools`, body);
+    return data;
+  },
+
+  // ── Rules Config ─────────────────────────────────────────
+
+  getRulesConfig: async (id: string) => {
+    const { data } = await api.get<{
+      rulesConfig: import('@/types/campaign').CampaignRulesConfig;
+      resolvedModules: Array<{ id: string; name: string; category: string }>;
+      preset: { id: string; name: string } | null;
+    }>(`/campaigns/${id}/rules-config`);
+    return data;
+  },
+
+  updateRulesConfig: async (
+    id: string,
+    body: {
+      presetId?: string;
+      enabledModules: string[];
+      moduleConfig: Record<string, Record<string, unknown>>;
+      customModules?: string[];
+    },
+  ) => {
+    const { data } = await api.patch(`/campaigns/${id}/rules-config`, body);
+    return data;
   },
 
   // ── Stage Transitions ──────────────────────────────────────
@@ -152,5 +187,34 @@ export const campaignsApi = {
 
   removeTracker: async (id: string, trackerId: string): Promise<void> => {
     await api.delete(`/campaigns/${id}/trackers/${trackerId}`);
+  },
+
+  // ── Calendar ──────────────────────────────────────────────
+
+  initCalendar: async (id: string, preset: CalendarPresetType): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/calendar/init`, { preset });
+    return data;
+  },
+
+  advanceDate: async (id: string, days: number): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/calendar/advance`, { days });
+    return data;
+  },
+
+  setDate: async (id: string, date: { year: number; month: number; day: number }): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/calendar/date`, date);
+    return data;
+  },
+
+  addCalendarEvent: async (
+    id: string,
+    body: { name: string; year: number; month: number; day: number; recurring?: boolean; entityId?: string; notes?: string },
+  ): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/calendar/events`, body);
+    return data;
+  },
+
+  removeCalendarEvent: async (id: string, eventId: string): Promise<void> => {
+    await api.delete(`/campaigns/${id}/calendar/events/${eventId}`);
   },
 };

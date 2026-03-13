@@ -16,8 +16,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!user) {
     const redirect = location.pathname + location.search;
-    const loginPath = redirect === '/app' ? '/login' : `/login?redirect=${encodeURIComponent(redirect)}`;
-    return <Navigate to={loginPath} replace />;
+    const to = redirect === '/app' ? '/' : `/?redirect=${encodeURIComponent(redirect)}`;
+    return <Navigate to={to} replace />;
   }
 
   return children;

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pin, PinOff, Swords, Heart, SkipForward, Wand2, Crosshair } from 'lucide-react';
+import { Pin, PinOff, Swords, Heart, SkipForward, Wand2, Crosshair, Timer, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useCombatRules,
   useInitiative,
   useNextTurn,
   useUpdateInitiativeEntry,
+  useWoundAdvance,
+  useWoundReduce,
 } from '@/hooks/useLiveSession';
 import { useSessionWorkspaceState } from '@/components/session/SessionWorkspaceState';
 import { ApplyDamageModal } from '@/components/session/ApplyDamageModal';
 import { ActionEconomySlots } from '@/components/session/ActionEconomySlots';
 import { ConcentrationBadge } from '@/components/session/ConcentrationBadge';
+import { LegendaryActionsPanel } from '@/components/session/LegendaryActionsPanel';
 import { DamageModTags } from '@/components/session/DamageModTags';
 import { DeathSavesTracker } from '@/components/session/DeathSavesTracker';
 import { DownedStatePanel } from '@/components/session/DownedStatePanel';
@@ -22,7 +25,8 @@ import {
   setConditionValue,
   toggleConditionValue,
 } from '@/lib/system-data';
-import type { InitiativeEntry } from '@/types/live-session';
+import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
+import type { InitiativeEntry, ConditionEntry } from '@/types/live-session';
 
 interface FocusCardProps {
   campaignId: string;
@@ -44,6 +48,8 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
   const { data: rules } = useCombatRules(campaignId);
   const nextTurn = useNextTurn(campaignId);
   const updateEntry = useUpdateInitiativeEntry(campaignId);
+  const woundAdvance = useWoundAdvance(campaignId);
+  const woundReduce = useWoundReduce(campaignId);
   const {
     focusedEntryId,
     selectedEntryId,
@@ -53,7 +59,14 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
     currentTurnEntryId,
   } = useSessionWorkspaceState();
 
-  const isPf2eSystem = (rules?.system ?? '').toLowerCase().includes('pathfinder') || (rules?.system ?? '').toLowerCase() === 'pf2e';
+  const hasHeroPoints = useCampaignModuleEnabled(campaignId, 'hero-points');
+  const hasConcentration = useCampaignModuleEnabled(campaignId, 'concentration-check');
+  const hasLegendaryActions = useCampaignModuleEnabled(campaignId, 'legendary-actions');
+  const hasSurprise = useCampaignModuleEnabled(campaignId, 'surprise-rounds');
+  const hasDualHp = useCampaignModuleEnabled(campaignId, 'hp-dual');
+  const hasArmorSlots = useCampaignModuleEnabled(campaignId, 'armor-slots');
+  const hasReadiedActions = useCampaignModuleEnabled(campaignId, 'readied-actions');
+  const hasWoundLevels = useCampaignModuleEnabled(campaignId, 'wound-levels');
   const [modalMode, setModalMode] = useState<'damage' | 'heal' | 'temp-hp' | null>(null);
   const [activeTab, setActiveTab] = useState<FocusTabId>(() => {
     const saved = window.localStorage.getItem(TAB_KEY);
@@ -70,6 +83,10 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
     }
   });
   const [notesDraft, setNotesDraft] = useState('');
+  const [configuringCondition, setConfiguringCondition] = useState<string | null>(null);
+  const [condDraftRounds, setCondDraftRounds] = useState('');
+  const [condDraftEndsOn, setCondDraftEndsOn] = useState<'start' | 'end'>('end');
+  const [condDraftSource, setCondDraftSource] = useState('');
   const effectsConditionsRef = useRef<HTMLDivElement>(null);
 
   const stateFocusedEntry = useMemo(
@@ -129,7 +146,12 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
   const hpNow = entry.currentHp ?? 0;
   const hpMax = entry.maxHp ?? 0;
   const hpPct = hpMax > 0 ? Math.max(0, Math.min(100, (hpNow / hpMax) * 100)) : 0;
+  const stressCurrent = (entry.systemData?.stress as number) ?? 0;
+  const stressThreshold = (entry.systemData?.stressThreshold as number) ?? 0;
+  const stressPct = stressThreshold > 0 ? Math.max(0, Math.min(100, (stressCurrent / stressThreshold) * 100)) : 0;
+  const armorSlots = (entry.systemData?.armorSlots as { total: number; used: number }) ?? null;
   const normalizedConditions = entry.conditions ?? [];
+  const conditionNames = new Set(normalizedConditions.map((c) => c.name));
 
   const tabs: Array<{ id: FocusTabId; label: string }> = [
     { id: 'effects', label: 'Effects' },
@@ -138,12 +160,28 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
     { id: 'abilities', label: 'Abilities' },
   ];
 
+  function makeConditionEntry(
+    name: string,
+    opts?: { durationRounds?: number; endsOn?: 'start' | 'end'; source?: string },
+  ): ConditionEntry {
+    // eslint-disable-next-line react-hooks/purity -- ID generation is intentionally unique per call
+    const cond: ConditionEntry = { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name };
+    if (opts?.durationRounds) {
+      cond.durationRounds = opts.durationRounds;
+      cond.remainingRounds = opts.durationRounds;
+      cond.endsOn = opts.endsOn ?? 'end';
+      cond.appliedRound = initiative?.round;
+    }
+    if (opts?.source) cond.source = opts.source;
+    return cond;
+  }
+
   function handleToggleCondition(conditionKey: string) {
     const current = entry.conditions ?? [];
-    const isActive = current.includes(conditionKey);
-    const nextConditions = isActive
-      ? current.filter((c) => c !== conditionKey)
-      : [...current, conditionKey];
+    const isActive = conditionNames.has(conditionKey);
+    const nextConditions: ConditionEntry[] = isActive
+      ? current.filter((c) => c.name !== conditionKey)
+      : [...current, makeConditionEntry(conditionKey)];
     const nextSystemData = toggleConditionValue(entry.systemData, conditionKey, !isActive);
     const size = checkSystemDataSize(nextSystemData);
     if (!size.ok) {
@@ -165,9 +203,10 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
   function handleSetConditionValue(conditionKey: string, value: number) {
     const normalizedValue = Math.max(1, Math.floor(value || 1));
     const nextSystemData = setConditionValue(entry.systemData, conditionKey, normalizedValue);
-    const nextConditions = entry.conditions?.includes(conditionKey)
-      ? [...(entry.conditions ?? [])]
-      : [...(entry.conditions ?? []), conditionKey];
+    const current = entry.conditions ?? [];
+    const nextConditions: ConditionEntry[] = conditionNames.has(conditionKey)
+      ? [...current]
+      : [...current, makeConditionEntry(conditionKey)];
     const size = checkSystemDataSize(nextSystemData);
     if (!size.ok) {
       toast.error(size.error ?? 'systemData is too large to save');
@@ -190,6 +229,64 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
     requestAnimationFrame(() => {
       effectsConditionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  }
+
+  function handleConditionClick(conditionKey: string) {
+    if (conditionNames.has(conditionKey)) {
+      handleToggleCondition(conditionKey);
+      return;
+    }
+    if (configuringCondition === conditionKey) {
+      setConfiguringCondition(null);
+    } else {
+      setConfiguringCondition(conditionKey);
+      setCondDraftRounds('');
+      setCondDraftEndsOn('end');
+      setCondDraftSource('');
+    }
+  }
+
+  function handleApplyConditionWithDuration() {
+    if (!configuringCondition) return;
+    const rounds = parseInt(condDraftRounds, 10);
+    const opts: { durationRounds?: number; endsOn?: 'start' | 'end'; source?: string } = {};
+    if (rounds > 0) {
+      opts.durationRounds = rounds;
+      opts.endsOn = condDraftEndsOn;
+    }
+    if (condDraftSource.trim()) opts.source = condDraftSource.trim();
+    const current = entry.conditions ?? [];
+    const nextConditions: ConditionEntry[] = [...current, makeConditionEntry(configuringCondition, opts)];
+    const nextSystemData = toggleConditionValue(entry.systemData, configuringCondition, true);
+    const size = checkSystemDataSize(nextSystemData);
+    if (!size.ok) {
+      toast.error(size.error ?? 'systemData is too large to save');
+      return;
+    }
+    if (size.warning) toast.warning(size.warning);
+    updateEntry.mutate({
+      entryId: entry.id,
+      body: { conditions: nextConditions, systemData: nextSystemData },
+    });
+    setConfiguringCondition(null);
+  }
+
+  function handleQuickAddCondition() {
+    if (!configuringCondition) return;
+    const current = entry.conditions ?? [];
+    const nextConditions: ConditionEntry[] = [...current, makeConditionEntry(configuringCondition)];
+    const nextSystemData = toggleConditionValue(entry.systemData, configuringCondition, true);
+    const size = checkSystemDataSize(nextSystemData);
+    if (!size.ok) {
+      toast.error(size.error ?? 'systemData is too large to save');
+      return;
+    }
+    if (size.warning) toast.warning(size.warning);
+    updateEntry.mutate({
+      entryId: entry.id,
+      body: { conditions: nextConditions, systemData: nextSystemData },
+    });
+    setConfiguringCondition(null);
   }
 
   function handleSaveNotes() {
@@ -223,18 +320,84 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
                   </button>
                 )}
                 {isDM && (
-                  <button
-                    type="button"
-                    onClick={() => nextTurn.mutate()}
-                    disabled={nextTurn.isPending}
-                    className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-accent disabled:opacity-50"
-                  >
-                    <SkipForward className="h-3 w-3" />
-                    End Turn
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => nextTurn.mutate()}
+                      disabled={nextTurn.isPending}
+                      className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-accent disabled:opacity-50"
+                    >
+                      <SkipForward className="h-3 w-3" />
+                      End Turn
+                    </button>
+                    {hasReadiedActions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = entry.turnState === 'readied' ? 'normal' : 'readied';
+                          updateEntry.mutate({ entryId: entry.id, body: {
+                            turnState: next,
+                            readiedAction: next === 'normal' ? undefined : entry.readiedAction,
+                          } });
+                        }}
+                        disabled={updateEntry.isPending}
+                        className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[10px] uppercase tracking-wider disabled:opacity-50 ${
+                          entry.turnState === 'readied'
+                            ? 'border-amber-500/50 bg-amber-500/15 text-amber-400'
+                            : 'border-border/60 text-muted-foreground hover:bg-accent'
+                        }`}
+                      >
+                        <Timer className="h-3 w-3" />
+                        {entry.turnState === 'readied' ? 'Readied' : 'Ready'}
+                      </button>
+                    )}
+                    {hasReadiedActions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = entry.turnState === 'delayed' ? 'normal' : 'delayed';
+                          updateEntry.mutate({ entryId: entry.id, body: { turnState: next } });
+                        }}
+                        disabled={updateEntry.isPending}
+                        className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[10px] uppercase tracking-wider disabled:opacity-50 ${
+                          entry.turnState === 'delayed'
+                            ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
+                            : 'border-border/60 text-muted-foreground hover:bg-accent'
+                        }`}
+                      >
+                        <Pause className="h-3 w-3" />
+                        {entry.turnState === 'delayed' ? 'Delayed' : 'Delay'}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
+
+            {/* Surprised indicator — gated on surprise-rounds module */}
+            {hasSurprise && entry.isSurprised && (
+              <div className="mb-2 rounded border border-gray-500/30 bg-gray-500/10 px-2 py-1.5 text-xs text-gray-400">
+                <span className="font-[Cinzel] text-[10px] uppercase tracking-wider">Surprised</span>
+                <p className="mt-0.5 italic text-gray-400/70">Cannot take actions or reactions this round</p>
+              </div>
+            )}
+
+            {/* Readied action indicator */}
+            {entry.turnState === 'readied' && (
+              <div className="mb-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-300">
+                <span className="font-[Cinzel] text-[10px] uppercase tracking-wider">Readied Action</span>
+                {entry.readiedAction ? (
+                  <p className="mt-0.5">{entry.readiedAction.action} — <span className="italic text-amber-400/70">Trigger: {entry.readiedAction.trigger}</span></p>
+                ) : (
+                  <p className="mt-0.5 italic text-amber-400/50">No action specified</p>
+                )}
+              </div>
+            )}
+            {entry.turnState === 'delayed' && (
+              <div className="mb-2 rounded border border-blue-500/30 bg-blue-500/10 px-2 py-1.5 text-xs text-blue-300">
+                <span className="font-[Cinzel] text-[10px] uppercase tracking-wider">Turn Delayed</span>
+              </div>
+            )}
 
             <div className="mb-2 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-sm font-bold text-primary">
@@ -260,16 +423,55 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
               </div>
             )}
 
+            {hasDualHp && stressThreshold > 0 && (
+              <div className="mb-2">
+                <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Stress</span>
+                  <span className="tabular-nums">{stressCurrent}/{stressThreshold}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full transition-all ${stressPct >= 100 ? 'bg-red-500' : stressPct >= 75 ? 'bg-amber-500' : 'bg-purple-500'}`}
+                    style={{ width: `${stressPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {hasArmorSlots && armorSlots && armorSlots.total > 0 && (
+              <div className="mb-2">
+                <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Armor Slots</span>
+                  <span className="tabular-nums">{armorSlots.total - armorSlots.used}/{armorSlots.total}</span>
+                </div>
+                <div className="flex gap-1">
+                  {Array.from({ length: armorSlots.total }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-3 w-3 rounded-full border ${
+                        i < armorSlots.total - armorSlots.used
+                          ? 'border-amber-500/60 bg-amber-500/40'
+                          : 'border-muted-foreground/30 bg-transparent'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasWoundLevels && renderWoundLevel(entry, isDM, woundAdvance, woundReduce)}
+
             <div className="mb-2 flex flex-wrap gap-1">
               {normalizedConditions.length === 0 && (
                 <span className="text-[10px] text-muted-foreground">No active conditions</span>
               )}
-              {normalizedConditions.slice(0, 6).map((conditionKey) => {
-                const label = rules?.conditions.find((c) => c.key === conditionKey)?.label ?? conditionKey;
-                const value = entry.systemData?.conditions?.[conditionKey];
+              {normalizedConditions.slice(0, 6).map((cond) => {
+                const label = rules?.conditions.find((c) => c.key === cond.name)?.label ?? cond.name;
+                const value = entry.systemData?.conditions?.[cond.name];
+                const durationLabel = cond.remainingRounds != null ? ` (${cond.remainingRounds}r)` : '';
                 return (
-                  <span key={conditionKey} className="rounded-full bg-arcane/20 px-2 py-0.5 text-[10px] text-arcane">
-                    {label}{value != null ? ` ${value}` : ''}
+                  <span key={cond.id} className={`rounded-full px-2 py-0.5 text-[10px] ${cond.remainingRounds != null && cond.remainingRounds <= 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-arcane/20 text-arcane'}`}>
+                    {label}{value != null ? ` ${value}` : ''}{durationLabel}
                   </span>
                 );
               })}
@@ -336,13 +538,18 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
               <span className="rounded border border-border/60 bg-background/40 px-2 py-0.5">
                 Temp: {entry.tempHp ?? 0}
               </span>
+              {hasDualHp && stressThreshold > 0 && (
+                <span className={`rounded border px-2 py-0.5 ${stressPct >= 100 ? 'border-red-500/40 bg-red-500/10 text-red-400' : 'border-purple-500/40 bg-purple-500/10 text-purple-300'}`}>
+                  Stress: {stressCurrent}/{stressThreshold}
+                </span>
+              )}
               {(isDM || entry.type === 'pc') && (
                 <span className="rounded border border-border/60 bg-background/40 px-2 py-0.5">
                   AC: {entry.ac ?? '-'}
                 </span>
               )}
             </div>
-            {isPf2eSystem && entry.type === 'pc' && (
+            {hasHeroPoints && entry.type === 'pc' && (
               <div className="mt-2">
                 <HeroPointsTracker campaignId={campaignId} entry={entry} canEdit={isDM} />
               </div>
@@ -375,17 +582,20 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
                   <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Conditions</p>
                   <div className="flex flex-wrap gap-1">
                     {(rules?.conditions ?? []).map((condition) => {
-                      const active = normalizedConditions.includes(condition.key);
+                      const active = conditionNames.has(condition.key);
+                      const isConfiguring = configuringCondition === condition.key;
                       const value = entry.systemData?.conditions?.[condition.key];
                       return (
                         <div key={condition.key} className="inline-flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => handleToggleCondition(condition.key)}
+                            onClick={() => isDM ? handleConditionClick(condition.key) : handleToggleCondition(condition.key)}
                             className={`rounded-full px-2 py-0.5 text-[10px] ${
                               active
                                 ? 'bg-arcane/30 text-arcane ring-1 ring-arcane/50'
-                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                : isConfiguring
+                                  ? 'bg-primary/20 text-primary ring-1 ring-primary/50'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
                             }`}
                             title={condition.description}
                           >
@@ -406,9 +616,61 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
                       );
                     })}
                   </div>
+                  {isDM && configuringCondition && !conditionNames.has(configuringCondition) && (
+                    <div className="mt-2 space-y-1.5 border-t border-border/60 pt-2">
+                      <p className="text-[10px] font-medium text-foreground">{configuringCondition}</p>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[9px] text-muted-foreground">Rounds</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={condDraftRounds}
+                          onChange={(e) => setCondDraftRounds(e.target.value)}
+                          placeholder="∞"
+                          className="w-14 rounded border border-border bg-background px-1.5 py-0.5 text-[10px]"
+                        />
+                        <label className="text-[9px] text-muted-foreground">Ends on</label>
+                        <select
+                          value={condDraftEndsOn}
+                          onChange={(e) => setCondDraftEndsOn(e.target.value as 'start' | 'end')}
+                          className="rounded border border-border bg-background px-1 py-0.5 text-[10px]"
+                        >
+                          <option value="end">End</option>
+                          <option value="start">Start</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[9px] text-muted-foreground">Source</label>
+                        <input
+                          type="text"
+                          value={condDraftSource}
+                          onChange={(e) => setCondDraftSource(e.target.value)}
+                          placeholder="e.g. Hold Person"
+                          className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-[10px]"
+                        />
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={handleApplyConditionWithDuration}
+                          className="rounded border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/25"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleQuickAddCondition}
+                          className="rounded border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+                        >
+                          No Duration
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <ConcentrationBadge campaignId={campaignId} entry={entry} canEdit={isDM} />
+                {hasConcentration && <ConcentrationBadge campaignId={campaignId} entry={entry} canEdit={isDM} />}
+                {hasLegendaryActions && <LegendaryActionsPanel campaignId={campaignId} entry={entry} canEdit={isDM} />}
                 <DeathSavesTracker
                   campaignId={campaignId}
                   entry={entry}
@@ -467,5 +729,58 @@ export function FocusCard({ campaignId, isDM, entryOverride }: FocusCardProps) {
         />
       )}
     </>
+  );
+}
+
+const WOUND_COLORS: Record<string, string> = {
+  Healthy: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
+  Shaken: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+  Hurt: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+  Wounded: 'text-orange-400 border-orange-500/40 bg-orange-500/10',
+  Incapacitated: 'text-red-400 border-red-500/40 bg-red-500/10',
+  'Bleeding Out': 'text-red-500 border-red-600/40 bg-red-600/10',
+  Dead: 'text-gray-400 border-gray-500/40 bg-gray-500/10',
+};
+
+function renderWoundLevel(
+  entry: InitiativeEntry,
+  isDM: boolean,
+  woundAdvanceMutation: ReturnType<typeof useWoundAdvance>,
+  woundReduceMutation: ReturnType<typeof useWoundReduce>,
+) {
+  const woundLevel = (entry.systemData?.woundLevel as string) ?? 'Healthy';
+  const colorClass = WOUND_COLORS[woundLevel] ?? 'text-muted-foreground border-border bg-muted/20';
+
+  return (
+    <div className="mb-2">
+      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>Wound Level</span>
+        {isDM && (
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => woundAdvanceMutation.mutate(entry.id)}
+              disabled={woundAdvanceMutation.isPending}
+              className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] hover:bg-accent disabled:opacity-50"
+              title="Worsen wound level"
+            >
+              Worsen
+            </button>
+            <button
+              type="button"
+              onClick={() => woundReduceMutation.mutate(entry.id)}
+              disabled={woundReduceMutation.isPending}
+              className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] hover:bg-accent disabled:opacity-50"
+              title="Improve wound level"
+            >
+              Improve
+            </button>
+          </div>
+        )}
+      </div>
+      <div className={`rounded border px-2 py-1 text-xs font-medium ${colorClass}`}>
+        {woundLevel}
+      </div>
+    </div>
   );
 }

@@ -45,7 +45,7 @@ api.interceptors.request.use(async (config) => {
 // --- 401 Refresh Token Interceptor ---
 
 const AUTH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/logout', '/auth/forgot-password', '/auth/reset-password'];
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/auth'];
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/auth', '/how-it-works', '/pricing', '/blog', '/roadmap', '/new-to-ttrpgs', '/systems', '/legal', '/srd', '/join', '/invites'];
 
 let _sessionExpiredHandler: (() => void) | null = null;
 let _isRedirecting = false;
@@ -118,12 +118,13 @@ api.interceptors.response.use(
       axios.isAxiosError(error) &&
       error.response?.status === 401 &&
       !AUTH_ENDPOINTS.some((ep) => originalRequest?.url?.startsWith(ep)) &&
+      window.location.pathname !== '/' &&
       !PUBLIC_PATHS.some((p) => window.location.pathname.startsWith(p)) &&
       !_isRedirecting
     ) {
       _isRedirecting = true;
       _sessionExpiredHandler?.();
-      window.location.href = '/login?session_expired=true';
+      window.location.href = '/';
     }
 
     return Promise.reject(error);

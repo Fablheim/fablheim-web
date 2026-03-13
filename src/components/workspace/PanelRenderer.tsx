@@ -39,6 +39,7 @@ import { CharactersPanel } from './panels/CharactersPanel';
 import { SessionNotesRecapPanel } from './panels/SessionNotesRecapPanel';
 import { CampaignBrainPanel } from './panels/CampaignBrainPanel';
 import { RulesPanel } from './panels/RulesPanel';
+import { AllyPanel } from './panels/AllyPanel';
 
 export interface PanelRendererProps {
   panelId: PanelId;
@@ -103,6 +104,8 @@ function renderPanel(panelId: PanelId, campaign: Campaign, isDM: boolean, sessio
       return <AIToolsTab campaignId={campaignId} />;
     case 'party-overview':
       return <PartyOverview campaignId={campaignId} />;
+    case 'allies':
+      return <AllyPanel campaignId={campaignId} />;
     case 'quick-reference':
       return <QuickReference campaignId={campaignId} />;
     case 'dice-roller':

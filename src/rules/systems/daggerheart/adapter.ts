@@ -7,9 +7,9 @@ import type {
 } from '@/rules/systems/types';
 
 interface DaggerheartRollPayload {
-  type: 'daggerheart-roll';
+  type: 'hope-fear-roll';
   actionName: string;
-  dice: string;
+  modifier: number;
 }
 
 function resolveDaggerheartActions(context: SystemActionContext): SystemAction[] {
@@ -17,20 +17,20 @@ function resolveDaggerheartActions(context: SystemActionContext): SystemAction[]
     ? context.entry.systemData.actions
     : [];
   const mapped = actionSource
-    .filter((item): item is Record<string, any> => !!item && typeof item === 'object')
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
     .map((item, index) => {
       const label = String(item.label ?? item.name ?? `Action ${index + 1}`);
-      const dice = typeof item.dice === 'string' && item.dice.trim().length > 0 ? item.dice.trim() : '1d12';
+      const modifier = typeof item.modifier === 'number' ? item.modifier : 0;
       return {
         id: `daggerheart:sys:${index}:${label}`,
         label,
         kind: 'custom',
-        summary: dice,
-        rollLabel: 'Strike',
+        summary: modifier >= 0 ? `2d12+${modifier}` : `2d12${modifier}`,
+        rollLabel: 'Roll',
         rollPayload: {
-          type: 'daggerheart-roll',
+          type: 'hope-fear-roll',
           actionName: label,
-          dice,
+          modifier,
         } satisfies DaggerheartRollPayload,
         tags: ['daggerheart'],
       } satisfies SystemAction;
@@ -39,15 +39,15 @@ function resolveDaggerheartActions(context: SystemActionContext): SystemAction[]
   if (mapped.length > 0) return mapped;
   return [
     {
-      id: 'daggerheart:strike',
-      label: 'Strike',
-      kind: 'attack',
-      summary: 'System roll',
-      rollLabel: 'Strike',
+      id: 'daggerheart:action-roll',
+      label: 'Action Roll',
+      kind: 'custom',
+      summary: '2d12 Hope & Fear',
+      rollLabel: 'Roll',
       rollPayload: {
-        type: 'daggerheart-roll',
-        actionName: 'Strike',
-        dice: '1d12',
+        type: 'hope-fear-roll',
+        actionName: 'Action Roll',
+        modifier: 0,
       } satisfies DaggerheartRollPayload,
       tags: ['daggerheart'],
     },
@@ -61,11 +61,33 @@ export const daggerheartAdapter: SystemActionAdapter = {
     context: SystemActionRollContext,
   ): Promise<SystemActionRollOutcome> => {
     const payload = action.rollPayload as DaggerheartRollPayload;
-    if (payload?.type !== 'daggerheart-roll') {
+    if (payload?.type !== 'hope-fear-roll') {
       return { message: 'Unsupported action payload.' };
     }
+
+    // Use the dedicated hope-fear roll endpoint if available
+    if (context.rollHopeFear) {
+      const result = await context.rollHopeFear({
+        modifier: payload.modifier,
+        purpose: `${context.entry.name}: ${payload.actionName}`,
+        isPrivate: context.isPrivate,
+      });
+
+      const outcomeLabel = result.isCritical
+        ? 'Critical Success!'
+        : result.withHope
+          ? 'with Hope'
+          : 'with Fear';
+
+      return {
+        primaryTotal: result.total,
+        message: `${payload.actionName} ${result.total} — ${outcomeLabel} (Hope ${result.hopeDie} / Fear ${result.fearDie})`,
+      };
+    }
+
+    // Fallback: use regular dice roller (should not happen with proper wiring)
     const result = await context.rollDice({
-      dice: payload.dice,
+      dice: `2d12${payload.modifier >= 0 ? `+${payload.modifier}` : String(payload.modifier)}`,
       purpose: `${context.entry.name}: ${payload.actionName}`,
       isPrivate: context.isPrivate,
     });

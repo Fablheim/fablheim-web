@@ -41,7 +41,9 @@ export function PartyStatusPanel({ campaignId }: PartyStatusPanelProps) {
     const hp = entry?.currentHp ?? character.hp?.current ?? 0;
     const maxHp = entry?.maxHp ?? character.hp?.max ?? 1;
     const tempHp = entry?.tempHp ?? character.hp?.temp ?? 0;
-    const conditions = entry?.conditions ?? character.conditions ?? [];
+    const conditions: string[] = entry?.conditions
+      ? entry.conditions.map((c) => c.name)
+      : character.conditions ?? [];
     const deathSaves = entry?.deathSaves ?? null;
     const isDowned = hp <= 0;
     const turnOrder = isCombatActive

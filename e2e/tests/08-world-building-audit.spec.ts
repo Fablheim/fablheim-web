@@ -3,7 +3,7 @@ import { generateAccounts, generateCampaignData } from './helpers/test-data';
 import { signUp } from './helpers/auth-helpers';
 import {
   createCampaign,
-  navigateToCampaign,
+  navigateToCampaign as _navigateToCampaign,
   joinCampaignByCode,
   generateInviteCode,
 } from './helpers/campaign-helpers';
@@ -153,8 +153,8 @@ test.describe.serial('DM field stripping on world entities', () => {
       `${API_BASE}/campaigns/${campaignId}/world/entities`,
     );
     expect(response.ok()).toBeTruthy();
-    const entities: any[] = await response.json();
-    const faction = entities.find((e: any) => e.name === 'Thieves Guild');
+    const entities: unknown[] = await response.json();
+    const faction = entities.find((e: unknown) => (e as Record<string, unknown>).name === 'Thieves Guild') as Record<string, unknown> | undefined;
     expect(faction).toBeTruthy();
     expect(faction.hiddenGoals).toBeUndefined();
     expect(faction.reputationHistory).toBeUndefined();
@@ -493,7 +493,7 @@ test.describe.serial('Campaign arcs and world state trackers', () => {
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
     const arcs = body.arcs ?? [];
-    const newArc = arcs.find((a: any) => a.name === 'The Dragon War');
+    const newArc = arcs.find((a: unknown) => (a as Record<string, unknown>).name === 'The Dragon War');
     expect(newArc).toBeTruthy();
     arcId = newArc._id;
     expect(newArc.milestones.length).toBe(3);
@@ -506,7 +506,7 @@ test.describe.serial('Campaign arcs and world state trackers', () => {
     );
     expect(arcsResponse.ok()).toBeTruthy();
     const arcs = await arcsResponse.json();
-    const arc = arcs.find((a: any) => a._id === arcId);
+    const arc = arcs.find((a: unknown) => (a as Record<string, unknown>)._id === arcId);
     const milestoneId = arc.milestones[0]._id;
 
     const response = await dmPage.request.patch(
@@ -514,7 +514,7 @@ test.describe.serial('Campaign arcs and world state trackers', () => {
     );
     expect(response.ok()).toBeTruthy();
     const updated = await response.json();
-    const updatedArc = updated.arcs.find((a: any) => a._id === arcId);
+    const updatedArc = updated.arcs.find((a: unknown) => (a as Record<string, unknown>)._id === arcId);
     expect(updatedArc.milestones[0].completed).toBe(true);
   });
 
@@ -539,7 +539,7 @@ test.describe.serial('Campaign arcs and world state trackers', () => {
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
     const trackers = body.worldStateTrackers ?? [];
-    const newTracker = trackers.find((t: any) => t.name === 'Kingdom Stability');
+    const newTracker = trackers.find((t: unknown) => (t as Record<string, unknown>).name === 'Kingdom Stability');
     expect(newTracker).toBeTruthy();
     trackerId = newTracker._id;
     expect(newTracker.value).toBe(75);
@@ -552,7 +552,7 @@ test.describe.serial('Campaign arcs and world state trackers', () => {
     );
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
-    const tracker = body.worldStateTrackers.find((t: any) => t._id === trackerId);
+    const tracker = body.worldStateTrackers.find((t: unknown) => (t as Record<string, unknown>)._id === trackerId);
     expect(tracker.value).toBe(65);
   });
 
@@ -661,7 +661,7 @@ test.describe.serial('Quest side effects when choosing outcome', () => {
 
     // Verify the quest outcome is marked as chosen
     const quest = await response.json();
-    const chosenOutcome = quest.outcomes?.find((o: any) => o.id === 'victory');
+    const chosenOutcome = quest.outcomes?.find((o: unknown) => (o as Record<string, unknown>).id === 'victory');
     expect(chosenOutcome?.chosen).toBe(true);
 
     // Verify the faction reputation changed

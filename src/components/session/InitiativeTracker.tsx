@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useLiveSession';
 import { Button } from '@/components/ui/Button';
 import type { EnemyAttack } from '@/types/enemy-template';
+import { useCampaignModuleEnabled, useRoundLabel } from '@/hooks/useModuleEnabled';
 import type {
   Initiative,
   InitiativeEntry,
@@ -99,39 +100,90 @@ function HealthDescriptor({ current, max }: { current: number; max: number }) {
   return <span className={`text-[10px] font-[Cinzel] uppercase tracking-wider ${className}`}>{label}</span>;
 }
 
+interface ConditionDurationOpts {
+  durationRounds?: number;
+  endsOn?: 'start' | 'end';
+  source?: string;
+}
+
 function ConditionPicker({
   current,
   onToggle,
+  onAddWithDuration,
   onClose,
   conditionLabels,
 }: {
-  current: string[];
+  current: import('@/types/live-session').ConditionEntry[];
   onToggle: (condition: string) => void;
+  onAddWithDuration: (condition: string, opts: ConditionDurationOpts) => void;
   onClose: () => void;
   conditionLabels: string[];
 }) {
+  const activeNames = new Set(current.map((c) => c.name));
+  const [configuring, setConfiguring] = useState<string | null>(null);
+  const [draftRounds, setDraftRounds] = useState('');
+  const [draftEndsOn, setDraftEndsOn] = useState<'start' | 'end'>('end');
+  const [draftSource, setDraftSource] = useState('');
+
+  function handleConditionClick(c: string) {
+    if (activeNames.has(c)) {
+      onToggle(c);
+      return;
+    }
+    if (configuring === c) {
+      setConfiguring(null);
+    } else {
+      setConfiguring(c);
+      setDraftRounds('');
+      setDraftEndsOn('end');
+      setDraftSource('');
+    }
+  }
+
+  function handleApply() {
+    if (!configuring) return;
+    const rounds = parseInt(draftRounds, 10);
+    const opts: ConditionDurationOpts = {};
+    if (rounds > 0) {
+      opts.durationRounds = rounds;
+      opts.endsOn = draftEndsOn;
+    }
+    if (draftSource.trim()) opts.source = draftSource.trim();
+    onAddWithDuration(configuring, opts);
+    setConfiguring(null);
+  }
+
+  function handleQuickAdd() {
+    if (!configuring) return;
+    onAddWithDuration(configuring, {});
+    setConfiguring(null);
+  }
+
   return (
-    <div className="absolute right-0 top-full z-20 mt-1 w-56 max-w-[calc(100vw-3rem)] rounded-md border border-border bg-card p-2 shadow-warm-lg">
+    <div className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-3rem)] rounded-md border border-border bg-card p-2 shadow-warm-lg">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Conditions</span>
         <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="h-3 w-3" />
         </button>
       </div>
-      <p className="mb-1 text-[10px] text-muted-foreground">Click to toggle conditions</p>
+      <p className="mb-1 text-[10px] text-muted-foreground">Click active to remove, inactive to configure</p>
       <div className="max-h-40 overflow-y-auto pr-0.5">
         <div className="flex flex-wrap gap-1">
         {conditionLabels.map((c) => {
-          const active = current.includes(c);
+          const active = activeNames.has(c);
+          const isConfiguring = configuring === c;
           return (
             <button
               key={c}
               type="button"
-              onClick={() => onToggle(c)}
+              onClick={() => handleConditionClick(c)}
               className={`rounded-full px-2 py-0.5 text-[10px] transition-colors ${
                 active
                   ? 'bg-arcane/30 text-arcane ring-1 ring-arcane/50'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  : isConfiguring
+                    ? 'bg-primary/20 text-primary ring-1 ring-primary/50'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
               {c}
@@ -140,6 +192,57 @@ function ConditionPicker({
         })}
         </div>
       </div>
+      {configuring && !activeNames.has(configuring) && (
+        <div className="mt-2 space-y-1.5 border-t border-border/60 pt-2">
+          <p className="text-[10px] font-medium text-foreground">{configuring}</p>
+          <div className="flex items-center gap-2">
+            <label className="text-[9px] text-muted-foreground">Rounds</label>
+            <input
+              type="number"
+              min={1}
+              value={draftRounds}
+              onChange={(e) => setDraftRounds(e.target.value)}
+              placeholder="∞"
+              className="w-14 rounded border border-border bg-background px-1.5 py-0.5 text-[10px]"
+            />
+            <label className="text-[9px] text-muted-foreground">Ends on</label>
+            <select
+              value={draftEndsOn}
+              onChange={(e) => setDraftEndsOn(e.target.value as 'start' | 'end')}
+              className="rounded border border-border bg-background px-1 py-0.5 text-[10px]"
+            >
+              <option value="end">End</option>
+              <option value="start">Start</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[9px] text-muted-foreground">Source</label>
+            <input
+              type="text"
+              value={draftSource}
+              onChange={(e) => setDraftSource(e.target.value)}
+              placeholder="e.g. Hold Person"
+              className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-[10px]"
+            />
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={handleApply}
+              className="rounded border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/25"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={handleQuickAdd}
+              className="rounded border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+            >
+              No Duration
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -154,7 +257,11 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
   const startCombat = useStartCombat(campaignId);
   const nextTurn = useNextTurn(campaignId);
   const endCombat = useEndCombat(campaignId);
+  const roundLabel = useRoundLabel(campaignId);
 
+  const hasSurprise = useCampaignModuleEnabled(campaignId, 'surprise-rounds');
+  const hasPf2eInitiative = useCampaignModuleEnabled(campaignId, 'initiative-pf2e');
+  const hasDualHp = useCampaignModuleEnabled(campaignId, 'hp-dual');
   const conditionLabels = rules?.conditions?.map((c) => c.label) ?? [...FALLBACK_CONDITIONS];
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -306,16 +413,39 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
   );
 
   const handleToggleCondition = useCallback(
-    (entryId: string, condition: string) => {
+    (entryId: string, conditionName: string) => {
       const entry = initiative?.entries.find((e) => e.id === entryId);
       if (!entry) return;
       const current = entry.conditions ?? [];
-      const updated = current.includes(condition)
-        ? current.filter((c) => c !== condition)
-        : [...current, condition];
+      const hasCondition = current.some((c) => c.name === conditionName);
+      const updated = hasCondition
+        ? current.filter((c) => c.name !== conditionName)
+        : [...current, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: conditionName }];
       updateEntry.mutate({ entryId, body: { conditions: updated } });
     },
     [initiative?.entries, updateEntry],
+  );
+
+  const handleAddConditionWithDuration = useCallback(
+    (entryId: string, conditionName: string, opts: ConditionDurationOpts) => {
+      const entry = initiative?.entries.find((e) => e.id === entryId);
+      if (!entry) return;
+      const current = entry.conditions ?? [];
+      if (current.some((c) => c.name === conditionName)) return;
+      const newCond: import('@/types/live-session').ConditionEntry = {
+        id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: conditionName,
+      };
+      if (opts.durationRounds) {
+        newCond.durationRounds = opts.durationRounds;
+        newCond.remainingRounds = opts.durationRounds;
+        newCond.endsOn = opts.endsOn ?? 'end';
+        newCond.appliedRound = initiative?.round;
+      }
+      if (opts.source) newCond.source = opts.source;
+      updateEntry.mutate({ entryId, body: { conditions: [...current, newCond] } });
+    },
+    [initiative?.entries, initiative?.round, updateEntry],
   );
 
   const doRollAll = useCallback(async () => {
@@ -425,7 +555,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
           )}
           {initiative?.isActive && (
             <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary tabular-nums font-[Cinzel] shadow-glow-sm">
-              Round {initiative.round}
+              {roundLabel} {initiative.round}
             </span>
           )}
           {isDM && (
@@ -434,7 +564,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
               onClick={() => {
                 const next = !timerEnabled;
                 setTimerEnabled(next);
-                try { localStorage.setItem(TURN_TIMER_STORAGE_KEY, String(next)); } catch {}
+                try { localStorage.setItem(TURN_TIMER_STORAGE_KEY, String(next)); } catch { /* ignore storage errors */ }
               }}
               className={`rounded p-1 transition-colors ${timerEnabled ? 'text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-muted'}`}
               title={timerEnabled ? 'Disable turn timer' : 'Enable turn timer'}
@@ -553,7 +683,9 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
 
             {/* Initiative Bonus */}
             <div>
-              <label className="mb-1 block font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Bonus</label>
+              <label className="mb-1 block font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                {hasPf2eInitiative ? 'Skill Bonus' : 'Bonus'}
+              </label>
               <input
                 type="number"
                 value={form.initiativeBonus || ''}
@@ -564,6 +696,34 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                 className="w-full input-carved rounded-sm border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
+
+            {/* PF2e Exploration Activity */}
+            {hasPf2eInitiative && (
+              <div className="col-span-2">
+                <label className="mb-1 block font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Exploration Activity
+                </label>
+                <select
+                  value={(form as AddInitiativeEntryRequest & { systemData?: Record<string, unknown> }).systemData?.explorationActivity as string ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      systemData: { ...f.systemData, explorationActivity: e.target.value || undefined },
+                    }))
+                  }
+                  className="w-full input-carved rounded-sm border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Perception (default)</option>
+                  <option value="Avoid Notice">Avoid Notice (Stealth)</option>
+                  <option value="Detect Magic">Detect Magic (Arcana/etc.)</option>
+                  <option value="Scout">Scout (Perception)</option>
+                  <option value="Search">Search (Perception/etc.)</option>
+                </select>
+                <p className="mt-0.5 text-[9px] text-muted-foreground">
+                  Use the skill bonus from the chosen activity
+                </p>
+              </div>
+            )}
 
             {/* HP Current */}
             <div>
@@ -599,6 +759,32 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
               />
             </div>
 
+            {/* Stress Threshold (hp-dual) */}
+            {hasDualHp && (
+              <div className="col-span-2">
+                <label className="mb-1 block font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">Stress Threshold</label>
+                <input
+                  type="number"
+                  value={(form as AddInitiativeEntryRequest & { systemData?: Record<string, unknown> }).systemData?.stressThreshold as number ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      systemData: {
+                        ...f.systemData,
+                        stressThreshold: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                        stress: f.systemData?.stress ?? 0,
+                      },
+                    }))
+                  }
+                  placeholder="6"
+                  className="w-full input-carved rounded-sm border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <p className="mt-0.5 text-[9px] text-muted-foreground">
+                  When stress reaches the threshold, the character is in crisis
+                </p>
+              </div>
+            )}
+
             {/* AC */}
             <div>
               <label className="mb-1 block font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">AC</label>
@@ -616,8 +802,8 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
               />
             </div>
 
-            {/* Hidden */}
-            <div className="flex items-end pb-1">
+            {/* Hidden + Surprised */}
+            <div className="flex items-end gap-4 pb-1">
               <label className="flex items-center gap-2 text-xs text-muted-foreground font-[Cinzel]">
                 <input
                   type="checkbox"
@@ -627,6 +813,17 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                 />
                 Hidden
               </label>
+              {hasSurprise && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground font-[Cinzel]">
+                  <input
+                    type="checkbox"
+                    checked={form.isSurprised ?? false}
+                    onChange={(e) => setForm((f) => ({ ...f, isSurprised: e.target.checked }))}
+                    className="rounded border-border"
+                  />
+                  Surprised
+                </label>
+              )}
             </div>
 
             {/* Optional attacks for NPC/monster/other */}
@@ -850,7 +1047,7 @@ export function InitiativeTracker({ campaignId, isDM, selectedEntryId, onSelectE
                       </span>
                     )}
                   </div>
-                  {renderConditions(entry, isDM, conditionPickerEntryId, setConditionPickerEntryId, handleToggleCondition, conditionLabels)}
+                  {renderConditions(entry, isDM, conditionPickerEntryId, setConditionPickerEntryId, handleToggleCondition, handleAddConditionWithDuration, conditionLabels)}
                 </div>
 
                 {/* AC badge — hide from players for non-PC entries */}
@@ -1041,6 +1238,7 @@ function renderConditions(
   conditionPickerEntryId: string | null,
   setConditionPickerEntryId: (id: string | null) => void,
   handleToggleCondition: (entryId: string, condition: string) => void,
+  handleAddCondition: (entryId: string, condition: string, opts: ConditionDurationOpts) => void,
   conditionLabels: string[],
 ) {
   const conditions = entry.conditions ?? [];
@@ -1050,18 +1248,30 @@ function renderConditions(
 
   return (
     <div className="relative mt-0.5 flex max-w-full flex-wrap items-center gap-1 overflow-hidden">
-      {conditions.map((c) => (
-        <span
-          key={c}
-          className={`rounded-full bg-arcane/20 px-2 py-0.5 text-xs text-arcane ${
-            isDM ? 'cursor-pointer hover:bg-destructive/20 hover:text-destructive' : ''
-          }`}
-          onClick={isDM ? (e) => { e.stopPropagation(); handleToggleCondition(entry.id, c); } : undefined}
-          title={isDM ? `Remove ${c}` : c}
-        >
-          {c}
-        </span>
-      ))}
+      {conditions.map((c) => {
+        const isExpiring = c.remainingRounds != null && c.remainingRounds <= 1;
+        const durationLabel = c.remainingRounds != null ? ` (${c.remainingRounds}r)` : '';
+        const tooltip = [
+          c.name,
+          c.source ? `Source: ${c.source}` : '',
+          c.saveDC ? `DC ${c.saveDC} ${c.saveAbility ?? ''}` : '',
+          c.remainingRounds != null ? `${c.remainingRounds} round${c.remainingRounds !== 1 ? 's' : ''} left` : '',
+        ].filter(Boolean).join(' · ');
+        return (
+          <span
+            key={c.id}
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              isExpiring
+                ? 'bg-amber-500/20 text-amber-400 animate-pulse'
+                : 'bg-arcane/20 text-arcane'
+            } ${isDM ? 'cursor-pointer hover:bg-destructive/20 hover:text-destructive' : ''}`}
+            onClick={isDM ? (e) => { e.stopPropagation(); handleToggleCondition(entry.id, c.name); } : undefined}
+            title={isDM ? `Remove ${c.name}` : tooltip}
+          >
+            {c.name}{durationLabel}
+          </span>
+        );
+      })}
       {isDM && (
         <button
           type="button"
@@ -1082,6 +1292,7 @@ function renderConditions(
         <ConditionPicker
           current={conditions}
           onToggle={(c) => handleToggleCondition(entry.id, c)}
+          onAddWithDuration={(c, opts) => handleAddCondition(entry.id, c, opts)}
           onClose={() => setConditionPickerEntryId(null)}
           conditionLabels={conditionLabels}
         />

@@ -13,6 +13,9 @@ import type { Session } from '@/types/campaign';
 type SessionFilter = 'all' | 'planned' | 'in_progress' | 'completed';
 
 const STATUS_CONFIG: Record<Session['status'], { label: string; icon: typeof Clock; className: string }> = {
+  draft:       { label: 'Draft',       icon: FileText,     className: 'bg-muted text-muted-foreground' },
+  scheduled:   { label: 'Scheduled',   icon: Calendar,     className: 'bg-brass/20 text-brass' },
+  ready:       { label: 'Ready',       icon: CheckCircle2, className: 'bg-forest/20 text-[hsl(150,50%,55%)]' },
   planned:     { label: 'Planned',     icon: Calendar,     className: 'bg-brass/20 text-brass' },
   in_progress: { label: 'In Progress', icon: Play,         className: 'bg-forest/20 text-[hsl(150,50%,55%)]' },
   completed:   { label: 'Completed',   icon: CheckCircle2, className: 'bg-primary/20 text-primary' },
@@ -34,6 +37,7 @@ export function SessionsPage({ initialCampaignId }: SessionsPageProps = {}) {
     if (!campaigns || campaigns.length === 0) return;
     if (selectedCampaignId && campaigns.some((c) => c._id === selectedCampaignId)) return;
     if (initialCampaignId && campaigns.some((c) => c._id === initialCampaignId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing selection from loaded data
       setSelectedCampaignId(initialCampaignId);
     }
   }, [campaigns, initialCampaignId, selectedCampaignId]);

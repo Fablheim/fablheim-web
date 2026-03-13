@@ -19,13 +19,21 @@ export function ConcentrationBadge({ campaignId, entry, canEdit }: Concentration
   const active = !!entry.isConcentrating;
 
   async function toggleConcentration(next: boolean) {
+    if (next && active) {
+      const confirmed = window.confirm(
+        `Already concentrating on "${entry.concentrationSpell || 'a spell'}". ` +
+        `Setting a new concentration spell will drop the current one. Continue?`,
+      );
+      if (!confirmed) return;
+    }
+
     const conditions = entry.conditions ?? [];
-    const hasConcentrating = conditions.some((c) => c.toLowerCase() === 'concentrating');
+    const hasConcentrating = conditions.some((c) => c.name.toLowerCase() === 'concentrating');
     const nextConditions = next
       ? hasConcentrating
         ? conditions
-        : [...conditions, 'Concentrating']
-      : conditions.filter((c) => c.toLowerCase() !== 'concentrating');
+        : [...conditions, { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: 'Concentrating' }]
+      : conditions.filter((c) => c.name.toLowerCase() !== 'concentrating');
 
     await updateEntry.mutateAsync({
       entryId: entry.id,

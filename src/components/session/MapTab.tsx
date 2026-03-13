@@ -449,6 +449,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyboard handlers capture current state
   }, [
     draggingAoE,
     draggingToken,
@@ -2106,7 +2107,7 @@ export function MapTab({ campaignId, isDM, onTokenSelect, selectedEntryId }: Map
     const hasHP = hpNow != null && hpMax != null && hpMax > 0;
     const hpPct = hasHP ? Math.max(0, Math.min(100, (hpNow / hpMax) * 100)) : 0;
     const conditions = linkedEntry?.conditions ?? [];
-    const isConcentrating = conditions.includes('Concentrating') || linkedEntry?.isConcentrating;
+    const isConcentrating = conditions.some((c) => c.name === 'Concentrating') || linkedEntry?.isConcentrating;
     const isLowHP = hasHP && hpPct <= 25 && hpPct > 0;
     const isDead = hasHP && hpNow === 0;
 

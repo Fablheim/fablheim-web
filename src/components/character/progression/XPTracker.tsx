@@ -20,6 +20,7 @@ export function XPTracker({ characterId, isDM }: XPTrackerProps) {
   const [levelUpGlow, setLevelUpGlow] = useState(false);
   const prevLevelRef = useRef<number | undefined>(undefined);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- animation state driven by data change */
   useEffect(() => {
     if (!progression) return;
     if (prevLevelRef.current != null && progression.level > prevLevelRef.current) {
@@ -28,7 +29,8 @@ export function XPTracker({ characterId, isDM }: XPTrackerProps) {
       return () => clearTimeout(timer);
     }
     prevLevelRef.current = progression.level;
-  }, [progression?.level]);
+  }, [progression]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleAwardXP(amount: number, reason?: string) {
     awardXP.mutate(

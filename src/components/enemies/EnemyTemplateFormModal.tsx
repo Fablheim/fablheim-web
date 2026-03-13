@@ -297,9 +297,7 @@ export function EnemyTemplateFormModal({ open, onClose, template }: EnemyTemplat
       return (
         <div className="rounded border border-iron/20 bg-background/20 px-3 py-2">
           <p className="text-xs text-muted-foreground font-['IM_Fell_English'] italic">
-            {system === 'fate'
-              ? 'Fate uses Aspects and Skills instead of ability scores. Add these as Traits below.'
-              : 'No ability scores defined for this system.'}
+            No ability scores defined for this system. Use Traits below for custom attributes.
           </p>
         </div>
       );

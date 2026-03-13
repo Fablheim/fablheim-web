@@ -3,6 +3,7 @@ import { Route, Navigate } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { CampaignDetailPage } from './pages/CampaignDetailPage';
+import { CampaignPageV2 } from './pages/CampaignPageV2';
 import { SessionsPage } from './pages/SessionsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CharactersPage } from './pages/CharactersPage';
@@ -54,7 +55,10 @@ export function AppRoutes() {
     <>
       <Route path="/" element={<DashboardPage />} />
       <Route path="/campaigns" element={<CampaignsPage />} />
-      <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+      {/* V2 unified campaign shell — prep, live, recap all in one layout */}
+      <Route path="/campaigns/:id" element={<CampaignPageV2 />} />
+      {/* V1 escape hatches — old UI still accessible for reference */}
+      <Route path="/v1/campaigns/:id" element={<CampaignDetailPage />} />
       <Route path="/campaigns/:campaignId/characters/create" element={<Lazy><CharacterCreationWizardPage /></Lazy>} />
       <Route path="/campaigns/:campaignId/encounters" element={<Lazy><EncounterPrepPage /></Lazy>} />
       <Route path="/campaigns/:campaignId/ai-tools" element={<Lazy><AIToolsPage /></Lazy>} />
@@ -83,8 +87,8 @@ export function AppRoutes() {
       <Route path="/admin/sessions" element={<AdminRoute><Lazy><AdminSessionsPage /></Lazy></AdminRoute>} />
       <Route path="/admin/sessions/:sessionId" element={<AdminRoute><Lazy><AdminSessionDetailPage /></Lazy></AdminRoute>} />
       <Route path="/admin/analytics" element={<AdminRoute><Lazy><ClaudeAnalyticsPage /></Lazy></AdminRoute>} />
-      {/* Session route — SessionRunnerShellV2 renders its own full-screen layout */}
-      <Route path="/campaigns/:campaignId/session" element={<Lazy><SessionRunnerShellV2 /></Lazy>} />
+      {/* V1 session route — old full-screen session runner, kept for reference */}
+      <Route path="/v1/campaigns/:campaignId/session" element={<Lazy><SessionRunnerShellV2 /></Lazy>} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </>
   );

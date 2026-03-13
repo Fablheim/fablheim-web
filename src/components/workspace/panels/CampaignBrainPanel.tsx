@@ -1,13 +1,13 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
-  ChevronDown,
-  ChevronRight,
   Plus,
   X,
   Loader2,
   Check,
   Brain,
   Sparkles,
+  Link2,
+  Search,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
@@ -15,6 +15,9 @@ import {
   useGetCampaignContext,
   useUpdateCampaignContext,
 } from '@/hooks/useCampaignContext';
+import { useWorldEntities } from '@/hooks/useWorldEntities';
+import { TYPE_ACCENTS, TYPE_ICONS, TYPE_LABELS } from '@/components/world/world-constants';
+import type { WorldEntity, WorldEntityType } from '@/types/campaign';
 import type {
   CampaignContext,
   UpdateCampaignContextPayload,
@@ -88,39 +91,9 @@ const healthLabels: Record<HealthLevel, string> = {
   red: 'Context needs setup',
 };
 
-// ── Collapsible Section ─────────────────────────────────────
-
-function CollapsibleSection({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className="border-b border-[hsla(38,30%,25%,0.15)] last:border-b-0">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[hsla(38,30%,30%,0.06)]"
-      >
-        {open ? (
-          <ChevronDown className="h-4 w-4 text-primary/70 shrink-0" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        )}
-        <span className="font-['IM_Fell_English'] text-sm font-semibold text-foreground">
-          {title}
-        </span>
-      </button>
-      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
-    </div>
-  );
-}
+// ── Collapsible Section (shared) ────────────────────────────
+// Re-exported from @/components/ui/CollapsibleSection
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 
 // ── Tag Input ───────────────────────────────────────────────
 
@@ -222,6 +195,124 @@ function ToneSlider({
   );
 }
 
+// ── Entity Link Row ─────────────────────────────────────────
+
+interface EntityLinkRowProps {
+  entityId?: string;
+  linkedEntity: WorldEntity | null | undefined;
+  entityType: WorldEntityType;
+  candidates: WorldEntity[];
+  onLink: (id: string) => void;
+  onUnlink: () => void;
+}
+
+function EntityLinkRow({
+  entityId,
+  linkedEntity,
+  entityType,
+  candidates,
+  onLink,
+  onUnlink,
+}: EntityLinkRowProps) {
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return candidates.slice(0, 8);
+    const q = query.toLowerCase();
+    return candidates
+      .filter((e) => e.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [candidates, query]);
+
+  useEffect(() => {
+    if (searching) {
+      inputRef.current?.focus();
+    }
+  }, [searching]);
+
+  if (entityId && linkedEntity) {
+    const accent = TYPE_ACCENTS[linkedEntity.type] ?? TYPE_ACCENTS.npc;
+    const Icon = TYPE_ICONS[linkedEntity.type];
+    return (
+      <div className="flex items-center gap-1.5">
+        <span
+          className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] border ${accent.bg} ${accent.text} ${accent.border}`}
+        >
+          {Icon && <Icon className="h-2.5 w-2.5" />}
+          {linkedEntity.name}
+          <button
+            type="button"
+            onClick={onUnlink}
+            className="ml-0.5 opacity-60 hover:opacity-100"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  if (searching) {
+    return (
+      <div className="relative">
+        <div className="flex items-center gap-1.5">
+          <Search className="h-3 w-3 text-muted-foreground/50" />
+          <input
+            ref={inputRef}
+            className={fieldClasses + ' flex-1 !py-1'}
+            placeholder={`Search ${TYPE_LABELS[entityType] ?? entityType}s...`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => {
+              // Delay to allow click on dropdown item
+              setTimeout(() => {
+                setSearching(false);
+                setQuery('');
+              }, 200);
+            }}
+          />
+        </div>
+        {filtered.length > 0 && (
+          <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border border-border bg-card shadow-lg max-h-40 overflow-y-auto">
+            {filtered.map((e) => {
+              const Icon = TYPE_ICONS[e.type];
+              return (
+                <button
+                  key={e._id}
+                  type="button"
+                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs text-foreground hover:bg-primary/10 transition-colors"
+                  onMouseDown={(ev) => {
+                    ev.preventDefault();
+                    onLink(e._id);
+                    setSearching(false);
+                    setQuery('');
+                  }}
+                >
+                  {Icon && <Icon className="h-3 w-3 text-muted-foreground" />}
+                  <span className="truncate">{e.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setSearching(true)}
+      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-primary transition-colors"
+    >
+      <Link2 className="h-2.5 w-2.5" />
+      Link to entity
+    </button>
+  );
+}
+
 // ── Main Panel ──────────────────────────────────────────────
 
 interface CampaignBrainPanelProps {
@@ -230,6 +321,7 @@ interface CampaignBrainPanelProps {
 
 export function CampaignBrainPanel({ campaignId }: CampaignBrainPanelProps) {
   const { data: ctx, isLoading, isError, refetch } = useGetCampaignContext(campaignId);
+  const { data: worldEntities } = useWorldEntities(campaignId);
   const mutation = useUpdateCampaignContext(campaignId);
   const debounce = useDebounceCallback(500);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -283,7 +375,7 @@ export function CampaignBrainPanel({ campaignId }: CampaignBrainPanelProps) {
     return renderEmptyState(ctx, patchField, saveStatus);
   }
 
-  return renderMainPanel(ctx, patchField, saveStatus);
+  return renderMainPanel(ctx, patchField, saveStatus, worldEntities ?? []);
 }
 
 // ── Empty State ─────────────────────────────────────────────
@@ -386,6 +478,7 @@ function renderMainPanel(
   ctx: CampaignContext,
   patchField: (p: UpdateCampaignContextPayload) => void,
   saveStatus: SaveStatus,
+  worldEntities: WorldEntity[],
 ) {
   const health = computeHealth(ctx);
   return (
@@ -393,7 +486,7 @@ function renderMainPanel(
       {renderPanelHeader(health, saveStatus)}
       <div className="flex-1 overflow-y-auto">
         {renderWorldOverviewSection(ctx, patchField)}
-        {renderKeyEntitiesSection(ctx, patchField)}
+        {renderKeyEntitiesSection(ctx, patchField, worldEntities)}
         {renderPlotThreadsSection(ctx, patchField)}
         {renderPartySection(ctx, patchField)}
         {renderDMPreferencesSection(ctx, patchField)}
@@ -558,12 +651,13 @@ function renderCurrentSituation(
 function renderKeyEntitiesSection(
   ctx: CampaignContext,
   patchField: (p: UpdateCampaignContextPayload) => void,
+  worldEntities: WorldEntity[],
 ) {
   return (
     <CollapsibleSection title="Key Entities">
-      {renderKeyLocations(ctx, patchField)}
-      {renderKeyFactions(ctx, patchField)}
-      {renderKeyNPCs(ctx, patchField)}
+      {renderKeyLocations(ctx, patchField, worldEntities)}
+      {renderKeyFactions(ctx, patchField, worldEntities)}
+      {renderKeyNPCs(ctx, patchField, worldEntities)}
     </CollapsibleSection>
   );
 }
@@ -573,8 +667,10 @@ function renderKeyEntitiesSection(
 function renderKeyLocations(
   ctx: CampaignContext,
   patchField: (p: UpdateCampaignContextPayload) => void,
+  worldEntities: WorldEntity[],
 ) {
   const locations = ctx.keyLocations ?? [];
+  const locEntities = worldEntities.filter((e) => e.type === 'location' || e.type === 'location_detail');
 
   function add() {
     patchField({
@@ -605,7 +701,7 @@ function renderKeyLocations(
         </button>
       </div>
       <div className="space-y-2">
-        {locations.map((loc, idx) => renderLocationRow(loc, idx, update, remove))}
+        {locations.map((loc, idx) => renderLocationRow(loc, idx, update, remove, locEntities))}
       </div>
       {locations.length === 0 && (
         <p className="text-[10px] text-muted-foreground/50 italic">No locations yet</p>
@@ -619,7 +715,9 @@ function renderLocationRow(
   idx: number,
   update: (idx: number, p: Partial<KeyLocation>) => void,
   remove: (idx: number) => void,
+  entities: WorldEntity[],
 ) {
+  const linked = loc.entityId ? entities.find((e) => e._id === loc.entityId) : null;
   return (
     <div
       key={idx}
@@ -651,6 +749,14 @@ function renderLocationRow(
         defaultValue={loc.description}
         onChange={(e) => update(idx, { description: e.target.value })}
       />
+      <EntityLinkRow
+        entityId={loc.entityId}
+        linkedEntity={linked}
+        entityType="location"
+        candidates={entities}
+        onLink={(id) => update(idx, { entityId: id })}
+        onUnlink={() => update(idx, { entityId: undefined })}
+      />
     </div>
   );
 }
@@ -660,8 +766,10 @@ function renderLocationRow(
 function renderKeyFactions(
   ctx: CampaignContext,
   patchField: (p: UpdateCampaignContextPayload) => void,
+  worldEntities: WorldEntity[],
 ) {
   const factions = ctx.keyFactions ?? [];
+  const facEntities = worldEntities.filter((e) => e.type === 'faction');
 
   function add() {
     patchField({
@@ -692,7 +800,7 @@ function renderKeyFactions(
         </button>
       </div>
       <div className="space-y-2">
-        {factions.map((fac, idx) => renderFactionRow(fac, idx, update, remove))}
+        {factions.map((fac, idx) => renderFactionRow(fac, idx, update, remove, facEntities))}
       </div>
       {factions.length === 0 && (
         <p className="text-[10px] text-muted-foreground/50 italic">No factions yet</p>
@@ -706,7 +814,9 @@ function renderFactionRow(
   idx: number,
   update: (idx: number, p: Partial<KeyFaction>) => void,
   remove: (idx: number) => void,
+  entities: WorldEntity[],
 ) {
+  const linked = fac.entityId ? entities.find((e) => e._id === fac.entityId) : null;
   return (
     <div
       key={idx}
@@ -744,6 +854,14 @@ function renderFactionRow(
         defaultValue={fac.attitude}
         onChange={(e) => update(idx, { attitude: e.target.value })}
       />
+      <EntityLinkRow
+        entityId={fac.entityId}
+        linkedEntity={linked}
+        entityType="faction"
+        candidates={entities}
+        onLink={(id) => update(idx, { entityId: id })}
+        onUnlink={() => update(idx, { entityId: undefined })}
+      />
     </div>
   );
 }
@@ -753,8 +871,10 @@ function renderFactionRow(
 function renderKeyNPCs(
   ctx: CampaignContext,
   patchField: (p: UpdateCampaignContextPayload) => void,
+  worldEntities: WorldEntity[],
 ) {
   const npcs = ctx.keyNPCs ?? [];
+  const npcEntities = worldEntities.filter((e) => e.type === 'npc' || e.type === 'npc_minor');
 
   function add() {
     patchField({
@@ -785,7 +905,7 @@ function renderKeyNPCs(
         </button>
       </div>
       <div className="space-y-2">
-        {npcs.map((npc, idx) => renderNPCRow(npc, idx, update, remove))}
+        {npcs.map((npc, idx) => renderNPCRow(npc, idx, update, remove, npcEntities))}
       </div>
       {npcs.length === 0 && (
         <p className="text-[10px] text-muted-foreground/50 italic">No NPCs yet</p>
@@ -799,7 +919,9 @@ function renderNPCRow(
   idx: number,
   update: (idx: number, p: Partial<KeyNPC>) => void,
   remove: (idx: number) => void,
+  entities: WorldEntity[],
 ) {
+  const linked = npc.entityId ? entities.find((e) => e._id === npc.entityId) : null;
   return (
     <div
       key={idx}
@@ -842,6 +964,14 @@ function renderNPCRow(
               .filter((s) => s.trim()),
           })
         }
+      />
+      <EntityLinkRow
+        entityId={npc.entityId}
+        linkedEntity={linked}
+        entityType="npc"
+        candidates={entities}
+        onLink={(id) => update(idx, { entityId: id })}
+        onUnlink={() => update(idx, { entityId: undefined })}
       />
     </div>
   );

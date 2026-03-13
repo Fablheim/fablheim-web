@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { campaignsApi } from '@/api/campaigns';
-import type { CreateCampaignPayload, UpdateCampaignPayload } from '@/types/campaign';
+import type { CreateCampaignPayload, UpdateCampaignPayload, CalendarPresetType } from '@/types/campaign';
 
 export function useCampaigns() {
   return useQuery({
@@ -79,6 +79,25 @@ export function useDeleteCampaignPermanently() {
     mutationFn: (id: string) => campaignsApi.deletePermanently(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', 'archived'] });
+    },
+  });
+}
+
+// ── Safety Tools ─────────────────────────────────────────
+
+export function useUpdateSafetyTools() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      data,
+    }: {
+      campaignId: string;
+      data: { lines?: string[]; veils?: string[]; xCardEnabled?: boolean };
+    }) => campaignsApi.updateSafetyTools(campaignId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
     },
   });
 }
@@ -202,6 +221,63 @@ export function useRemoveTracker() {
       campaignsApi.removeTracker(campaignId, trackerId),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+// ── Calendar ─────────────────────────────────────────────
+
+export function useInitCalendar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, preset }: { campaignId: string; preset: CalendarPresetType }) =>
+      campaignsApi.initCalendar(campaignId, preset),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useAdvanceDate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, days }: { campaignId: string; days: number }) =>
+      campaignsApi.advanceDate(campaignId, days),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useSetDate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, date }: { campaignId: string; date: { year: number; month: number; day: number } }) =>
+      campaignsApi.setDate(campaignId, date),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useAddCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, data }: { campaignId: string; data: Parameters<typeof campaignsApi.addCalendarEvent>[1] }) =>
+      campaignsApi.addCalendarEvent(campaignId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useRemoveCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, eventId }: { campaignId: string; eventId: string }) =>
+      campaignsApi.removeCalendarEvent(campaignId, eventId),
+    onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
     },
   });

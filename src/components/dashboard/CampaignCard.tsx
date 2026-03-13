@@ -1,7 +1,6 @@
-import { Flame, Shield, Users } from 'lucide-react';
+import { ArrowRight, Flame, Shield, Users } from 'lucide-react';
 import { stageConfig } from '@/config/stage-config';
 import { systemLabels } from '@/types/campaign';
-import { Button } from '@/components/ui/Button';
 import type { Campaign, Character } from '@/types/campaign';
 
 interface CampaignCardProps {
@@ -26,84 +25,153 @@ export function CampaignCard({
   const isLive = campaign.stage === 'live';
 
   const systemLabel = systemLabels[campaign.system] ?? 'Custom System';
-  const subtitle = campaign.setting ? `${systemLabel} · ${campaign.setting}` : systemLabel;
-
-  const lastPlayed = campaign.lastSessionDate
-    ? new Date(campaign.lastSessionDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : null;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`mkt-card mkt-card-mounted group relative w-full rounded-xl border text-left transition-all duration-200 hover:-translate-y-0.5 ${
+      className={`group relative w-full rounded-xl border text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isLive
-          ? 'campaign-card-live border-[hsl(5,84%,58%)]/30'
-          : 'border-[color:var(--mkt-border)] hover:border-[color:var(--mkt-accent)]/40'
-      } ${isHero ? 'p-6' : 'p-4'}`}
+          ? 'border-[hsl(0,55%,40%)]/30 hover:border-[hsl(0,55%,40%)]/50'
+          : 'border-[hsla(32,26%,26%,0.5)] hover:border-[hsla(38,50%,58%,0.4)]'
+      } bg-[linear-gradient(180deg,hsla(26,16%,15%,0.96),hsla(24,14%,11%,0.98))] ${isHero ? 'p-5' : 'p-4'}`}
+      title={campaign.name}
     >
-      {/* Header: Stage icon + Name + Role badge */}
-      <div className="flex items-start gap-3">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stage.bg} ${isLive ? 'animate-pulse' : ''}`}>
-          <StageIcon className={`h-5 w-5 ${stage.color}`} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className={`truncate font-[Cinzel] font-semibold text-[color:var(--mkt-text)] ${isHero ? 'text-xl' : 'text-base'}`}>
-              {campaign.name}
-            </h3>
-            {role === 'dm' ? (
-              <Shield className="h-3.5 w-3.5 shrink-0 text-[color:var(--mkt-accent)]" aria-label="DM" />
-            ) : (
-              <Users className="h-3.5 w-3.5 shrink-0 text-forest" aria-label={role === 'co_dm' ? 'Co-DM' : 'Player'} />
-            )}
-          </div>
-          <p className="truncate text-sm text-[color:var(--mkt-muted)]">{subtitle}</p>
-        </div>
-      </div>
-
-      {/* Hero: Description + meta */}
-      {isHero && campaign.description && (
-        <p className="mt-3 line-clamp-2 text-base text-[color:var(--mkt-muted)]">{campaign.description}</p>
-      )}
-
-      {/* Footer: Stage badge + last played + character */}
-      <div className="mt-3 flex items-center gap-2">
-        {isLive ? (
-          <span className="flex items-center gap-1 rounded-full bg-[hsl(5,84%,58%)]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(5,84%,58%)]">
-            <Flame className="h-3 w-3" />
-            Live
-          </span>
-        ) : (
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${stage.bg} ${stage.color}`}>
-            {stage.label}
-          </span>
-        )}
-
-        {character && (
-            <span className="truncate text-xs text-[color:var(--mkt-muted)]">
-              Playing as {character.name}
-            </span>
-          )}
-
-        {lastPlayed && !character && (
-          <span className="text-xs text-[color:var(--mkt-muted)]">Last played {lastPlayed}</span>
-        )}
-      </div>
-
-      {/* Live CTA */}
-      {isLive && onResume && (
-        <div className="mt-3">
-          <Button
-            size="sm"
-            className="shimmer-gold w-full"
-            onClick={(e) => { e.stopPropagation(); onResume(); }}
-          >
-            <Flame className="mr-1.5 h-3.5 w-3.5" />
-            Resume Session
-          </Button>
-        </div>
-      )}
+      {renderHeader()}
+      {renderMeta()}
+      {renderFooter()}
+      {renderLiveCTA()}
     </button>
   );
+
+  function renderHeader() {
+    return (
+      <div className="flex items-start gap-3">
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${stage.bg} ${isLive ? 'animate-pulse' : ''}`}
+        >
+          <StageIcon className={`h-4 w-4 ${stage.color}`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <h3
+              className={`line-clamp-2 text-[hsl(35,24%,92%)] ${isHero ? 'text-lg' : 'text-[14px]'}`}
+              style={{ fontFamily: "'IM Fell English', 'Cinzel', serif" }}
+            >
+              {campaign.name}
+            </h3>
+            {renderRoleBadge()}
+          </div>
+          <p className="mt-0.5 truncate text-[11px] text-[hsl(30,12%,58%)]">
+            {buildSubtitle()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function renderRoleBadge() {
+    if (role === 'dm') {
+      return (
+        <Shield
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(38,90%,55%)]"
+          aria-label="DM"
+        />
+      );
+    }
+    return (
+      <Users
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(148,40%,52%)]"
+        aria-label={role === 'co_dm' ? 'Co-DM' : 'Player'}
+      />
+    );
+  }
+
+  function renderMeta() {
+    if (!isHero || !campaign.description) return null;
+    return (
+      <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-[hsl(30,12%,58%)]">
+        {campaign.description}
+      </p>
+    );
+  }
+
+  function renderFooter() {
+    const lastPlayed = campaign.lastSessionDate
+      ? new Date(campaign.lastSessionDate).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        })
+      : null;
+
+    return (
+      <div className="mt-3 flex items-center gap-2">
+        {renderStageBadge()}
+        {character && (
+          <span className="truncate text-[11px] text-[hsl(30,12%,58%)]">
+            Playing as {character.name}
+          </span>
+        )}
+        {lastPlayed && !character && (
+          <span className="text-[11px] text-[hsl(30,12%,58%)]">
+            Last played {lastPlayed}
+          </span>
+        )}
+        <span className="ml-auto text-[10px] text-[hsl(30,12%,58%)] opacity-0 transition-opacity group-hover:opacity-100">
+          Enter →
+        </span>
+      </div>
+    );
+  }
+
+  function renderStageBadge() {
+    if (isLive) {
+      return (
+        <span className="flex items-center gap-1 rounded-full border border-[hsl(0,55%,28%)]/30 bg-[hsl(0,55%,28%)]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[hsl(0,62%,58%)]">
+          <Flame className="h-3 w-3" />
+          Live
+        </span>
+      );
+    }
+    return (
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${stage.bg} ${stage.color}`}
+      >
+        {stage.label}
+      </span>
+    );
+  }
+
+  function renderLiveCTA() {
+    if (!isLive || !onResume) return null;
+    return (
+      <div className="mt-3 border-t border-[hsla(32,26%,26%,0.3)] pt-3">
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onResume();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+              onResume();
+            }
+          }}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-[hsl(38,92%,50%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(24,22%,6%)] transition-colors hover:bg-[hsl(38,92%,55%)]"
+        >
+          <Flame className="h-3 w-3" />
+          Resume Session
+          <ArrowRight className="h-3 w-3" />
+        </span>
+      </div>
+    );
+  }
+
+  function buildSubtitle(): string {
+    const parts = [systemLabel];
+    if (campaign.setting) parts.push(campaign.setting);
+    return parts.join(' · ');
+  }
 }

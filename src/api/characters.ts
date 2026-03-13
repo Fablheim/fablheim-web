@@ -88,6 +88,43 @@ export const charactersApi = {
     return data;
   },
 
+  // ── PF2e Spell Slots ────────────────────────────────────
+
+  assignSpellToSlotPf2e: async (
+    id: string,
+    level: number,
+    slotIndex: number,
+    spellId: string,
+  ): Promise<Character> => {
+    const { data } = await api.patch<Character>(
+      `/characters/${id}/spell-slots-pf2e/${level}/${slotIndex}/assign`,
+      { spellId },
+    );
+    return data;
+  },
+
+  castSpellPf2e: async (id: string, level: number, slotIndex: number): Promise<Character> => {
+    const { data } = await api.patch<Character>(
+      `/characters/${id}/spell-slots-pf2e/${level}/${slotIndex}/cast`,
+    );
+    return data;
+  },
+
+  resetSpellSlotsPf2e: async (id: string): Promise<Character> => {
+    const { data } = await api.post<Character>(`/characters/${id}/spell-slots-pf2e/reset`);
+    return data;
+  },
+
+  // ── Fate Core Skills ───────────────────────────────────
+
+  updateFateSkill: async (id: string, skill: string, rating: number): Promise<Character> => {
+    const { data } = await api.patch<Character>(
+      `/characters/${id}/fate-skills/${encodeURIComponent(skill)}`,
+      { rating },
+    );
+    return data;
+  },
+
   // ── Roll Endpoints ──────────────────────────────────────
 
   rollAttack: async (id: string, attackId: string, campaignId?: string): Promise<AttackRollResult> => {

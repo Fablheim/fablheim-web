@@ -43,25 +43,38 @@ export function CampaignCardGrid({
 
   const totalCount = sortedDM.length + playerMemberships.length;
 
-  function getSessionPath(campaign: Campaign): string {
-    return `/app/campaigns/${campaign._id}/session`;
+  if (isLoading) {
+    return renderLoading();
   }
 
-  // ── Loading state ────────────────────────────────────────
+  if (error) {
+    return renderError();
+  }
 
-  if (isLoading) {
+  if (totalCount === 0) {
+    return renderEmpty();
+  }
+
+  if (totalCount === 1 && sortedDM.length === 1) {
+    return renderHero();
+  }
+
+  return renderGrid();
+
+  function renderLoading() {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="app-card h-32 animate-pulse rounded-xl border border-[color:var(--mkt-border)]" />
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-xl border border-[hsla(32,26%,26%,0.4)] bg-[hsl(24,14%,11%)]"
+          />
         ))}
       </div>
     );
   }
 
-  // ── Error state ──────────────────────────────────────────
-
-  if (error) {
+  function renderError() {
     return (
       <AppEmptyState
         title="Failed to load campaigns"
@@ -73,9 +86,7 @@ export function CampaignCardGrid({
     );
   }
 
-  // ── Empty state ──────────────────────────────────────────
-
-  if (totalCount === 0) {
+  function renderEmpty() {
     return (
       <AppEmptyState
         icon={BookOpen}
@@ -91,9 +102,7 @@ export function CampaignCardGrid({
     );
   }
 
-  // ── Hero layout (1 campaign) ─────────────────────────────
-
-  if (totalCount === 1 && sortedDM.length === 1) {
+  function renderHero() {
     const c = sortedDM[0];
     return (
       <div className="mx-auto max-w-2xl">
@@ -102,81 +111,101 @@ export function CampaignCardGrid({
           role="dm"
           isHero
           onClick={() => onNavigate(`/app/campaigns/${c._id}`)}
-          onResume={c.stage === 'live' ? () => onNavigate(getSessionPath(c)) : undefined}
+          onResume={
+            c.stage === 'live'
+              ? () => onNavigate(`/app/campaigns/${c._id}/session`)
+              : undefined
+          }
         />
       </div>
     );
   }
 
-  // ── Grid layout (2+) ────────────────────────────────────
+  function renderGrid() {
+    return (
+      <div className="space-y-5">
+        {sortedDM.length > 0 && renderDMSection()}
+        {playerMemberships.length > 0 && renderPlayerSection()}
+      </div>
+    );
+  }
 
-  return (
-    <div className="space-y-6">
-      {sortedDM.length > 0 && (
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-[Cinzel] text-sm font-semibold uppercase tracking-widest text-[color:var(--mkt-muted)]">
-              Your Campaigns
-            </h2>
+  function renderDMSection() {
+    return (
+      <div>
+        {playerMemberships.length > 0 && (
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-[11px] uppercase tracking-[0.06em] text-[hsl(30,12%,58%)]">
+              Running
+            </h3>
             <button
               type="button"
               onClick={() => onNavigate('/app/campaigns')}
-              className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              className="flex items-center gap-1 text-[11px] text-[hsl(38,82%,63%)] hover:text-[hsl(38,90%,70%)]"
             >
               <Plus className="h-3 w-3" />
               New
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedDM.map((c) => (
-              <CampaignCard
-                key={c._id}
-                campaign={c}
-                role="dm"
-                onClick={() => onNavigate(`/app/campaigns/${c._id}`)}
-                onResume={c.stage === 'live' ? () => onNavigate(getSessionPath(c)) : undefined}
-              />
-            ))}
-          </div>
+        )}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedDM.map((c) => (
+            <CampaignCard
+              key={c._id}
+              campaign={c}
+              role="dm"
+              onClick={() => onNavigate(`/app/campaigns/${c._id}`)}
+              onResume={
+                c.stage === 'live'
+                  ? () => onNavigate(`/app/campaigns/${c._id}/session`)
+                  : undefined
+              }
+            />
+          ))}
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {playerMemberships.length > 0 && (
-        <div>
-          {sortedDM.length > 0 && <div className="divider-ornate mb-6" />}
-          <h2 className="mb-3 font-[Cinzel] text-sm font-semibold uppercase tracking-widest text-[color:var(--mkt-muted)]">
-            Playing In
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {playerMemberships.map((m) => {
-              const char = characterByCampaign.get(m.campaignId._id);
-              const isLive = m.campaignId.stage === 'live';
-              return (
-                <CampaignCard
-                  key={m._id}
-                  campaign={{
-                    _id: m.campaignId._id,
-                    name: m.campaignId.name,
-                    description: m.campaignId.description ?? '',
-                    status: m.campaignId.status as Campaign['status'],
-                    stage: (m.campaignId.stage ?? 'prep') as Campaign['stage'],
-                    system: (m.campaignId.system ?? 'custom') as Campaign['system'],
-                    setting: '',
-                    dmId: '',
-                    inviteEnabled: false,
-                    createdAt: m.createdAt,
-                    updatedAt: m.updatedAt,
-                  }}
-                  role={m.role}
-                  character={char}
-                  onClick={() => onNavigate(`/app/campaigns/${m.campaignId._id}`)}
-                  onResume={isLive ? () => onNavigate(`/app/campaigns/${m.campaignId._id}/session`) : undefined}
-                />
-              );
-            })}
-          </div>
+  function renderPlayerSection() {
+    return (
+      <div>
+        <h3 className="mb-2 text-[11px] uppercase tracking-[0.06em] text-[hsl(30,12%,58%)]">
+          Playing In
+        </h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {playerMemberships.map((m) => {
+            const char = characterByCampaign.get(m.campaignId._id);
+            const isLive = m.campaignId.stage === 'live';
+            return (
+              <CampaignCard
+                key={m._id}
+                campaign={{
+                  _id: m.campaignId._id,
+                  name: m.campaignId.name,
+                  description: m.campaignId.description ?? '',
+                  status: m.campaignId.status as Campaign['status'],
+                  stage: (m.campaignId.stage ?? 'prep') as Campaign['stage'],
+                  system: (m.campaignId.system ?? 'custom') as Campaign['system'],
+                  setting: '',
+                  dmId: '',
+                  inviteEnabled: false,
+                  createdAt: m.createdAt,
+                  updatedAt: m.updatedAt,
+                }}
+                role={m.role}
+                character={char}
+                onClick={() => onNavigate(`/app/campaigns/${m.campaignId._id}`)}
+                onResume={
+                  isLive
+                    ? () => onNavigate(`/app/campaigns/${m.campaignId._id}/session`)
+                    : undefined
+                }
+              />
+            );
+          })}
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
 }

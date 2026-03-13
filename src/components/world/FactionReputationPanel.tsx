@@ -1,17 +1,10 @@
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { useAdjustReputation } from '@/hooks/useWorldEntities';
+import { DISPOSITION_CONFIG } from './world-constants';
 import type { WorldEntity, FactionDisposition } from '@/types/campaign';
-
-const DISPOSITION_CONFIG: Record<FactionDisposition, { label: string; color: string; bg: string }> = {
-  hostile: { label: 'Hostile', color: 'text-blood', bg: 'bg-blood/15' },
-  unfriendly: { label: 'Unfriendly', color: 'text-brass', bg: 'bg-brass/15' },
-  neutral: { label: 'Neutral', color: 'text-muted-foreground', bg: 'bg-muted' },
-  friendly: { label: 'Friendly', color: 'text-gold', bg: 'bg-gold/15' },
-  allied: { label: 'Allied', color: 'text-[hsl(150,50%,55%)]', bg: 'bg-forest/15' },
-};
 
 interface FactionReputationPanelProps {
   entity: WorldEntity;
@@ -22,17 +15,25 @@ interface FactionReputationPanelProps {
 
 export function FactionReputationPanel({ entity, canEdit, allEntities, onViewEntity }: FactionReputationPanelProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [delta, setDelta] = useState(0);
   const [description, setDescription] = useState('');
+  const historyRef = useRef<HTMLDivElement>(null);
+  const [historyOverflows, setHistoryOverflows] = useState(false);
   const adjustReputation = useAdjustReputation();
+
+  const history = entity.reputationHistory ?? [];
+
+  useEffect(() => {
+    const el = historyRef.current;
+    if (!el) return;
+    setHistoryOverflows(el.scrollHeight > el.clientHeight);
+  }, [history.length]);
 
   if (entity.type !== 'faction') return null;
 
   const disposition = entity.disposition as FactionDisposition | undefined;
   const dispConfig = disposition ? DISPOSITION_CONFIG[disposition] : null;
   const reputation = entity.reputation ?? 0;
-  const history = entity.reputationHistory ?? [];
   const relationships = entity.factionRelationships ?? [];
 
   function handleAdjust() {
@@ -44,7 +45,6 @@ export function FactionReputationPanel({ entity, canEdit, allEntities, onViewEnt
           toast.success('Reputation adjusted');
           setDelta(0);
           setDescription('');
-          setShowForm(false);
         },
         onError: () => toast.error('Failed to adjust reputation'),
       },
@@ -135,11 +135,14 @@ export function FactionReputationPanel({ entity, canEdit, allEntities, onViewEnt
 
           {/* Reputation history */}
           {history.length > 0 && (
-            <div>
+            <div className="relative">
               <p className="mb-1.5 font-[Cinzel] text-[10px] uppercase tracking-wider text-muted-foreground">
                 History
               </p>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
+              <div
+                ref={historyRef}
+                className="space-y-1 max-h-32 overflow-y-auto"
+              >
                 {history.slice().reverse().map((evt, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     {evt.delta >= 0 ? (
@@ -154,45 +157,36 @@ export function FactionReputationPanel({ entity, canEdit, allEntities, onViewEnt
                   </div>
                 ))}
               </div>
+              {historyOverflows && (
+                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-card to-transparent" />
+              )}
             </div>
           )}
 
-          {/* Adjust form */}
-          {canEdit && !showForm && (
-            <Button size="sm" variant="secondary" onClick={() => setShowForm(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Adjust Reputation
-            </Button>
-          )}
-          {canEdit && showForm && (
-            <div className="rounded-md border border-border bg-card/60 p-3 space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-[Cinzel] text-[10px] uppercase tracking-wider text-foreground">Delta</label>
-                  <input
-                    type="number"
-                    value={delta}
-                    onChange={(e) => setDelta(parseInt(e.target.value) || 0)}
-                    className="block w-full rounded-sm border border-input bg-input px-2 py-1 text-sm text-foreground input-carved font-[Cinzel]"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block font-[Cinzel] text-[10px] uppercase tracking-wider text-foreground">Reason</label>
-                  <input
-                    type="text"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What happened?"
-                    className="block w-full rounded-sm border border-input bg-input px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground input-carved"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button size="sm" disabled={!delta || !description.trim() || adjustReputation.isPending} onClick={handleAdjust}>
-                  {adjustReputation.isPending ? 'Saving...' : 'Apply'}
-                </Button>
-              </div>
+          {/* Compact inline adjust form */}
+          {canEdit && (
+            <div className="flex items-end gap-2">
+              <input
+                type="number"
+                value={delta}
+                onChange={(e) => setDelta(parseInt(e.target.value) || 0)}
+                className="w-16 rounded-sm border border-input bg-input px-2 py-1 text-sm text-foreground input-carved font-[Cinzel]"
+                placeholder="±"
+              />
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Reason..."
+                className="min-w-0 flex-1 rounded-sm border border-input bg-input px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground input-carved"
+              />
+              <Button
+                size="sm"
+                disabled={!delta || !description.trim() || adjustReputation.isPending}
+                onClick={handleAdjust}
+              >
+                {adjustReputation.isPending ? '...' : 'Apply'}
+              </Button>
             </div>
           )}
         </div>

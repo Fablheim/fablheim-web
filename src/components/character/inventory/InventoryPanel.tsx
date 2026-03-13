@@ -3,6 +3,7 @@ import { Plus, Weight, Sparkles, Loader2, ChevronDown, ChevronRight, Package } f
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from './CurrencyDisplay';
+import { WealthTierDisplay } from './WealthTierDisplay';
 import { ItemRow } from './ItemRow';
 import { ItemFormModal, type ItemFormData } from './ItemFormModal';
 import {
@@ -17,6 +18,9 @@ import {
   useUpdateCurrency,
 } from '@/hooks/useItems';
 import type { Character } from '@/types/campaign';
+import { useCampaignModuleEnabled, useModuleConfig } from '@/hooks/useModuleEnabled';
+import { useCampaign } from '@/hooks/useCampaigns';
+import { useUpdateCharacter } from '@/hooks/useCharacters';
 import type { Item, ItemType, CharacterCurrency } from '@/types/item';
 
 interface InventoryPanelProps {
@@ -63,6 +67,27 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
   const { data: items, isLoading: itemsLoading } = useItems(character._id);
+
+  const hasCoinCurrency = useCampaignModuleEnabled(campaignId, 'coins-dnd')
+    || useCampaignModuleEnabled(campaignId, 'abstract-currency');
+  const isWealthTier = useCampaignModuleEnabled(campaignId, 'wealth-tiers');
+  const hasCurrency = hasCoinCurrency || isWealthTier;
+  const isBulkPf2e = useCampaignModuleEnabled(campaignId, 'bulk-pf2e');
+  const hasEncumbrance = useCampaignModuleEnabled(campaignId, 'weight-pounds')
+    || isBulkPf2e;
+  const isAttunementDnd = useCampaignModuleEnabled(campaignId, 'attunement-dnd');
+  const isInvestmentPf2e = useCampaignModuleEnabled(campaignId, 'investment-pf2e');
+  const hasAttunement = isAttunementDnd || isInvestmentPf2e;
+
+  const { data: campaign } = useCampaign(campaignId);
+  const attunementConfig = useModuleConfig<{ maxSlots?: number }>(campaign, isInvestmentPf2e ? 'investment-pf2e' : 'attunement-dnd');
+  const attunementMax = attunementConfig?.maxSlots ?? (isInvestmentPf2e ? 10 : 3);
+  const attunementLabel = isInvestmentPf2e ? 'Invested' : 'Attuned';
+  const wealthConfig = useModuleConfig<{ tiers?: string[] }>(campaign, 'wealth-tiers');
+  const wealthTiers = wealthConfig?.tiers ?? ['poverty', 'modest', 'comfortable', 'wealthy', 'opulent'];
+  const currentWealthTier = (character as any).wealthTier ?? (character.mechanicData?.wealthTier as string) ?? 'modest';
+  const updateCharacter = useUpdateCharacter();
+
   const { data: currency } = useCurrency(character._id);
 
   const createItem = useCreateItem();
@@ -73,7 +98,7 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
   const toggleAttunement = useToggleAttunement();
   const updateCurrency = useUpdateCurrency();
 
-  const allItems = items ?? [];
+  const allItems = useMemo(() => items ?? [], [items]);
   const capacity = computeCarryCapacity(character);
   const totalWeight = computeTotalWeight(allItems);
   const attunedCount = countAttuned(allItems);
@@ -142,12 +167,17 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
 
   const handleToggleAttunement = useCallback(
     (id: string) => {
+      const item = allItems.find((i) => i._id === id);
+      if (item && !item.isAttuned && attunedCount >= attunementMax) {
+        toast.warning(`${attunementLabel} limit reached (${attunementMax}/${attunementMax}). Remove one first.`);
+        return;
+      }
       toggleAttunement.mutate(
         { id, characterId: character._id },
         { onError: (err: Error) => toast.error(err.message || 'Failed to toggle attunement') },
       );
     },
-    [toggleAttunement, character._id],
+    [toggleAttunement, character._id, allItems, attunedCount],
   );
 
   const handleEdit = useCallback((item: Item) => {
@@ -173,6 +203,20 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
       );
     },
     [updateCurrency, character._id],
+  );
+
+  const handleWealthTierUpdate = useCallback(
+    (tier: string) => {
+      updateCharacter.mutate(
+        {
+          id: character._id,
+          campaignId,
+          data: { wealthTier: tier },
+        },
+        { onError: () => toast.error('Failed to update wealth tier') },
+      );
+    },
+    [updateCharacter, character._id, campaignId],
   );
 
   function handleFormSubmit(formData: ItemFormData) {
@@ -209,9 +253,17 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
     <div className="flex h-full flex-col bg-[hsl(24,18%,9%)]">
       {renderPanelHeader(openAddModal)}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {renderCurrencySection(currency, handleCurrencyUpdate, updateCurrency.isPending)}
-        {renderWeightBar(totalWeight, capacity, weightPct, isEncumbered)}
-        {renderAttunementIndicator(attunedCount)}
+        {hasCurrency && (isWealthTier
+          ? <WealthTierDisplay
+              currentTier={currentWealthTier}
+              tiers={wealthTiers}
+              onUpdate={handleWealthTierUpdate}
+              isPending={updateCharacter.isPending}
+            />
+          : renderCurrencySection(currency, handleCurrencyUpdate, updateCurrency.isPending)
+        )}
+        {hasEncumbrance && renderWeightBar(totalWeight, capacity, weightPct, isEncumbered, isBulkPf2e ? 'Bulk' : 'lb')}
+        {hasAttunement && renderAttunementIndicator(attunedCount, attunementMax, attunementLabel)}
         {renderTabs(activeTab, setActiveTab)}
         {renderItemList(
           looseItems,
@@ -234,6 +286,8 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
         item={editingItem}
         isPending={createItem.isPending || updateItem.isPending}
         containers={allItems.filter((i) => i.isContainer)}
+        showBulk={isBulkPf2e}
+        showInvestment={isInvestmentPf2e}
       />
     </div>
   );
@@ -272,6 +326,7 @@ function renderWeightBar(
   capacity: number,
   weightPct: number,
   isEncumbered: boolean,
+  unit: string = 'lb',
 ) {
   const barColor = isEncumbered ? 'bg-red-500' : weightPct > 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
@@ -285,7 +340,7 @@ function renderWeightBar(
           </span>
         </div>
         <span className={`text-xs font-medium ${isEncumbered ? 'text-red-400' : 'text-foreground'}`}>
-          {totalWeight.toFixed(1)} / {capacity} lb
+          {unit === 'Bulk' ? Math.round(totalWeight) : totalWeight.toFixed(1)} / {capacity} {unit}
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted/40">
@@ -298,20 +353,24 @@ function renderWeightBar(
   );
 }
 
-function renderAttunementIndicator(attunedCount: number) {
+function renderAttunementIndicator(attunedCount: number, maxSlots: number, label: string) {
   if (attunedCount === 0) return null;
+  const overLimit = attunedCount > maxSlots;
+  const dotsToShow = Math.min(maxSlots, 10);
   return (
     <div className="flex items-center gap-1.5 px-1">
-      <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-      <span className="text-xs text-muted-foreground">
-        Attuned: {attunedCount} / 3
+      <Sparkles className={`h-3.5 w-3.5 ${overLimit ? 'text-red-400' : 'text-purple-400'}`} />
+      <span className={`text-xs ${overLimit ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
+        {label}: {attunedCount} / {maxSlots}{overLimit ? ' — Over limit!' : ''}
       </span>
       <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
+        {Array.from({ length: dotsToShow }).map((_, i) => (
           <div
             key={i}
             className={`h-2 w-2 rounded-full ${
-              i < attunedCount ? 'bg-purple-400' : 'bg-muted/40'
+              i < attunedCount
+                ? overLimit ? 'bg-red-400' : 'bg-purple-400'
+                : 'bg-muted/40'
             }`}
           />
         ))}

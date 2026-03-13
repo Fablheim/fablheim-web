@@ -3,8 +3,8 @@ import { generateAccounts, generateCampaignData, uniqueId } from './helpers/test
 import { signUp, login, logout } from './helpers/auth-helpers';
 import {
   createCampaign,
-  generateInviteCode,
-  joinCampaignByCode,
+  generateInviteCode as _generateInviteCode,
+  joinCampaignByCode as _joinCampaignByCode,
 } from './helpers/campaign-helpers';
 
 const API_BASE = process.env.E2E_API_URL || 'http://localhost:3000';
@@ -109,13 +109,13 @@ test.describe.serial('Routing: lazy-loaded routes', () => {
   const accounts = generateAccounts();
   let ctx: BrowserContext;
   let page: Page;
-  let campaignId: string;
+  let _campaignId: string;
 
   test.beforeAll(async ({ browser }) => {
     ctx = await browser.newContext();
     page = await ctx.newPage();
     await signUp(page, accounts.dm);
-    campaignId = await createCampaign(page, generateCampaignData());
+    _campaignId = await createCampaign(page, generateCampaignData());
   });
 
   test.afterAll(async () => {
@@ -508,7 +508,7 @@ test.describe('Analytics: no PII in tracking', () => {
 
     // Check that posthog is not autocapturing (which could leak PII)
     const autocapture = await page.evaluate(() => {
-      const w = window as any;
+      const w = window as unknown as Record<string, Record<string, Record<string, unknown>>>;
       if (w.posthog && w.posthog.config) {
         return w.posthog.config.autocapture;
       }

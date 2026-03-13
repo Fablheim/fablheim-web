@@ -7,7 +7,15 @@ import InlineEncounterBuilder from '@/components/session/InlineEncounterBuilder'
 import { InitiativeTracker } from '@/components/session/InitiativeTracker';
 import { SessionNotesTab } from '@/components/session/SessionNotesTab';
 import { PartyOverview } from '@/components/session/PartyOverview';
+import { TreasuryPanel } from '@/components/session/TreasuryPanel';
+import { PrepChecklist } from '@/components/session/PrepChecklist';
+import { RestTracker } from '@/components/session/RestTracker';
+import { PartyInventoryPanel } from '@/components/session/PartyInventoryPanel';
 import { AIToolsTab } from '@/components/session/AIToolsTab';
+import { GmResourceBar } from '@/components/session/GmResourceBar';
+import { SceneAspectsPanel } from '@/components/session/SceneAspectsPanel';
+import { CountdownClocksPanel } from '@/components/session/CountdownClocksPanel';
+import { useSession } from '@/hooks/useSessions';
 import { Button } from '@/components/ui/Button';
 
 type MainTab = 'world' | 'encounters' | 'initiative' | 'notes' | 'party' | 'ai';
@@ -19,6 +27,8 @@ interface DMMainContentProps {
 
 export default function DMMainContent({ campaignId, isDM }: DMMainContentProps) {
   const { data: campaign } = useCampaign(campaignId);
+  const activeSessionId = campaign?.activeSessionId;
+  const { data: activeSession } = useSession(campaignId, activeSessionId ?? '');
   const [activeTab, setActiveTab] = useState<MainTab>(() =>
     (localStorage.getItem('fablheim:dm-main-tab') as MainTab) || 'world',
   );
@@ -132,7 +142,10 @@ export default function DMMainContent({ campaignId, isDM }: DMMainContentProps) 
 
         {activeTab === 'initiative' && (
           <div className="h-full overflow-y-auto p-4 md:p-6">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-5xl space-y-4">
+              <GmResourceBar campaignId={campaignId} isDM={isDM} />
+              <SceneAspectsPanel campaignId={campaignId} isDM={isDM} />
+              <CountdownClocksPanel campaignId={campaignId} isDM={isDM} />
               <InitiativeTracker campaignId={campaignId} isDM={isDM} />
             </div>
           </div>
@@ -145,8 +158,16 @@ export default function DMMainContent({ campaignId, isDM }: DMMainContentProps) 
         )}
 
         {activeTab === 'party' && (
-          <div className="h-full overflow-y-auto p-3">
+          <div className="h-full overflow-y-auto p-3 space-y-4">
             <PartyOverview campaignId={campaignId} />
+            <TreasuryPanel campaignId={campaignId} />
+            <PartyInventoryPanel campaignId={campaignId} />
+            {activeSession && (
+              <>
+                <RestTracker session={activeSession} campaignId={campaignId} />
+                <PrepChecklist session={activeSession} campaignId={campaignId} />
+              </>
+            )}
           </div>
         )}
 

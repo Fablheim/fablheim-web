@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Save, Loader2, MapPin, X, Calculator } from 'lucide-react';
+import { Save, Loader2, MapPin, X, Calculator, Swords, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUpdateEncounter } from '@/hooks/useEncounters';
 import { useWorldEntities } from '@/hooks/useWorldEntities';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { LOCATION_TYPE_LABELS } from '@/components/world/world-constants';
 import type { Encounter, EncounterDifficulty, EncounterStatus } from '@/types/encounter';
 import type { LocationType } from '@/types/campaign';
@@ -143,15 +144,72 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
     );
   }
 
+  const selectedLocation = locationEntities.find((e) => e._id === locationEntityId);
+  const npcCount = encounter.npcs.reduce((sum, n) => sum + n.count, 0);
+
   return (
-    <div className="mkt-card mkt-card-mounted space-y-4 rounded-xl p-3">
-      {renderTopFields()}
-      {renderMiddleFields()}
-      {renderEncounterFields()}
-      {renderBottomFields()}
-      {renderSaveButton()}
+    <div className="mkt-card mkt-card-mounted rounded-xl">
+      {renderPreviewCard()}
+      <CollapsibleSection title="Basic Info" defaultOpen>
+        {renderTopFields()}
+      </CollapsibleSection>
+      <CollapsibleSection title="Difficulty & Location" defaultOpen>
+        {renderMiddleFields()}
+      </CollapsibleSection>
+      <CollapsibleSection title="Battle Details">
+        {renderEncounterFields()}
+      </CollapsibleSection>
+      <CollapsibleSection title="Notes & Tags">
+        {renderBottomFields()}
+      </CollapsibleSection>
+      <div className="p-3">
+        {renderSaveButton()}
+      </div>
     </div>
   );
+
+  function renderPreviewCard() {
+    const diffColors: Record<EncounterDifficulty, string> = {
+      easy: 'bg-emerald-400/15 text-emerald-400',
+      medium: 'bg-brass/15 text-brass',
+      hard: 'bg-primary/15 text-primary',
+      deadly: 'bg-blood/15 text-blood',
+    };
+    const statusColors: Record<EncounterStatus, string> = {
+      draft: 'bg-muted/30 text-muted-foreground',
+      ready: 'bg-emerald-400/15 text-emerald-400',
+      used: 'bg-muted/20 text-muted-foreground/60',
+    };
+    return (
+      <div className="flex flex-wrap items-center gap-2 border-b border-[hsla(38,30%,25%,0.15)] px-4 py-3">
+        <Swords className="h-4 w-4 text-brass" />
+        <span className="font-['IM_Fell_English'] text-base text-foreground">
+          {name || 'Untitled Encounter'}
+        </span>
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${diffColors[difficulty]}`}>
+          {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+        </span>
+        {parseInt(estimatedXP) > 0 && (
+          <span className="text-[10px] text-muted-foreground">{parseInt(estimatedXP).toLocaleString()} XP</span>
+        )}
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusColors[status]}`}>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+        {selectedLocation && (
+          <span className="flex items-center gap-1 text-[10px] text-[hsl(150,50%,55%)]">
+            <MapPin className="h-3 w-3" />
+            {selectedLocation.name}
+          </span>
+        )}
+        {npcCount > 0 && (
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Users className="h-3 w-3" />
+            {npcCount} creature{npcCount !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   function renderTopFields() {
     return (
@@ -183,7 +241,6 @@ export function EncounterDetailsPanel({ campaignId, encounter }: EncounterDetail
   }
 
   function renderMiddleFields() {
-    const selectedLocation = locationEntities.find((e) => e._id === locationEntityId);
     return (
       <>
         <div className="grid grid-cols-3 gap-3">

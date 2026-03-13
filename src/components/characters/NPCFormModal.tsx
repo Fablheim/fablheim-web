@@ -2,6 +2,7 @@ import { type FormEvent, useState, useEffect } from 'react';
 import { X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCreateWorldEntity, useUpdateWorldEntity } from '@/hooks/useWorldEntities';
+import { TYPE_DATA_FIELDS } from '@/components/world/world-constants';
 import type { WorldEntity, WorldEntityVisibility } from '@/types/campaign';
 
 interface NPCFormModalProps {
@@ -25,23 +26,10 @@ export function NPCFormModal({ open, onClose, campaignId, entity }: NPCFormModal
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [visibility, setVisibility] = useState<WorldEntityVisibility>('public');
+  const [typeData, setTypeData] = useState<Record<string, string>>({});
 
   const createEntity = useCreateWorldEntity();
   const updateEntity = useUpdateWorldEntity();
-
-  useEffect(() => {
-    if (entity) {
-      setName(entity.name);
-      setNpcType(entity.type as 'npc' | 'npc_minor');
-      setDescription(entity.description || '');
-      setTagsInput(entity.tags.join(', '));
-      setVisibility(entity.visibility);
-    } else {
-      resetForm();
-    }
-  }, [entity]);
-
-  if (!open) return null;
 
   function resetForm() {
     setName('');
@@ -49,7 +37,31 @@ export function NPCFormModal({ open, onClose, campaignId, entity }: NPCFormModal
     setDescription('');
     setTagsInput('');
     setVisibility('public');
+    setTypeData({});
   }
+
+  /* eslint-disable react-hooks/set-state-in-effect -- syncing form state from prop */
+  useEffect(() => {
+    if (entity) {
+      setName(entity.name);
+      setNpcType(entity.type as 'npc' | 'npc_minor');
+      setDescription(entity.description || '');
+      setTagsInput(entity.tags.join(', '));
+      setVisibility(entity.visibility);
+      const td: Record<string, string> = {};
+      if (entity.typeData) {
+        for (const [k, v] of Object.entries(entity.typeData)) {
+          td[k] = String(v ?? '');
+        }
+      }
+      setTypeData(td);
+    } else {
+      resetForm();
+    }
+  }, [entity]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  if (!open) return null;
 
   function handleClose() {
     resetForm();
@@ -64,12 +76,18 @@ export function NPCFormModal({ open, onClose, campaignId, entity }: NPCFormModal
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const cleanTypeData: Record<string, string> = {};
+    for (const [k, v] of Object.entries(typeData)) {
+      if (v.trim()) cleanTypeData[k] = v.trim();
+    }
+
     const payload = {
       name,
       type: npcType as 'npc' | 'npc_minor',
       description: description || undefined,
       tags: tags.length > 0 ? tags : undefined,
       visibility,
+      typeData: Object.keys(cleanTypeData).length > 0 ? cleanTypeData : undefined,
     };
 
     if (isEdit && entity) {
@@ -81,6 +99,7 @@ export function NPCFormModal({ open, onClose, campaignId, entity }: NPCFormModal
   }
 
   const isPending = createEntity.isPending || updateEntity.isPending;
+  const fields = TYPE_DATA_FIELDS[npcType] ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -168,6 +187,44 @@ export function NPCFormModal({ open, onClose, campaignId, entity }: NPCFormModal
               className={inputClass}
             />
           </div>
+
+          {/* Type-specific fields (role, personality, secrets, stat block) */}
+          {fields.length > 0 && (
+            <>
+              <div className="divider-ornate" />
+              <p className="font-[Cinzel] text-xs uppercase tracking-wider text-muted-foreground">
+                NPC Details
+              </p>
+              {fields.map((field) => (
+                <div key={field.key}>
+                  <label htmlFor={`npc-${field.key}`} className={labelClass}>
+                    {field.label}
+                  </label>
+                  {field.inputType === 'textarea' ? (
+                    <textarea
+                      id={`npc-${field.key}`}
+                      rows={field.key === 'statBlock' ? 6 : 3}
+                      maxLength={2000}
+                      value={typeData[field.key] ?? ''}
+                      onChange={(e) => setTypeData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder}
+                      className={inputClass}
+                    />
+                  ) : (
+                    <input
+                      id={`npc-${field.key}`}
+                      type="text"
+                      maxLength={200}
+                      value={typeData[field.key] ?? ''}
+                      onChange={(e) => setTypeData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder}
+                      className={inputClass}
+                    />
+                  )}
+                </div>
+              ))}
+            </>
+          )}
 
           {/* Tags */}
           <div>

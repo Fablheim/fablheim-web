@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -24,7 +24,10 @@ export function MarketingPage({ children }: { children: ReactNode }) {
 
 export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
+  const redirectParam = searchParams.get('redirect');
+  const loginPath = redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : '/login';
 
   function go(to: string) {
     setOpen(false);
@@ -59,7 +62,7 @@ export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => go('/login')}>
+                <Button variant="ghost" onClick={() => go(loginPath)}>
                   Sign In
                 </Button>
                 <Button onClick={() => go('/register')}>Join Beta</Button>
@@ -96,7 +99,7 @@ export function MarketingNavbar({ user, links }: MarketingNavbarProps) {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => go('/login')} className="justify-start">
+                <Button variant="ghost" onClick={() => go(loginPath)} className="justify-start">
                   Sign In
                 </Button>
                 <Button onClick={() => go('/register')} className="justify-start">

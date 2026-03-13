@@ -126,6 +126,70 @@
   animation: prepFadeIn 0.15s ease-out;
 }
 
+.prep-sidebar-title {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsla(38, 34%, 86%, 0.95);
+}
+
+.prep-sidebar-subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: hsla(38, 16%, 72%, 0.76);
+}
+
+.prep-sidebar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid hsla(38, 30%, 30%, 0.18);
+  background: hsla(38, 24%, 24%, 0.12);
+  color: hsla(38, 24%, 82%, 0.82);
+  transition: all 0.15s ease;
+}
+
+.prep-sidebar-icon-btn:hover {
+  background: hsla(38, 30%, 30%, 0.18);
+  color: hsl(38, 36%, 88%);
+}
+
+.prep-sidebar-group {
+  padding-top: 2px;
+}
+
+.prep-sidebar-group-divider {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid hsla(38, 24%, 28%, 0.18);
+}
+
+.prep-sidebar-group-header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 0 10px 6px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsla(38, 20%, 66%, 0.72);
+  transition: color 0.15s ease;
+}
+
+.prep-sidebar-group-header:hover {
+  color: hsla(38, 36%, 84%, 0.88);
+}
+
 .prep-sidebar-btn {
   display: flex;
   align-items: center;
@@ -146,6 +210,8 @@
   justify-content: flex-start;
   gap: 10px;
   padding: 0 10px;
+  height: 38px;
+  border-radius: 10px;
 }
 
 .prep-sidebar-btn:hover {

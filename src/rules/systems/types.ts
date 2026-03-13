@@ -1,6 +1,6 @@
 import type { Character } from '@/types/campaign';
 import type { EnemyAttack, EnemyTemplate } from '@/types/enemy-template';
-import type { RollDiceRequest, RollResult, InitiativeEntry } from '@/types/live-session';
+import type { RollDiceRequest, RollResult, HopeFearRollRequest, HopeFearRollResult, InitiativeEntry } from '@/types/live-session';
 
 export type SystemActionKind = 'attack' | 'ability' | 'skill' | 'custom';
 
@@ -41,6 +41,7 @@ export interface SystemActionContext {
 
 export interface SystemActionRollContext extends SystemActionContext {
   rollDice: (request: RollDiceRequest) => Promise<RollResult>;
+  rollHopeFear?: (request: HopeFearRollRequest) => Promise<HopeFearRollResult>;
   isPrivate: boolean;
   options?: SystemActionRollOptions;
 }
