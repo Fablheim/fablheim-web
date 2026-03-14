@@ -93,7 +93,16 @@ export function useUpdateSafetyTools() {
       data,
     }: {
       campaignId: string;
-      data: { lines?: string[]; veils?: string[]; xCardEnabled?: boolean };
+      data: {
+        lines?: string[];
+        veils?: string[];
+        xCardEnabled?: boolean;
+        xCardGuidance?: string;
+        openDoorEnabled?: boolean;
+        openDoorNotes?: string;
+        checkInPrompts?: string[];
+        playerNotes?: string[];
+      };
     }) => campaignsApi.updateSafetyTools(campaignId, data),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
@@ -155,6 +164,30 @@ export function useAddArcMilestone() {
       campaignsApi.addArcMilestone(campaignId, arcId, data),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+    },
+  });
+}
+
+export function useAddArcDevelopment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      arcId,
+      data,
+    }: {
+      campaignId: string;
+      arcId: string;
+      data: {
+        title: string;
+        description?: string;
+        sessionId?: string;
+        linkedEntityIds?: string[];
+      };
+    }) => campaignsApi.addArcDevelopment(campaignId, arcId, data),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'arcs'] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
     },
   });
 }
@@ -277,6 +310,24 @@ export function useRemoveCalendarEvent() {
   return useMutation({
     mutationFn: ({ campaignId, eventId }: { campaignId: string; eventId: string }) =>
       campaignsApi.removeCalendarEvent(campaignId, eventId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
+    },
+  });
+}
+
+export function useUpdateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      eventId,
+      data,
+    }: {
+      campaignId: string;
+      eventId: string;
+      data: Parameters<typeof campaignsApi.updateCalendarEvent>[2];
+    }) => campaignsApi.updateCalendarEvent(campaignId, eventId, data),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId] });
     },

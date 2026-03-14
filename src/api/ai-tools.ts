@@ -7,6 +7,7 @@ import type {
   AskRuleRequest,
   RuleAnswer,
   RuleQuestionRecord,
+  AIUsageSummaryRow,
   GeneratePlotHooksRequest,
   GeneratedPlotHooks,
   GenerateLocationRequest,
@@ -42,6 +43,11 @@ export const aiToolsApi = {
     const res = await api.get<RuleQuestionRecord[]>('/ai/rules/recent', {
       params: { campaignId },
     });
+    return res.data;
+  },
+
+  getUsageSummary: async (): Promise<AIUsageSummaryRow[]> => {
+    const res = await api.get<AIUsageSummaryRow[]>('/ai/usage');
     return res.data;
   },
 

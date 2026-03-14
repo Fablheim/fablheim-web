@@ -111,6 +111,12 @@ export interface RuleQuestionRecord {
   createdAt: string;
 }
 
+export interface AIUsageSummaryRow {
+  _id: string;
+  count: number;
+  totalTokens: number;
+}
+
 // ── Plot Hooks ───────────────────────────────────────────
 
 export interface GeneratePlotHooksRequest {

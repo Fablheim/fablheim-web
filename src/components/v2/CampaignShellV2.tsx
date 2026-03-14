@@ -54,6 +54,12 @@ export function CampaignShellV2({
     }
   }, [appState, isSmall]);
 
+  useEffect(() => {
+    if (appState === 'prep' && (activeTab === 'rules' || activeTab === 'ai-tools' || activeTab === 'modules')) {
+      setRightOpen(false);
+    }
+  }, [appState, activeTab]);
+
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), []);
   const toggleRight = useCallback(() => setRightOpen((v) => !v), []);
 

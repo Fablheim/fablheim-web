@@ -12,7 +12,17 @@ export const handoutsApi = {
 
   create: async (
     campaignId: string,
-    body: { title: string; type: string; content?: string; imageUrl?: string; visibleTo?: string },
+    body: {
+      title: string;
+      type: string;
+      artifactKind?: string;
+      content?: string;
+      imageUrl?: string;
+      visibleTo?: string;
+      sessionId?: string;
+      linkedSessionIds?: string[];
+      linkedEntityIds?: string[];
+    },
   ): Promise<Handout> => {
     const { data } = await api.post<Handout>(
       `/campaigns/${campaignId}/session/handouts`,
@@ -39,7 +49,15 @@ export const handoutsApi = {
   update: async (
     campaignId: string,
     handoutId: string,
-    body: { title?: string; content?: string; imageUrl?: string },
+    body: {
+      title?: string;
+      artifactKind?: string;
+      content?: string;
+      imageUrl?: string;
+      sessionId?: string;
+      linkedSessionIds?: string[];
+      linkedEntityIds?: string[];
+    },
   ): Promise<Handout> => {
     const { data } = await api.patch<Handout>(
       `/campaigns/${campaignId}/session/handouts/${handoutId}`,

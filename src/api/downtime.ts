@@ -1,5 +1,6 @@
 import { api } from './client';
 import type {
+  AdvanceDowntimePayload,
   DowntimeActivity,
   CreateDowntimePayload,
   UpdateDowntimePayload,
@@ -31,6 +32,17 @@ export const downtimeApi = {
   ): Promise<DowntimeActivity> => {
     const { data } = await api.patch<DowntimeActivity>(
       `/campaigns/${campaignId}/downtime/${activityId}`,
+      body,
+    );
+    return data;
+  },
+
+  advance: async (
+    campaignId: string,
+    body: AdvanceDowntimePayload,
+  ): Promise<DowntimeActivity[]> => {
+    const { data } = await api.post<DowntimeActivity[]>(
+      `/campaigns/${campaignId}/downtime/advance`,
       body,
     );
     return data;

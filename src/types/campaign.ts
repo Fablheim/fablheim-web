@@ -25,12 +25,41 @@ export type CampaignStage = 'prep' | 'live' | 'recap';
 
 // ── Campaign Arc & Tracker types ─────────────────────────
 
-export type ArcStatus = 'upcoming' | 'active' | 'completed';
+export type ArcStatus = 'upcoming' | 'active' | 'completed' | 'advancing' | 'dormant' | 'threatened' | 'resolved';
+export type ArcType =
+  | 'main_plot'
+  | 'faction_conflict'
+  | 'mystery'
+  | 'villain_scheme'
+  | 'character_arc'
+  | 'world_event'
+  | 'prophecy'
+  | 'custom';
+export type ArcPressure = 'quiet' | 'active' | 'escalating';
 
 export interface ArcMilestone {
   _id: string;
   description: string;
   completed: boolean;
+  completedAt?: string;
+}
+
+export interface ArcDevelopment {
+  _id: string;
+  title: string;
+  description?: string;
+  sessionId?: string;
+  linkedEntityIds?: string[];
+  createdAt?: string;
+}
+
+export interface ArcLinks {
+  entityIds?: string[];
+  sessionIds?: string[];
+  encounterIds?: string[];
+  handoutIds?: string[];
+  downtimeIds?: string[];
+  calendarEventIds?: string[];
 }
 
 export interface CampaignArc {
@@ -38,8 +67,16 @@ export interface CampaignArc {
   name: string;
   description?: string;
   status: ArcStatus;
+  type?: ArcType;
+  pressure?: ArcPressure;
+  stakes?: string;
+  currentState?: string;
+  recentChange?: string;
+  nextDevelopment?: string;
   sortOrder: number;
   milestones: ArcMilestone[];
+  developments?: ArcDevelopment[];
+  links?: ArcLinks;
 }
 
 export interface TrackerThreshold {
@@ -62,6 +99,15 @@ export interface WorldStateTracker {
 // ── Calendar types ───────────────────────────────────────
 
 export type CalendarPresetType = 'forgotten_realms' | 'greyhawk' | 'custom';
+export type CalendarEventType =
+  | 'session'
+  | 'travel'
+  | 'downtime'
+  | 'deadline'
+  | 'faction'
+  | 'festival'
+  | 'reminder';
+export type CalendarEventStatus = 'upcoming' | 'ongoing' | 'completed';
 
 export interface CalendarMonth {
   name: string;
@@ -74,8 +120,12 @@ export interface CalendarEvent {
   year: number;
   month: number;
   day: number;
+  eventType?: CalendarEventType;
+  status?: CalendarEventStatus;
   recurring?: boolean;
+  durationDays?: number;
   entityId?: string;
+  sessionId?: string;
   notes?: string;
 }
 
@@ -137,6 +187,11 @@ export interface Campaign {
     lines: string[];
     veils: string[];
     xCardEnabled: boolean;
+    xCardGuidance?: string;
+    openDoorEnabled?: boolean;
+    openDoorNotes?: string;
+    checkInPrompts?: string[];
+    playerNotes?: string[];
   };
   rulesConfig?: CampaignRulesConfig | null;
   calendar?: CampaignCalendar | null;
@@ -448,11 +503,23 @@ export interface Handout {
   sessionId?: string;
   title: string;
   type: 'image' | 'text' | 'map';
+  artifactKind?:
+    | 'letter'
+    | 'journal'
+    | 'note'
+    | 'contract'
+    | 'coded_message'
+    | 'lore_fragment'
+    | 'map'
+    | 'drawing'
+    | 'document';
   content: string;
   imageUrl?: string;
   visibleTo: 'all' | 'dm_only' | 'selected';
   sharedWith?: string[];
   sharedAt?: string;
+  linkedSessionIds?: string[];
+  linkedEntityIds?: string[];
   createdBy: string;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { downtimeApi } from '@/api/downtime';
-import type { CreateDowntimePayload, UpdateDowntimePayload } from '@/types/downtime';
+import type { AdvanceDowntimePayload, CreateDowntimePayload, UpdateDowntimePayload } from '@/types/downtime';
 
 export function useDowntimeActivities(campaignId: string) {
   return useQuery({
@@ -58,6 +58,24 @@ export function useDeleteDowntime() {
       campaignId: string;
       activityId: string;
     }) => downtimeApi.remove(campaignId, activityId),
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({
+        queryKey: ['campaigns', v.campaignId, 'downtime'],
+      });
+    },
+  });
+}
+
+export function useAdvanceDowntime() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      data,
+    }: {
+      campaignId: string;
+      data: AdvanceDowntimePayload;
+    }) => downtimeApi.advance(campaignId, data),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({
         queryKey: ['campaigns', v.campaignId, 'downtime'],

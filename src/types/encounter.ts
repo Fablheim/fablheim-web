@@ -14,6 +14,31 @@ export interface EncounterNPC {
   group?: string;
 }
 
+export type EncounterParticipantType = 'enemy' | 'npc' | 'companion';
+
+export interface EncounterParticipantAttack {
+  name: string;
+  bonus?: number;
+  damage?: string;
+  notes?: string;
+}
+
+export interface EncounterParticipant {
+  id: string;
+  entityType: EncounterParticipantType;
+  entityId?: string;
+  name: string;
+  sourceLabel?: string;
+  hpCurrent?: number;
+  hpMax?: number;
+  ac?: number;
+  initiativeBonus?: number;
+  speed?: string;
+  conditions: string[];
+  notes?: string;
+  attacks?: EncounterParticipantAttack[];
+}
+
 // ── Encounter ────────────────────────────────────────────────
 
 export type EncounterStatus = 'draft' | 'ready' | 'used';
@@ -27,6 +52,7 @@ export interface Encounter {
   difficulty: EncounterDifficulty;
   estimatedXP: number;
   locationEntityId?: string;
+  sessionId?: string;
 
   // Map config
   gridWidth: number;
@@ -37,6 +63,7 @@ export interface Encounter {
 
   // AI-generated content
   npcs: EncounterNPC[];
+  participants: EncounterParticipant[];
   tactics?: string;
   terrain?: string;
   treasure?: string;
@@ -59,6 +86,7 @@ export interface CreateEncounterRequest {
   difficulty?: EncounterDifficulty;
   estimatedXP?: number;
   locationEntityId?: string;
+  sessionId?: string;
   gridWidth?: number;
   gridHeight?: number;
   gridSquareSizeFt?: number;
@@ -73,6 +101,7 @@ export interface UpdateEncounterRequest {
   difficulty?: EncounterDifficulty;
   estimatedXP?: number;
   locationEntityId?: string | null;
+  sessionId?: string | null;
   gridWidth?: number;
   gridHeight?: number;
   gridSquareSizeFt?: number;
@@ -85,6 +114,7 @@ export interface UpdateEncounterRequest {
   treasure?: string;
   hooks?: string[];
   npcs?: EncounterNPC[];
+  participants?: EncounterParticipant[];
 }
 
 export interface AddEncounterTokenRequest {

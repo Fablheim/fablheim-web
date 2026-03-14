@@ -10,12 +10,41 @@ export interface ModuleSummary {
   conflicts: string[];
   systems: string[];
   official: boolean;
+  tags: string[];
+  defaultConfig: Record<string, unknown>;
+  configSchema: Array<{
+    key: string;
+    label: string;
+    type: 'number' | 'text' | 'toggle' | 'select' | 'string-array';
+    default: unknown;
+    description?: string;
+    options?: Array<{ value: string; label: string }>;
+    min?: number;
+    max?: number;
+    condition?: string;
+  }>;
+  hooks: Record<string, string>;
+  components: Record<string, string>;
+  characterFields: Array<{
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'toggle' | 'select' | 'string-array';
+    defaultValue: unknown;
+    group?: string;
+    min?: number;
+    max?: number;
+    options?: string[];
+  }>;
+  initiativeFields: Record<string, { type: string; default?: unknown; description?: string }>;
+  campaignFields: Record<string, { type: string; default?: unknown; description?: string }>;
+  sessionFields: Record<string, { type: string; default?: unknown; description?: string }>;
 }
 
 export interface PresetSummary {
   id: string;
   name: string;
   modules: string[];
+  config: Record<string, Record<string, unknown>>;
   locked: string[];
   recommended: string[];
 }

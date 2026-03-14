@@ -55,7 +55,16 @@ export const campaignsApi = {
 
   updateSafetyTools: async (
     id: string,
-    body: { lines?: string[]; veils?: string[]; xCardEnabled?: boolean },
+    body: {
+      lines?: string[];
+      veils?: string[];
+      xCardEnabled?: boolean;
+      xCardGuidance?: string;
+      openDoorEnabled?: boolean;
+      openDoorNotes?: string;
+      checkInPrompts?: string[];
+      playerNotes?: string[];
+    },
   ): Promise<Campaign> => {
     const { data } = await api.patch<Campaign>(`/campaigns/${id}/safety-tools`, body);
     return data;
@@ -123,7 +132,27 @@ export const campaignsApi = {
 
   addArc: async (
     id: string,
-    body: { name: string; description?: string; status?: string; sortOrder?: number; milestones?: Array<{ description: string; completed?: boolean }> },
+    body: {
+      name: string;
+      description?: string;
+      status?: string;
+      type?: string;
+      pressure?: string;
+      stakes?: string;
+      currentState?: string;
+      recentChange?: string;
+      nextDevelopment?: string;
+      sortOrder?: number;
+      milestones?: Array<{ description: string; completed?: boolean }>;
+      links?: {
+        entityIds?: string[];
+        sessionIds?: string[];
+        encounterIds?: string[];
+        handoutIds?: string[];
+        downtimeIds?: string[];
+        calendarEventIds?: string[];
+      };
+    },
   ): Promise<Campaign> => {
     const { data } = await api.post<Campaign>(`/campaigns/${id}/arcs`, body);
     return data;
@@ -132,7 +161,26 @@ export const campaignsApi = {
   updateArc: async (
     id: string,
     arcId: string,
-    body: { name?: string; description?: string; status?: string; sortOrder?: number },
+    body: {
+      name?: string;
+      description?: string;
+      status?: string;
+      type?: string;
+      pressure?: string;
+      stakes?: string;
+      currentState?: string;
+      recentChange?: string;
+      nextDevelopment?: string;
+      sortOrder?: number;
+      links?: {
+        entityIds?: string[];
+        sessionIds?: string[];
+        encounterIds?: string[];
+        handoutIds?: string[];
+        downtimeIds?: string[];
+        calendarEventIds?: string[];
+      };
+    },
   ): Promise<Campaign> => {
     const { data } = await api.patch<Campaign>(`/campaigns/${id}/arcs/${arcId}`, body);
     return data;
@@ -148,6 +196,20 @@ export const campaignsApi = {
     body: { description: string; completed?: boolean },
   ): Promise<Campaign> => {
     const { data } = await api.post<Campaign>(`/campaigns/${id}/arcs/${arcId}/milestones`, body);
+    return data;
+  },
+
+  addArcDevelopment: async (
+    id: string,
+    arcId: string,
+    body: {
+      title: string;
+      description?: string;
+      sessionId?: string;
+      linkedEntityIds?: string[];
+    },
+  ): Promise<Campaign> => {
+    const { data } = await api.post<Campaign>(`/campaigns/${id}/arcs/${arcId}/developments`, body);
     return data;
   },
 
@@ -208,9 +270,42 @@ export const campaignsApi = {
 
   addCalendarEvent: async (
     id: string,
-    body: { name: string; year: number; month: number; day: number; recurring?: boolean; entityId?: string; notes?: string },
+    body: {
+      name: string;
+      year: number;
+      month: number;
+      day: number;
+      eventType?: 'session' | 'travel' | 'downtime' | 'deadline' | 'faction' | 'festival' | 'reminder';
+      status?: 'upcoming' | 'ongoing' | 'completed';
+      recurring?: boolean;
+      durationDays?: number;
+      entityId?: string;
+      sessionId?: string;
+      notes?: string;
+    },
   ): Promise<Campaign> => {
     const { data } = await api.post<Campaign>(`/campaigns/${id}/calendar/events`, body);
+    return data;
+  },
+
+  updateCalendarEvent: async (
+    id: string,
+    eventId: string,
+    body: {
+      name?: string;
+      year?: number;
+      month?: number;
+      day?: number;
+      eventType?: 'session' | 'travel' | 'downtime' | 'deadline' | 'faction' | 'festival' | 'reminder';
+      status?: 'upcoming' | 'ongoing' | 'completed';
+      recurring?: boolean;
+      durationDays?: number;
+      entityId?: string;
+      sessionId?: string;
+      notes?: string;
+    },
+  ): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/calendar/events/${eventId}`, body);
     return data;
   },
 

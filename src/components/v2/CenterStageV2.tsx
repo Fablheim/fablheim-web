@@ -4,6 +4,19 @@ import { WorldCenterStage } from './world/WorldCenterStage';
 import { SessionsCenterStage } from './SessionsCenterStage';
 import { OverviewCenterStage } from './OverviewCenterStage';
 import { PlayersCenterStage } from './PlayersCenterStage';
+import { EncounterCenterStageV2 } from './encounters/EncounterCenterStageV2';
+import { HandoutsArchiveV2 } from './handouts/HandoutsArchiveV2';
+import { InWorldCalendarCenterStage } from './calendar/InWorldCalendarCenterStage';
+import { RulesDeskCenterStage } from './rules/RulesDeskCenterStage';
+import { SafetyToolsCenterStage } from './safety/SafetyToolsCenterStage';
+import { RandomTablesDeskV2 } from './random-tables/RandomTablesDeskV2';
+import { DowntimeDeskV2 } from './downtime/DowntimeDeskV2';
+import { StoryArcsDeskV2 } from './arcs/StoryArcsDeskV2';
+import { TrackersDeskV2 } from './trackers/TrackersDeskV2';
+import { CampaignHealthDeskV2 } from './campaign-health/CampaignHealthDeskV2';
+import { EconomyDeskV2 } from './economy/EconomyDeskV2';
+import { AIToolsDeskV2 } from './ai-tools/AIToolsDeskV2';
+import { ModuleBrowserDeskV2 } from './modules/ModuleBrowserDeskV2';
 
 interface CenterStageV2Props {
   campaignId: string;
@@ -81,6 +94,58 @@ export function CenterStageV2({
         onOpenWorldEntity={() => onTabChange('world')}
       />
     );
+  }
+
+  if (appState === 'prep' && activeTab === 'encounters') {
+    return <EncounterCenterStageV2 campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'handouts') {
+    return <HandoutsArchiveV2 campaignId={campaignId} isDM={isDM} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'calendar') {
+    return <InWorldCalendarCenterStage campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'rules') {
+    return <RulesDeskCenterStage campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'safety-tools') {
+    return <SafetyToolsCenterStage campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'random-tables') {
+    return <RandomTablesDeskV2 campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'downtime') {
+    return <DowntimeDeskV2 campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'arcs') {
+    return <StoryArcsDeskV2 campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'trackers') {
+    return <TrackersDeskV2 campaignId={campaignId} isDM={isDM} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'campaign-health') {
+    return <CampaignHealthDeskV2 campaignId={campaignId} onTabChange={onTabChange} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'economy') {
+    return <EconomyDeskV2 campaignId={campaignId} onTabChange={onTabChange} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'ai-tools') {
+    return <AIToolsDeskV2 campaignId={campaignId} />;
+  }
+
+  if (appState === 'prep' && activeTab === 'modules') {
+    return <ModuleBrowserDeskV2 campaignId={campaignId} />;
   }
 
   return renderPlaceholder();

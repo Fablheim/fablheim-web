@@ -10,6 +10,7 @@ export const api = axios.create({
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+let csrfTokenCache: string | null = null;
 
 const csrfBootstrapClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000'),
@@ -22,17 +23,29 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+async function ensureCsrfToken(): Promise<string | null> {
+  if (csrfTokenCache) {
+    return csrfTokenCache;
+  }
+
+  const cookieToken = readCookie(CSRF_COOKIE_NAME);
+  if (cookieToken) {
+    csrfTokenCache = cookieToken;
+    return csrfTokenCache;
+  }
+
+  const { data } = await csrfBootstrapClient.get<{ csrfToken?: string }>('/auth/csrf-token');
+  csrfTokenCache = data?.csrfToken ?? null;
+  return csrfTokenCache;
+}
+
 api.interceptors.request.use(async (config) => {
   const method = (config.method || 'get').toLowerCase();
   if (!MUTATING_METHODS.has(method)) {
     return config;
   }
 
-  let csrfToken = readCookie(CSRF_COOKIE_NAME);
-  if (!csrfToken) {
-    await csrfBootstrapClient.get('/auth/csrf-token');
-    csrfToken = readCookie(CSRF_COOKIE_NAME);
-  }
+  const csrfToken = await ensureCsrfToken();
 
   if (csrfToken) {
     config.headers = config.headers ?? {};
@@ -57,7 +70,18 @@ export function registerSessionExpiredHandler(handler: () => void) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const responseCsrfToken =
+      typeof response.data?.csrfToken === 'string'
+        ? response.data.csrfToken
+        : null;
+
+    if (responseCsrfToken) {
+      csrfTokenCache = responseCsrfToken;
+    }
+
+    return response;
+  },
   async (error) => {
     // Tag Sentry with correlation ID from backend
     if (axios.isAxiosError(error)) {

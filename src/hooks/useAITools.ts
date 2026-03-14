@@ -10,6 +10,7 @@ import type {
   GenerateTavernRequest,
   GenerateShopRequest,
   GenerateWorldNPCRequest,
+  AIUsageSummaryRow,
 } from '@/types/ai-tools';
 import type { AxiosError } from 'axios';
 
@@ -66,6 +67,13 @@ export function useRecentRules(campaignId: string) {
   });
 }
 
+export function useAIUsageSummary() {
+  return useQuery<AIUsageSummaryRow[]>({
+    queryKey: ['ai-usage-summary'],
+    queryFn: () => aiToolsApi.getUsageSummary(),
+  });
+}
+
 export function useGeneratePlotHooks() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -117,6 +125,45 @@ export function useGenerateWorldNPC() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: GenerateWorldNPCRequest) => aiToolsApi.generateWorldNPC(data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] });
+    },
+    onError: handleAIError,
+  });
+}
+
+export function useGenerateQuest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      campaignId: string;
+      questType: string;
+      prompt?: string;
+      difficulty?: string;
+      partyLevel?: number;
+      shareWithSession?: boolean;
+      stream?: boolean;
+    }) => aiToolsApi.generateQuest(data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] });
+    },
+    onError: handleAIError,
+  });
+}
+
+export function useGenerateLore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      campaignId: string;
+      loreType: string;
+      prompt?: string;
+      name?: string;
+      shareWithSession?: boolean;
+      stream?: boolean;
+    }) => aiToolsApi.generateLore(data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['world-entities', variables.campaignId] });
       queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] });
