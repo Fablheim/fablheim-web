@@ -2,7 +2,7 @@ import { type FormEvent, useState, useEffect } from 'react';
 import { X, Plus, Trash2, Loader2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
-import { useCreateEnemyTemplate, useUpdateEnemyTemplate } from '@/hooks/useEnemyTemplates';
+import { useCreateEnemyTemplate, useUpdateEnemyTemplate } from '@/hooks/useCreatureTemplates';
 import { SYSTEM_STATS } from '@/lib/enemy-constants';
 import type {
   EnemyTemplate,
@@ -10,7 +10,7 @@ import type {
   EnemySize,
   EnemyAttack,
   EnemyTrait,
-} from '@/types/enemy-template';
+} from '@/types/creature-template';
 
 interface EnemyTemplateFormModalProps {
   open: boolean;

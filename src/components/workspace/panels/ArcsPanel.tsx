@@ -32,13 +32,21 @@ interface ArcsPanelProps {
 
 const STATUS_ORDER: Record<ArcStatus, number> = {
   active: 0,
+  advancing: 0,
+  threatened: 0,
   upcoming: 1,
-  completed: 2,
+  dormant: 2,
+  completed: 3,
+  resolved: 3,
 };
 
 const STATUS_BADGE: Record<ArcStatus, { label: string; cls: string }> = {
   upcoming: { label: 'Upcoming', cls: 'bg-muted/40 text-muted-foreground' },
   active: { label: 'Active', cls: 'bg-gold/15 text-gold' },
+  advancing: { label: 'Advancing', cls: 'bg-[hsl(150,50%,55%)]/15 text-[hsl(150,50%,55%)]' },
+  dormant: { label: 'Dormant', cls: 'bg-muted/40 text-muted-foreground' },
+  threatened: { label: 'Threatened', cls: 'bg-[hsl(0,60%,60%)]/15 text-[hsl(0,60%,60%)]' },
+  resolved: { label: 'Resolved', cls: 'bg-[hsl(150,50%,55%)]/15 text-[hsl(150,50%,55%)]' },
   completed: { label: 'Completed', cls: 'bg-[hsl(150,50%,55%)]/15 text-[hsl(150,50%,55%)]' },
 };
 

@@ -11,6 +11,7 @@ export function useCampaignStage(campaignId: string) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['campaigns', campaignId] });
     queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
   };
 
   const startSession = useMutation({

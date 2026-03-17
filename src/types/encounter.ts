@@ -20,7 +20,14 @@ export interface EncounterParticipantAttack {
   name: string;
   bonus?: number;
   damage?: string;
+  actionCost?: string;
+  range?: string;
   notes?: string;
+}
+
+export interface EncounterParticipantTrait {
+  name: string;
+  description: string;
 }
 
 export interface EncounterParticipant {
@@ -37,6 +44,12 @@ export interface EncounterParticipant {
   conditions: string[];
   notes?: string;
   attacks?: EncounterParticipantAttack[];
+  traits?: EncounterParticipantTrait[];
+  size?: string;
+  cr?: string;
+  abilities?: Record<string, number>;
+  tokenImage?: string;
+  tokenColor?: string;
 }
 
 // ── Encounter ────────────────────────────────────────────────

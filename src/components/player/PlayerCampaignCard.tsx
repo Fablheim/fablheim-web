@@ -5,6 +5,7 @@ import { useSessions } from '@/hooks/useSessions';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useCampaignMembers } from '@/hooks/useCampaignMembers';
 import { Button } from '@/components/ui/Button';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character } from '@/types/campaign';
 
 interface PlayerCampaignCardProps {
@@ -82,7 +83,7 @@ export function PlayerCampaignCard({
             <div className="min-w-0 flex-1">
               <p className="truncate font-[Cinzel] text-sm font-medium text-foreground">{myCharacter.name}</p>
               <p className="text-xs text-muted-foreground">
-                {[myCharacter.race, myCharacter.class].filter(Boolean).join(' ') || 'Adventurer'}
+                {[myCharacter.race, formatCharacterClass(myCharacter)].filter(Boolean).join(' ') || 'Adventurer'}
               </p>
             </div>
             <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />

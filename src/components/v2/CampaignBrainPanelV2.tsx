@@ -12,21 +12,31 @@ import {
 import { useCharacters } from '@/hooks/useCharacters';
 import { useSessions } from '@/hooks/useSessions';
 import { useWorldEntities } from '@/hooks/useWorldEntities';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character, Session, WorldEntity } from '@/types/campaign';
 import { ENTITY_TYPE_CONFIG } from './world/world-config';
 import { useWorldExplorerContext } from './world/useWorldExplorerContext';
 import { formatWorldEntityContext, startCase } from './world/world-ui';
+import {
+  dedupeEntities,
+  dedupeStrings,
+  extractSessionMoment,
+  sessionMentionsCharacter,
+  sessionMentionsEntity,
+} from '@/lib/session-utils';
 
 interface CampaignBrainPanelV2Props {
   campaignId: string;
+  onNavigateToEntity?: (entityId: string) => void;
 }
 
-export function CampaignBrainPanelV2({ campaignId }: CampaignBrainPanelV2Props) {
+export function CampaignBrainPanelV2({ campaignId, onNavigateToEntity }: CampaignBrainPanelV2Props) {
   const {
     activeCharacterId,
     activeEntityId,
     activeSessionId,
     activeView,
+    requestEntityNavigation,
     requestSessionNavigation,
   } = useWorldExplorerContext();
 
@@ -72,6 +82,11 @@ export function CampaignBrainPanelV2({ campaignId }: CampaignBrainPanelV2Props) 
     () => buildCharacterBrain(activeCharacter, sessionList, allEntities ?? []),
     [activeCharacter, sessionList, allEntities],
   );
+
+  function handleEntityNavigate(entityId: string) {
+    requestEntityNavigation(entityId);
+    onNavigateToEntity?.(entityId);
+  }
 
   if (activeSession) {
     const sessionPlans = getSessionPlanStack(activeSession, sessionList);
@@ -172,9 +187,9 @@ export function CampaignBrainPanelV2({ campaignId }: CampaignBrainPanelV2Props) 
             </section>
 
             {renderCharacterSessionHistory(characterBrain)}
-            {renderEntityListSection('NPC Relationships', Users, characterBrain.npcs, 'No recurring NPC ties are explicitly linked to this character yet.')}
-            {renderEntityListSection('Places Tied To Them', MapPin, characterBrain.locations, 'No locations are clearly tied to this character yet.')}
-            {renderEntityListSection('Threads Involving Them', Target, characterBrain.quests, 'No active threads are explicitly tied to this character yet.')}
+            {renderEntityListSection('NPC Relationships', Users, characterBrain.npcs, 'No recurring NPC ties are explicitly linked to this character yet.', handleEntityNavigate)}
+            {renderEntityListSection('Places Tied To Them', MapPin, characterBrain.locations, 'No locations are clearly tied to this character yet.', handleEntityNavigate)}
+            {renderEntityListSection('Threads Involving Them', Target, characterBrain.quests, 'No active threads are explicitly tied to this character yet.', handleEntityNavigate)}
             {renderRecentMentions(characterBrain.sessions)}
           </div>
         </div>
@@ -370,21 +385,34 @@ function renderEntityListSection(
   icon: typeof Brain,
   items: WorldEntity[],
   emptyLabel: string,
+  onNavigate?: (entityId: string) => void,
 ) {
   return (
     <section className="space-y-1.5">
       <SectionTitle icon={icon} title={title} />
       {items.length ? (
         <div className="space-y-1">
-          {items.map((item) => (
-            <div
-              key={item._id}
-              className="rounded-lg border border-[hsla(32,24%,30%,0.24)] bg-[hsla(24,16%,12%,0.74)] px-3 py-2"
-            >
-              <p className="text-[12px] text-[hsl(35,24%,92%)]">{item.name}</p>
-              <p className="mt-0.5 text-[11px] text-[hsl(30,12%,58%)]">{formatWorldEntityContext(item)}</p>
-            </div>
-          ))}
+          {items.map((item) =>
+            onNavigate ? (
+              <button
+                key={item._id}
+                type="button"
+                onClick={() => onNavigate(item._id)}
+                className="w-full rounded-lg border border-[hsla(32,24%,30%,0.24)] bg-[hsla(24,16%,12%,0.74)] px-3 py-2 text-left transition-colors hover:bg-[hsl(24,20%,15%)]"
+              >
+                <p className="text-[12px] text-[hsl(35,24%,92%)]">{item.name}</p>
+                <p className="mt-0.5 text-[11px] text-[hsl(30,12%,58%)]">{formatWorldEntityContext(item)}</p>
+              </button>
+            ) : (
+              <div
+                key={item._id}
+                className="rounded-lg border border-[hsla(32,24%,30%,0.24)] bg-[hsla(24,16%,12%,0.74)] px-3 py-2"
+              >
+                <p className="text-[12px] text-[hsl(35,24%,92%)]">{item.name}</p>
+                <p className="mt-0.5 text-[11px] text-[hsl(30,12%,58%)]">{formatWorldEntityContext(item)}</p>
+              </div>
+            ),
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-[hsla(32,24%,28%,0.3)] px-3 py-2">
@@ -551,31 +579,6 @@ function buildSessionHistory(entity: WorldEntity | null, sessions: Session[]) {
   };
 }
 
-function dedupeEntities(entities: WorldEntity[]) {
-  const seen = new Set<string>();
-  return entities.filter((entity) => {
-    if (seen.has(entity._id)) return false;
-    seen.add(entity._id);
-    return true;
-  });
-}
-
-function sessionMentionsCharacter(session: Session, character: Character) {
-  const haystack = [
-    session.title ?? '',
-    session.summary ?? '',
-    session.notes ?? '',
-    session.aiRecap ?? '',
-    session.aiSummary?.summary ?? '',
-    ...(session.aiSummary?.keyEvents ?? []),
-    ...(session.aiSummary?.unresolvedHooks ?? []),
-    ...(session.statistics.keyMoments ?? []),
-  ]
-    .join(' ')
-    .toLowerCase();
-
-  return haystack.includes(character.name.toLowerCase());
-}
 
 function buildCurrentState(entity: WorldEntity, sessions: Session[]) {
   const items: string[] = [];
@@ -721,30 +724,6 @@ function isResolvedQuest(entity: WorldEntity) {
   return Boolean(status && ['completed', 'resolved', 'failed', 'abandoned'].includes(status));
 }
 
-function extractSessionMoment(session: Session) {
-  return session.aiSummary?.summary
-    || session.summary
-    || session.aiRecap
-    || session.notes
-    || 'Referenced in campaign memory.';
-}
-
-function sessionMentionsEntity(session: Session, entity: WorldEntity) {
-  const haystack = [
-    session.title ?? '',
-    session.summary ?? '',
-    session.notes ?? '',
-    session.aiRecap ?? '',
-    session.aiSummary?.summary ?? '',
-    ...(session.aiSummary?.keyEvents ?? []),
-    ...(session.aiSummary?.unresolvedHooks ?? []),
-  ]
-    .join(' ')
-    .toLowerCase();
-
-  return haystack.includes(entity.name.toLowerCase());
-}
-
 function formatSessionIdentity(session: Session) {
   return session.title?.trim() || `Session ${session.sessionNumber}`;
 }
@@ -762,17 +741,14 @@ function formatScheduleLine(session: Session) {
   }).format(date);
 }
 
-function dedupeStrings(items: string[]) {
-  return [...new Set(items)];
-}
-
 function truncate(value: string, maxLength: number) {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 function formatCharacterLine(character: Character) {
-  const parts = [character.race, character.class].filter(Boolean);
+  const classStr = formatCharacterClass(character);
+  const parts = [character.race, classStr].filter(Boolean);
   const identity = parts.length ? parts.join(' · ') : 'Adventurer';
   return `${identity} · Level ${character.level}`;
 }

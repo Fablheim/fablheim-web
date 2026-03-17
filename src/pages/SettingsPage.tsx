@@ -307,10 +307,10 @@ function DeleteAccountSection() {
 }
 
 const TIER_DISPLAY: Record<string, string> = {
-  free: 'Wanderer (Free)',
+  wanderer: 'Wanderer (Free)',
   hobbyist: 'Hobbyist',
-  pro: 'Game Master',
-  professional: 'Pro',
+  gamemaster: 'Game Master',
+  pro: 'Pro',
 };
 
 function SubscriptionSection() {
@@ -318,8 +318,8 @@ function SubscriptionSection() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
-  const tier = user?.subscriptionTier ?? 'free';
-  const isPaid = tier !== 'free';
+  const tier = user?.subscriptionTier ?? 'wanderer';
+  const isPaid = tier !== 'wanderer';
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);

@@ -128,6 +128,7 @@ export function SpellBook({ character }: SpellBookProps) {
       )}
       <SpellBrowser
         characterId={character._id}
+        campaignId={character.campaignId}
         knownSpells={characterSpells ?? []}
         open={browserOpen}
         onClose={() => setBrowserOpen(false)}

@@ -89,6 +89,15 @@ export function SidebarV2({
 
   const activeGroupLabel = visibleGroups.find((g) => g.id === activeGroup)?.label;
 
+  // FIX 2 (Phase 5): On small screens (< 1024px) the sidebar already opens as an absolute-
+  // positioned overlay (inset-y-0 left-0 z-30) that slides over content rather than pushing it.
+  // CampaignShellV2 renders a full-area backdrop that dismisses the sidebar on tap-outside.
+  // This satisfies the "full-width overlay rather than pushing content" requirement — no change needed.
+  //
+  // FIX 4 (Phase 5): The icon rail is intentionally visible alongside the open drawer on small
+  // screens because it contains the only collapse-toggle button. Hiding the rail without adding
+  // an alternative close control would trap users in the open state (the backdrop tap-to-dismiss
+  // in CampaignShellV2 remains the primary dismiss path on mobile). No change needed.
   const sidebarClasses = isOpen
     ? isSmall
       ? 'absolute inset-y-0 left-0 z-30 w-[320px] max-w-[86vw] translate-x-0 shadow-2xl'
@@ -213,22 +222,20 @@ export function SidebarV2({
   }
 
   function renderDrawerContent() {
-    if (isSession) {
-      // Session mode: no sub-nav needed, the rail icons are the nav
-      return null;
-    }
+    const navItems = isSession
+      ? sessionTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon }))
+      : activeGroupSections.map((s) => ({ id: s.id, label: s.label, icon: s.icon }));
 
-    // Prep: vertical list of section links for the active group
     return (
       <div className="flex flex-col gap-0.5 px-2 py-2">
-        {activeGroupSections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeTab === section.id;
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
           return (
             <button
-              key={section.id}
+              key={item.id}
               type="button"
-              onClick={() => onTabChange(section.id)}
+              onClick={() => onTabChange(item.id)}
               className={`flex items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] transition-colors ${
                 isActive
                   ? 'bg-[hsl(38,92%,50%)]/10 text-[hsl(38,90%,55%)]'
@@ -236,7 +243,7 @@ export function SidebarV2({
               }`}
             >
               <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
-              {section.label}
+              {item.label}
             </button>
           );
         })}

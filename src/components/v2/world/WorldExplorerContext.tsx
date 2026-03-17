@@ -15,6 +15,7 @@ interface WorldExplorerContextValue {
   navigation: WorldNavigation | null;
   pendingEntityNavigationId: string | null;
   pendingSessionNavigationId: string | null;
+  pendingEncounterNavigationId: string | null;
   pendingCreateDraft: WorldCreateDraft | null;
   setActiveEntityId: (entityId: string | null) => void;
   setActiveCharacterId: (characterId: string | null) => void;
@@ -23,6 +24,7 @@ interface WorldExplorerContextValue {
   setNavigation: (navigation: WorldNavigation | null) => void;
   requestEntityNavigation: (entityId: string | null) => void;
   requestSessionNavigation: (sessionId: string | null) => void;
+  requestEncounterNavigation: (encounterId: string | null) => void;
   requestWorldCreate: (draft: WorldCreateDraft | null) => void;
 }
 
@@ -36,6 +38,7 @@ export function WorldExplorerProvider({ children }: { children: ReactNode }) {
   const [navigation, setNavigation] = useState<WorldNavigation | null>(null);
   const [pendingEntityNavigationId, setPendingEntityNavigationId] = useState<string | null>(null);
   const [pendingSessionNavigationId, setPendingSessionNavigationId] = useState<string | null>(null);
+  const [pendingEncounterNavigationId, setPendingEncounterNavigationId] = useState<string | null>(null);
   const [pendingCreateDraft, setPendingCreateDraft] = useState<WorldCreateDraft | null>(null);
 
   const value = useMemo(
@@ -47,6 +50,7 @@ export function WorldExplorerProvider({ children }: { children: ReactNode }) {
       navigation,
       pendingEntityNavigationId,
       pendingSessionNavigationId,
+      pendingEncounterNavigationId,
       pendingCreateDraft,
       setActiveEntityId,
       setActiveCharacterId,
@@ -55,6 +59,7 @@ export function WorldExplorerProvider({ children }: { children: ReactNode }) {
       setNavigation,
       requestEntityNavigation: setPendingEntityNavigationId,
       requestSessionNavigation: setPendingSessionNavigationId,
+      requestEncounterNavigation: setPendingEncounterNavigationId,
       requestWorldCreate: setPendingCreateDraft,
     }),
     [
@@ -65,6 +70,7 @@ export function WorldExplorerProvider({ children }: { children: ReactNode }) {
       navigation,
       pendingCreateDraft,
       pendingEntityNavigationId,
+      pendingEncounterNavigationId,
       pendingSessionNavigationId,
     ],
   );

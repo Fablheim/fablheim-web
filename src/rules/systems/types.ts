@@ -1,5 +1,5 @@
 import type { Character } from '@/types/campaign';
-import type { EnemyAttack, EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyAttack, EnemyTemplate } from '@/types/creature-template';
 import type { RollDiceRequest, RollResult, HopeFearRollRequest, HopeFearRollResult, InitiativeEntry } from '@/types/live-session';
 
 export type SystemActionKind = 'attack' | 'ability' | 'skill' | 'custom';

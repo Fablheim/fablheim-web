@@ -16,7 +16,7 @@ import {
   useCombatRules,
 } from '@/hooks/useLiveSession';
 import { Button } from '@/components/ui/Button';
-import type { EnemyAttack } from '@/types/enemy-template';
+import type { EnemyAttack } from '@/types/creature-template';
 import { useCampaignModuleEnabled, useRoundLabel } from '@/hooks/useModuleEnabled';
 import type {
   Initiative,

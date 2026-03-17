@@ -5,7 +5,7 @@ import { stripeApi } from '@/api/stripe';
 import { BILLING_CONFIG } from '@/config/billingConfig';
 
 interface UpgradeModalProps {
-  currentTier: 'free' | 'hobbyist' | 'pro' | 'professional';
+  currentTier: 'wanderer' | 'hobbyist' | 'gamemaster' | 'pro';
   onClose: () => void;
 }
 
@@ -25,29 +25,29 @@ const tiers = [
     ],
   },
   {
-    id: 'pro' as const,
+    id: 'gamemaster' as const,
     name: 'Game Master',
-    price: BILLING_CONFIG.tiers.pro.price,
+    price: BILLING_CONFIG.tiers.gamemaster.price,
     period: '/month',
-    credits: BILLING_CONFIG.tiers.pro.monthlyCredits,
+    credits: BILLING_CONFIG.tiers.gamemaster.monthlyCredits,
     icon: Crown,
     badge: 'BEST VALUE',
     features: [
-      `${BILLING_CONFIG.tiers.pro.monthlyCredits} AI credits per month`,
+      `${BILLING_CONFIG.tiers.gamemaster.monthlyCredits} AI credits per month`,
       'Credits expire after 90 days',
       'Priority access to new features',
       'Purchased credits never expire',
     ],
   },
   {
-    id: 'professional' as const,
+    id: 'pro' as const,
     name: 'Pro',
-    price: BILLING_CONFIG.tiers.professional.price,
+    price: BILLING_CONFIG.tiers.pro.price,
     period: '/month',
-    credits: BILLING_CONFIG.tiers.professional.monthlyCredits,
+    credits: BILLING_CONFIG.tiers.pro.monthlyCredits,
     icon: Shield,
     features: [
-      `${BILLING_CONFIG.tiers.professional.monthlyCredits} AI credits per month`,
+      `${BILLING_CONFIG.tiers.pro.monthlyCredits} AI credits per month`,
       'Credits expire after 90 days',
       'Priority access to new features',
       'Purchased credits never expire',
@@ -59,7 +59,7 @@ export function UpgradeModal({ currentTier, onClose }: UpgradeModalProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUpgrade = async (tier: 'hobbyist' | 'pro' | 'professional') => {
+  const handleUpgrade = async (tier: 'hobbyist' | 'gamemaster' | 'pro') => {
     setLoading(tier);
     setError(null);
 

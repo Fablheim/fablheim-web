@@ -38,6 +38,7 @@ import { InventoryPanel } from '@/components/character/inventory/InventoryPanel'
 import { SpellBook } from '@/components/character/spells/SpellBook';
 import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
 import { ExperiencesPanel } from '@/components/character/ExperiencesPanel';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character, AbilityRollResult, DynamicSchemaData } from '@/types/campaign';
 
 function computeModifier(value: number, formula: string | null): string | null {
@@ -168,7 +169,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
     );
   }
 
-  const classRace = [character.race, character.class].filter(Boolean).join(' ') || 'Adventurer';
+  const classRace = [character.race, formatCharacterClass(character)].filter(Boolean).join(' ') || 'Adventurer';
 
   return (
     <PageContainer
@@ -246,7 +247,7 @@ export function CharacterDetailPage({ characterId }: CharacterDetailPageProps) {
               {char.name}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {[char.race, char.class].filter(Boolean).join(' ') || 'Adventurer'}
+              {[char.race, formatCharacterClass(char)].filter(Boolean).join(' ') || 'Adventurer'}
             </p>
           </div>
           {char.level != null && (

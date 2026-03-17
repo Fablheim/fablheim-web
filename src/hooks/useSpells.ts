@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { spellsApi } from '@/api/spells';
-import type { LearnSpellPayload, SpellQuery } from '@/types/spell';
+import type { CreateSpellPayload, LearnSpellPayload, SpellQuery } from '@/types/spell';
 
 export function useSpells(query?: SpellQuery) {
   return useQuery({
@@ -67,6 +67,51 @@ export function usePrepareSpell(characterId: string) {
       queryClient.invalidateQueries({
         queryKey: ['character-spells', characterId],
       });
+    },
+  });
+}
+
+export function useCreateCampaignSpell() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      payload,
+    }: {
+      campaignId: string;
+      payload: CreateSpellPayload;
+    }) => spellsApi.createCampaignSpell(campaignId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['spells'] });
+    },
+  });
+}
+
+export function useUpdateCampaignSpell() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      spellId,
+      payload,
+    }: {
+      spellId: string;
+      payload: Partial<CreateSpellPayload>;
+    }) => spellsApi.updateCampaignSpell(spellId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['spells'] });
+    },
+  });
+}
+
+export function useDeleteCampaignSpell() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (spellId: string) => spellsApi.deleteCampaignSpell(spellId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['spells'] });
     },
   });
 }

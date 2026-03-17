@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { X, Loader2, Search, Skull } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
-import { useEnemyTemplates, useSpawnEnemies } from '@/hooks/useEnemyTemplates';
-import type { EnemyTemplate, SpawnedEnemy, EnemyCategory } from '@/types/enemy-template';
+import { useEnemyTemplates, useSpawnEnemies } from '@/hooks/useCreatureTemplates';
+import type { EnemyTemplate, SpawnedEnemy, EnemyCategory } from '@/types/creature-template';
 
 interface SpawnEnemiesModalProps {
   open: boolean;

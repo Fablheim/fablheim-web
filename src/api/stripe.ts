@@ -1,7 +1,7 @@
 import { api } from './client';
 
 export const stripeApi = {
-  createSubscriptionCheckout: async (tier: 'hobbyist' | 'pro' | 'professional') => {
+  createSubscriptionCheckout: async (tier: 'hobbyist' | 'gamemaster' | 'pro') => {
     const res = await api.post<{ sessionId: string; url: string }>(
       '/stripe/checkout/subscription',
       { tier },

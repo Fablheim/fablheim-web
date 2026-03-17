@@ -10,6 +10,7 @@ import {
   User,
   NotebookPen,
   Eye,
+  Map,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export const SESSION_DM_TABS: SessionTabDef[] = [
   { id: 'world', label: 'World', icon: Globe },
   { id: 'encounters', label: 'Encounters', icon: Swords },
   { id: 'initiative', label: 'Initiative', icon: Target },
+  { id: 'map', label: 'Battle Map', icon: Map },
   { id: 'passive', label: 'Passive Checks', icon: Eye },
   { id: 'notes', label: 'Notes', icon: ScrollText },
   { id: 'handouts', label: 'Handouts', icon: FileText },

@@ -91,7 +91,7 @@ function CreditBalanceCard() {
         {buyLoading ? 'Loading...' : `Buy ${BILLING_CONFIG.creditPack.credits} Credits — ${BILLING_CONFIG.creditPack.price}`}
       </Button>
       <p className="mt-2 text-xs text-muted-foreground">
-        Subscriber bonus per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.
+        Subscriber bonus per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Game Master {BILLING_CONFIG.creditPack.bonusCreditsByTier.gamemaster}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}.
       </p>
     </section>
   );

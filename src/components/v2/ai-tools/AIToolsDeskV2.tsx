@@ -1,335 +1,128 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   BookOpen,
-  Castle,
-  ClipboardList,
   Coins,
-  Compass,
-  Map,
-  ScrollText,
-  Search,
-  ShieldQuestion,
   Sparkles,
-  Store,
-  Swords,
-  Users,
   WandSparkles,
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
 import { AgeVerificationModal } from '@/components/ui/AgeVerificationModal';
-import { useCreditBalance, useCreditCosts } from '@/hooks/useCredits';
+import { shellPanelClass } from '@/lib/panel-styles';
 import {
-  useAIUsageSummary,
-  useAskRule,
-  useGenerateEncounter,
-  useGenerateLocation,
-  useGenerateLore,
-  useGenerateNPC,
-  useGeneratePlotHooks,
-  useGenerateQuest,
-  useGenerateShop,
-  useGenerateTavern,
-  useGenerateWorldNPC,
-  useRecentRules,
-} from '@/hooks/useAITools';
-import { useSessions, useGenerateAISummary } from '@/hooks/useSessions';
-import { useWorldEntities } from '@/hooks/useWorldEntities';
-import { useSaveAIEncounter } from '@/hooks/useEncounters';
+  useAIToolsContext,
+  locationTypes,
+  tavernTones,
+  shopTypes,
+  questTypes,
+  loreTypes,
+  worldNpcRoles,
+} from './AIToolsContext';
 import type {
   EncounterDifficulty,
   GeneratedEncounter,
   GeneratedNPC,
   GeneratedPlotHooks,
   RuleAnswer,
-} from '@/types/ai-tools';
-import type { SaveAIEncounterRequest } from '@/types/encounter';
-import type { Session, WorldEntity } from '@/types/campaign';
+  SaveAIEncounterRequest,
+  Session,
+  WorldEntity,
+} from './AIToolsContext';
 
-interface AIToolsDeskV2Props {
-  campaignId: string;
-}
-
-type ToolCategory = 'characters' | 'worldbuilding' | 'session-prep' | 'story' | 'reference';
-type ToolId =
-  | 'npc-generator'
-  | 'world-npc-generator'
-  | 'encounter-builder'
-  | 'session-summary'
-  | 'plot-hooks'
-  | 'quest-generator'
-  | 'lore-generator'
-  | 'location-generator'
-  | 'tavern-generator'
-  | 'shop-generator'
-  | 'rule-assistant';
-
-type ToolDefinition = {
-  id: ToolId;
-  label: string;
-  category: ToolCategory;
-  description: string;
-  helper: string;
-  creditKey: string;
-  icon: typeof Sparkles;
-};
-
-const panelClass =
-  'rounded-[24px] border border-[hsla(32,24%,24%,0.68)] bg-[linear-gradient(180deg,hsla(26,24%,12%,0.96)_0%,hsla(20,24%,8%,0.98)_100%)] shadow-[0_30px_80px_rgba(0,0,0,0.28)]';
-
-const tools: ToolDefinition[] = [
-  {
-    id: 'npc-generator',
-    label: 'NPC Generator',
-    category: 'characters',
-    description: 'Create a scene-ready NPC with role, presence, personality, and a usable stat block.',
-    helper: 'Campaign-aware character generation',
-    creditKey: 'npc_generation',
-    icon: Users,
-  },
-  {
-    id: 'world-npc-generator',
-    label: 'World NPC Seed',
-    category: 'characters',
-    description: 'Draft a world-facing NPC and save it directly into the campaign setting.',
-    helper: 'Creates a persistent world entity',
-    creditKey: 'world_building',
-    icon: Compass,
-  },
-  {
-    id: 'encounter-builder',
-    label: 'Encounter Builder',
-    category: 'session-prep',
-    description: 'Draft a combat concept with creatures, tactics, terrain, and treasure.',
-    helper: 'Can be saved into the encounter library',
-    creditKey: 'encounter_building',
-    icon: Swords,
-  },
-  {
-    id: 'session-summary',
-    label: 'Session Summary',
-    category: 'session-prep',
-    description: 'Turn session notes into a recap and structured summary tied to a real session.',
-    helper: 'Updates session recap and context',
-    creditKey: 'session_summary',
-    icon: ClipboardList,
-  },
-  {
-    id: 'plot-hooks',
-    label: 'Plot Hook Generator',
-    category: 'story',
-    description: 'Generate hooks, jobs, leads, and complications that fit the campaign.',
-    helper: 'Story-first hook generation',
-    creditKey: 'plot_hooks',
-    icon: WandSparkles,
-  },
-  {
-    id: 'quest-generator',
-    label: 'Quest Generator',
-    category: 'story',
-    description: 'Draft a quest entity with objectives, complications, and rewards.',
-    helper: 'Creates a saved world entity',
-    creditKey: 'world_building',
-    icon: ScrollText,
-  },
-  {
-    id: 'lore-generator',
-    label: 'Lore Generator',
-    category: 'story',
-    description: 'Expand legends, histories, prophecies, and setting details.',
-    helper: 'Creates a saved lore record',
-    creditKey: 'world_building',
-    icon: BookOpen,
-  },
-  {
-    id: 'location-generator',
-    label: 'Location Generator',
-    category: 'worldbuilding',
-    description: 'Create settlements, dungeons, landmarks, and other place anchors.',
-    helper: 'Creates a saved location entity',
-    creditKey: 'world_building',
-    icon: Map,
-  },
-  {
-    id: 'tavern-generator',
-    label: 'Tavern Generator',
-    category: 'worldbuilding',
-    description: 'Spin up an inn or tavern with tone, flavor, and campaign-fit details.',
-    helper: 'Creates a saved location entity',
-    creditKey: 'world_building',
-    icon: Castle,
-  },
-  {
-    id: 'shop-generator',
-    label: 'Shop Generator',
-    category: 'worldbuilding',
-    description: 'Draft a merchant space or storefront tied to the setting.',
-    helper: 'Creates a saved merchant entity',
-    creditKey: 'world_building',
-    icon: Store,
-  },
-  {
-    id: 'rule-assistant',
-    label: 'Rule Assistant',
-    category: 'reference',
-    description: 'Ask a rules question and get a campaign-aware answer with citations.',
-    helper: 'Stores recent rule questions',
-    creditKey: 'rule_questions',
-    icon: ShieldQuestion,
-  },
-];
-
-const categoryLabels: Record<ToolCategory, string> = {
-  characters: 'Characters',
-  worldbuilding: 'Worldbuilding',
-  'session-prep': 'Session Prep',
-  story: 'Story & Hooks',
-  reference: 'Reference',
-};
-
-const locationTypes = ['city', 'town', 'village', 'dungeon', 'wilderness', 'landmark'] as const;
-const tavernTones = ['friendly', 'rough', 'mysterious', 'upscale', 'seedy'] as const;
-const shopTypes = ['general', 'blacksmith', 'alchemist', 'magic', 'books', 'exotic', 'fence'] as const;
-const questTypes = ['fetch', 'kill', 'escort', 'mystery', 'social', 'exploration', 'defense'] as const;
-const loreTypes = ['history', 'religion', 'magic', 'legend', 'prophecy', 'artifact', 'culture'] as const;
-const worldNpcRoles = ['quest_giver', 'merchant', 'information', 'ally', 'villain', 'neutral'] as const;
-
-export function AIToolsDeskV2({ campaignId }: AIToolsDeskV2Props) {
-  const { user, refreshUser } = useAuth();
-  const { data: creditBalance } = useCreditBalance();
-  const { data: creditCosts } = useCreditCosts();
-  const { data: usageSummary } = useAIUsageSummary();
-  const { data: sessions } = useSessions(campaignId);
-  const { data: worldEntities } = useWorldEntities(campaignId);
-  const { data: recentRules } = useRecentRules(campaignId);
-
-  const generateNPC = useGenerateNPC();
-  const generateWorldNPC = useGenerateWorldNPC();
-  const generateEncounter = useGenerateEncounter();
-  const saveEncounter = useSaveAIEncounter(campaignId);
-  const generateSummary = useGenerateAISummary();
-  const generatePlotHooks = useGeneratePlotHooks();
-  const generateQuest = useGenerateQuest();
-  const generateLore = useGenerateLore();
-  const generateLocation = useGenerateLocation();
-  const generateTavern = useGenerateTavern();
-  const generateShop = useGenerateShop();
-  const askRule = useAskRule();
-
-  const [selectedTool, setSelectedTool] = useState<ToolId>('npc-generator');
-  const [toolSearch, setToolSearch] = useState('');
-
-  const [npcDescription, setNpcDescription] = useState('');
-  const [npcRole, setNpcRole] = useState('');
-  const [npcLevel, setNpcLevel] = useState('3');
-
-  const [worldNpcRole, setWorldNpcRole] = useState<(typeof worldNpcRoles)[number]>('neutral');
-  const [worldNpcPrompt, setWorldNpcPrompt] = useState('');
-
-  const [encounterLevel, setEncounterLevel] = useState('4');
-  const [encounterPartySize, setEncounterPartySize] = useState('4');
-  const [encounterDifficulty, setEncounterDifficulty] = useState<EncounterDifficulty>('medium');
-  const [encounterEnvironment, setEncounterEnvironment] = useState('');
-  const [encounterType, setEncounterType] = useState('');
-
-  const [selectedSessionId, setSelectedSessionId] = useState('');
-
-  const [plotHookCount, setPlotHookCount] = useState('3');
-  const [plotHookDifficulty, setPlotHookDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [plotHookThemes, setPlotHookThemes] = useState('');
-
-  const [questType, setQuestType] = useState<(typeof questTypes)[number]>('mystery');
-  const [questDifficulty, setQuestDifficulty] = useState('medium');
-  const [questPrompt, setQuestPrompt] = useState('');
-  const [questPartyLevel, setQuestPartyLevel] = useState('4');
-
-  const [loreType, setLoreType] = useState<(typeof loreTypes)[number]>('history');
-  const [loreName, setLoreName] = useState('');
-  const [lorePrompt, setLorePrompt] = useState('');
-
-  const [locationType, setLocationType] = useState<(typeof locationTypes)[number]>('village');
-  const [locationName, setLocationName] = useState('');
-  const [locationPrompt, setLocationPrompt] = useState('');
-
-  const [tavernTone, setTavernTone] = useState<(typeof tavernTones)[number]>('friendly');
-  const [tavernName, setTavernName] = useState('');
-  const [tavernSpecialty, setTavernSpecialty] = useState('');
-
-  const [shopType, setShopType] = useState<(typeof shopTypes)[number]>('general');
-  const [shopName, setShopName] = useState('');
-  const [shopSpecialty, setShopSpecialty] = useState('');
-
-  const [ruleQuestion, setRuleQuestion] = useState('');
-
-  const [activeOutput, setActiveOutput] = useState<{ toolId: ToolId; data: unknown } | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!selectedSessionId && sessions?.length) {
-      setSelectedSessionId(sessions[0]._id);
-    }
-  }, [selectedSessionId, sessions]);
-
-  const filteredTools = useMemo(() => {
-    const q = toolSearch.trim().toLowerCase();
-    return tools.filter((tool) => {
-      if (!q) return true;
-      return (
-        tool.label.toLowerCase().includes(q) ||
-        tool.description.toLowerCase().includes(q) ||
-        tool.category.toLowerCase().includes(q)
-      );
-    });
-  }, [toolSearch]);
-
-  const groupedTools = useMemo(
-    () =>
-      Object.entries(categoryLabels)
-        .map(([category, label]) => ({
-          id: category as ToolCategory,
-          label,
-          tools: filteredTools.filter((tool) => tool.category === category),
-        }))
-        .filter((group) => group.tools.length > 0),
-    [filteredTools],
-  );
-
-  const selectedDefinition = tools.find((tool) => tool.id === selectedTool) ?? tools[0];
-  const canUseAI = Boolean(user?.ageVerified) && (creditBalance?.total ?? 0) > 0;
+export function AIToolsDeskV2() {
+  const {
+    user,
+    refreshUser,
+    creditBalance,
+    creditCosts,
+    usageSummary,
+    sessions,
+    recentRules,
+    recentOutputs,
+    generateNPC,
+    generateWorldNPC,
+    generateEncounter,
+    saveEncounter,
+    generateSummary,
+    generatePlotHooks,
+    generateQuest,
+    generateLore,
+    generateLocation,
+    generateTavern,
+    generateShop,
+    askRule,
+    selectedTool,
+    selectedDefinition,
+    canUseAI,
+    npcDescription,
+    setNpcDescription,
+    npcRole,
+    setNpcRole,
+    npcLevel,
+    setNpcLevel,
+    worldNpcRole,
+    setWorldNpcRole,
+    worldNpcPrompt,
+    setWorldNpcPrompt,
+    encounterLevel,
+    setEncounterLevel,
+    encounterPartySize,
+    setEncounterPartySize,
+    encounterDifficulty,
+    setEncounterDifficulty,
+    encounterEnvironment,
+    setEncounterEnvironment,
+    encounterType,
+    setEncounterType,
+    selectedSessionId,
+    setSelectedSessionId,
+    plotHookCount,
+    setPlotHookCount,
+    plotHookDifficulty,
+    setPlotHookDifficulty,
+    plotHookThemes,
+    setPlotHookThemes,
+    questType,
+    setQuestType,
+    questDifficulty,
+    setQuestDifficulty,
+    questPrompt,
+    setQuestPrompt,
+    questPartyLevel,
+    setQuestPartyLevel,
+    loreType,
+    setLoreType,
+    loreName,
+    setLoreName,
+    lorePrompt,
+    setLorePrompt,
+    locationType,
+    setLocationType,
+    locationName,
+    setLocationName,
+    locationPrompt,
+    setLocationPrompt,
+    tavernTone,
+    setTavernTone,
+    tavernName,
+    setTavernName,
+    tavernSpecialty,
+    setTavernSpecialty,
+    shopType,
+    setShopType,
+    shopName,
+    setShopName,
+    shopSpecialty,
+    setShopSpecialty,
+    ruleQuestion,
+    setRuleQuestion,
+    activeOutput,
+    setActiveOutput,
+    copied,
+    setCopied,
+    campaignId,
+  } = useAIToolsContext();
 
   const totalUsageCalls = (usageSummary ?? []).reduce((sum, row) => sum + row.count, 0);
   const totalUsageTokens = (usageSummary ?? []).reduce((sum, row) => sum + row.totalTokens, 0);
-
-  const recentOutputs = useMemo(() => {
-    const entityOutputs = (worldEntities ?? [])
-      .filter((entity) => entity.aiGenerated)
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-      .slice(0, 6)
-      .map((entity) => ({
-        id: entity._id,
-        label: entity.name,
-        detail: entity.type.replaceAll('_', ' '),
-        createdAt: entity.updatedAt,
-      }));
-
-    const sessionOutputs = (sessions ?? [])
-      .filter((session) => session.aiSummary?.generatedAt || session.aiRecapGeneratedAt)
-      .sort((a, b) => {
-        const aDate = Date.parse(a.aiSummary?.generatedAt ?? a.aiRecapGeneratedAt ?? a.updatedAt);
-        const bDate = Date.parse(b.aiSummary?.generatedAt ?? b.aiRecapGeneratedAt ?? b.updatedAt);
-        return bDate - aDate;
-      })
-      .slice(0, 3)
-      .map((session) => ({
-        id: session._id,
-        label: session.title || `Session ${session.sessionNumber}`,
-        detail: 'session summary',
-        createdAt: session.aiSummary?.generatedAt ?? session.aiRecapGeneratedAt ?? session.updatedAt,
-      }));
-
-    return [...entityOutputs, ...sessionOutputs]
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, 6);
-  }, [sessions, worldEntities]);
 
   async function handleGenerateNPC() {
     const result = await generateNPC.mutateAsync({
@@ -520,218 +313,233 @@ export function AIToolsDeskV2({ campaignId }: AIToolsDeskV2Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top,hsla(40,48%,24%,0.12),transparent_28%),linear-gradient(180deg,hsl(224,18%,8%)_0%,hsl(18,20%,7%)_100%)] text-[hsl(38,24%,88%)]">
+    <div className="flex h-full min-h-0 flex-col bg-[radial-gradient(circle_at_top,hsla(40,48%,24%,0.12),transparent_28%),linear-gradient(180deg,hsl(224,18%,8%)_0%,hsl(18,20%,7%)_100%)] p-4 text-[hsl(38,24%,88%)]">
       {user && !user.ageVerified ? (
         <AgeVerificationModal
-          onVerified={() => {
-            refreshUser();
-          }}
+          onVerified={() => { refreshUser(); }}
           onCancel={() => undefined}
         />
       ) : null}
 
-      <header className="shrink-0 border-b border-[hsla(32,24%,24%,0.4)] px-4 py-3">
-        <p className="text-[10px] uppercase tracking-[0.28em] text-[hsl(38,30%,60%)]">Campaign Co-Pilot</p>
-        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-['IM_Fell_English'] text-[28px] leading-none text-[hsl(38,42%,90%)]">AI Tools</h2>
-            <p className="mt-2 max-w-3xl text-sm text-[hsl(30,14%,66%)]">
-              Creative generation grounded in the current campaign, with real outputs that can feed sessions, encounters, and world records.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <HeaderQuickAction label="Generate NPC" onClick={() => setSelectedTool('npc-generator')} />
-            <HeaderQuickAction label="Generate Quest" onClick={() => setSelectedTool('quest-generator')} />
-            <HeaderQuickAction label="Generate Location" onClick={() => setSelectedTool('location-generator')} />
-            <HeaderQuickAction label="Open Recent Outputs" onClick={() => setSelectedTool('session-summary')} />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <MetricChip icon={Coins} label="Credits" value={String(creditBalance?.total ?? 0)} />
-          <MetricChip icon={Sparkles} label="Calls this month" value={String(totalUsageCalls)} />
-          <MetricChip icon={BookOpen} label="Recent outputs" value={String(recentOutputs.length)} />
-          <MetricChip icon={WandSparkles} label="Tokens this month" value={totalUsageTokens.toLocaleString()} />
-        </div>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
-        <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className={`${panelClass} min-h-0 overflow-hidden`}>
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="shrink-0 border-b border-[hsla(32,24%,24%,0.4)] px-4 py-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Tool Library</p>
-                <h3 className="mt-1 font-[Cinzel] text-2xl text-[hsl(38,34%,88%)]">Creative Bench</h3>
-                <div className="relative mt-4">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(30,12%,52%)]" />
-                  <input
-                    value={toolSearch}
-                    onChange={(event) => setToolSearch(event.target.value)}
-                    placeholder="Search tools, outputs, or tasks..."
-                    className="w-full rounded-[16px] border border-[hsla(32,24%,24%,0.68)] bg-[hsla(20,20%,8%,0.84)] py-2.5 pl-10 pr-3 text-sm text-[hsl(38,28%,86%)] outline-none transition focus:border-[hsla(42,60%,54%,0.45)]"
-                  />
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                <div className="space-y-4">
-                  {groupedTools.map((group) => (
-                    <div key={group.id}>
-                      <p className="px-2 text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">{group.label}</p>
-                      <div className="mt-2 space-y-2">
-                        {group.tools.map((tool) => (
-                          <button
-                            key={tool.id}
-                            type="button"
-                            onClick={() => setSelectedTool(tool.id)}
-                            className={`w-full rounded-[18px] border px-3 py-3 text-left transition ${
-                              selectedTool === tool.id
-                                ? 'border-[hsla(42,64%,58%,0.58)] bg-[linear-gradient(180deg,hsla(40,64%,52%,0.16)_0%,hsla(24,22%,12%,0.9)_100%)]'
-                                : 'border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] hover:border-[hsla(42,42%,46%,0.38)]'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <tool.icon className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(42,72%,72%)]" />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-[Cinzel] text-base text-[hsl(38,32%,88%)]">{tool.label}</p>
-                                  <span className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(38,36%,70%)]">
-                                    {creditCosts?.[tool.creditKey] ?? 0} cr
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-sm text-[hsl(38,26%,78%)]">{tool.description}</p>
-                                <p className="mt-2 text-xs leading-6 text-[hsl(30,12%,56%)]">{tool.helper}</p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <section className={`${panelClass} min-h-0 overflow-y-auto`}>
-            <div className="px-5 py-5">
-              <div className="border-b border-[hsla(32,24%,24%,0.4)] pb-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <selectedDefinition.icon className="h-5 w-5 text-[hsl(42,72%,72%)]" />
-                  <h3 className="font-['IM_Fell_English'] text-[34px] leading-none text-[hsl(38,42%,90%)]">
-                    {selectedDefinition.label}
-                  </h3>
-                  <span className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(38,36%,70%)]">
-                    {creditCosts?.[selectedDefinition.creditKey] ?? 0} credits
-                  </span>
-                </div>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-[hsl(30,14%,66%)]">
-                  {selectedDefinition.description} This workspace uses the campaign’s saved context rather than asking the GM to handcraft prompts from scratch.
-                </p>
-              </div>
-
-              {!user?.ageVerified ? (
-                <NoticeBanner
-                  title="Age verification required"
-                  body="AI tools are available after confirming you are 18 or older. The rest of the campaign workspace remains available without it."
-                />
-              ) : null}
-              {user?.ageVerified && (creditBalance?.total ?? 0) === 0 ? (
-                <NoticeBanner
-                  title="No AI credits available"
-                  body="The tool desk is ready, but generation is paused until credits are available again."
-                />
-              ) : null}
-
-              <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.75fr)]">
-                <div className="space-y-5">
-                  <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Tool Workspace</p>
-                    <div className="mt-4">{renderWorkspace()}</div>
-                  </div>
-
-                  <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Current Output</p>
-                        <h4 className="mt-1 font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">Draft Result</h4>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCopyOutput}
-                          disabled={!activeOutput}
-                          className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[hsl(38,30%,78%)] transition hover:border-[hsla(42,62%,56%,0.44)] disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          {copied ? 'Copied' : 'Copy'}
-                        </button>
-                        {activeOutput?.toolId === 'encounter-builder' ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleSaveEncounter()}
-                            disabled={saveEncounter.isPending}
-                            className="rounded-full border border-[hsla(42,62%,56%,0.44)] bg-[hsla(40,48%,22%,0.32)] px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[hsl(42,76%,84%)] transition hover:bg-[hsla(40,48%,26%,0.42)] disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            {saveEncounter.isPending ? 'Saving...' : 'Save Encounter'}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-4">{renderOutput()}</div>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  <InfoPanel
-                    title="Recent Outputs"
-                    subtitle="Saved AI-created records and summaries that already fed back into the campaign."
-                    items={recentOutputs.map((item) => ({
-                      title: item.label,
-                      detail: `${item.detail} · ${formatDate(item.createdAt)}`,
-                    }))}
-                    emptyLabel="No saved AI outputs yet."
-                  />
-
-                  <InfoPanel
-                    title="Recent Rule Lookups"
-                    subtitle="The rule assistant is the only AI feature with a dedicated history feed today."
-                    items={(recentRules ?? []).slice(0, 5).map((item) => ({
-                      title: item.question,
-                      detail: `${item.system} · ${formatDate(item.createdAt)}`,
-                    }))}
-                    emptyLabel="No recent rule lookups yet."
-                  />
-
-                  <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Usage Read</p>
-                    <h4 className="mt-1 font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">This Month</h4>
-                    <div className="mt-4 space-y-2">
-                      {(usageSummary ?? []).length > 0 ? (
-                        usageSummary.map((row) => (
-                          <div
-                            key={row._id}
-                            className="flex items-center justify-between rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2"
-                          >
-                            <div>
-                              <p className="font-[Cinzel] text-sm text-[hsl(38,30%,84%)]">{featureLabel(row._id)}</p>
-                              <p className="text-xs text-[hsl(30,12%,56%)]">{row.totalTokens.toLocaleString()} tokens</p>
-                            </div>
-                            <span className="text-sm text-[hsl(42,72%,78%)]">{row.count} calls</span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-[hsl(30,14%,62%)]">No AI usage recorded yet this month.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
+      <section className={`${shellPanelClass} min-h-0 flex-1 flex flex-col overflow-hidden`}>
+        {renderShellHeader()}
+        {renderShellBody()}
+      </section>
     </div>
   );
+
+  function renderShellHeader() {
+    return (
+      <div className="shrink-0 border-b border-[hsla(32,24%,24%,0.42)] px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          {renderShellHeaderLeft()}
+          {renderShellHeaderMetrics()}
+        </div>
+      </div>
+    );
+  }
+
+  function renderShellHeaderLeft() {
+    return (
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.26em] text-[hsl(30,14%,54%)]">
+          AI TOOLS
+        </p>
+        <h2 className="mt-0.5 font-['IM_Fell_English'] text-[26px] leading-none text-[hsl(38,42%,90%)]">
+          {selectedDefinition.label}
+        </h2>
+        <p className="mt-1 text-[11px] leading-relaxed text-[hsl(30,13%,62%)]">
+          {selectedDefinition.helper}
+        </p>
+      </div>
+    );
+  }
+
+  function renderShellHeaderMetrics() {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <MetricChip icon={Coins} label="Credits" value={String(creditBalance?.total ?? 0)} />
+        <MetricChip icon={Sparkles} label="Calls" value={String(totalUsageCalls)} />
+        <MetricChip icon={BookOpen} label="Outputs" value={String(recentOutputs.length)} />
+        <MetricChip icon={WandSparkles} label="Tokens" value={totalUsageTokens.toLocaleString()} />
+      </div>
+    );
+  }
+
+  function renderShellBody() {
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        {renderBodyContent()}
+      </div>
+    );
+  }
+
+  function renderBodyContent() {
+    return (
+      <div className="mt-0 grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.75fr)]">
+        {renderBodyLeft()}
+        {renderBodyRight()}
+      </div>
+    );
+  }
+
+  function renderBodyLeft() {
+    return (
+      <div className="space-y-5">
+        {renderToolHeaderSection()}
+        {renderWorkspaceSection()}
+        {renderOutputSection()}
+      </div>
+    );
+  }
+
+  function renderToolHeaderSection() {
+    return (
+      <div className="border-b border-[hsla(32,24%,24%,0.4)] pb-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <selectedDefinition.icon className="h-5 w-5 text-[hsl(42,72%,72%)]" />
+          <h3 className="font-['IM_Fell_English'] text-[34px] leading-none text-[hsl(38,42%,90%)]">
+            {selectedDefinition.label}
+          </h3>
+          <span className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(38,36%,70%)]">
+            {creditCosts?.[selectedDefinition.creditKey] ?? 0} credits
+          </span>
+        </div>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-[hsl(30,14%,66%)]">
+          {selectedDefinition.description} This workspace uses the campaign's saved context rather than asking the GM to handcraft prompts from scratch.
+        </p>
+        {renderNotices()}
+      </div>
+    );
+  }
+
+  function renderNotices() {
+    if (!user?.ageVerified) {
+      return (
+        <NoticeBanner
+          title="Age verification required"
+          body="AI tools are available after confirming you are 18 or older. The rest of the campaign workspace remains available without it."
+        />
+      );
+    }
+    if (user.ageVerified && (creditBalance?.total ?? 0) === 0) {
+      return (
+        <NoticeBanner
+          title="No AI credits available"
+          body="The tool desk is ready, but generation is paused until credits are available again."
+        />
+      );
+    }
+    return null;
+  }
+
+  function renderWorkspaceSection() {
+    return (
+      <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Tool Workspace</p>
+        <div className="mt-4">{renderWorkspace()}</div>
+      </div>
+    );
+  }
+
+  function renderOutputSection() {
+    return (
+      <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
+        {renderOutputSectionHeader()}
+        <div className="mt-4">{renderOutput()}</div>
+      </div>
+    );
+  }
+
+  function renderOutputSectionHeader() {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Current Output</p>
+          <h4 className="mt-1 font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">Draft Result</h4>
+        </div>
+        {renderOutputActions()}
+      </div>
+    );
+  }
+
+  function renderOutputActions() {
+    return (
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleCopyOutput}
+          disabled={!activeOutput}
+          className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[hsl(38,30%,78%)] transition hover:border-[hsla(42,62%,56%,0.44)] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        {activeOutput?.toolId === 'encounter-builder' ? (
+          <button
+            type="button"
+            onClick={() => void handleSaveEncounter()}
+            disabled={saveEncounter.isPending}
+            className="rounded-full border border-[hsla(42,62%,56%,0.44)] bg-[hsla(40,48%,22%,0.32)] px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[hsl(42,76%,84%)] transition hover:bg-[hsla(40,48%,26%,0.42)] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {saveEncounter.isPending ? 'Saving...' : 'Save Encounter'}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderBodyRight() {
+    return (
+      <div className="space-y-5">
+        <InfoPanel
+          title="Recent Outputs"
+          subtitle="Saved AI-created records and summaries that already fed back into the campaign."
+          items={recentOutputs.map((item) => ({
+            title: item.label,
+            detail: `${item.detail} · ${formatDate(item.createdAt)}`,
+          }))}
+          emptyLabel="No saved AI outputs yet."
+        />
+        <InfoPanel
+          title="Recent Rule Lookups"
+          subtitle="The rule assistant is the only AI feature with a dedicated history feed today."
+          items={(recentRules ?? []).slice(0, 5).map((item) => ({
+            title: item.question,
+            detail: `${item.system} · ${formatDate(item.createdAt)}`,
+          }))}
+          emptyLabel="No recent rule lookups yet."
+        />
+        {renderUsagePanel()}
+      </div>
+    );
+  }
+
+  function renderUsagePanel() {
+    return (
+      <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Usage Read</p>
+        <h4 className="mt-1 font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">This Month</h4>
+        <div className="mt-4 divide-y divide-[hsla(32,24%,22%,0.32)]">
+          {(usageSummary ?? []).length > 0 ? (
+            (usageSummary ?? []).map((row) => (
+              <div
+                key={row._id}
+                className="flex items-center justify-between py-2 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <p className="font-[Cinzel] text-sm text-[hsl(38,30%,84%)]">{featureLabel(row._id)}</p>
+                  <p className="text-xs text-[hsl(30,12%,56%)]">{row.totalTokens.toLocaleString()} tokens</p>
+                </div>
+                <span className="text-sm text-[hsl(42,72%,78%)]">{row.count} calls</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-[hsl(30,14%,62%)]">No AI usage recorded yet this month.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   function renderWorkspace() {
     const disabled = !canUseAI;
@@ -841,25 +649,23 @@ export function AIToolsDeskV2({ campaignId }: AIToolsDeskV2Props) {
         return (
           <ToolForm
             fields={
-              <>
-                <Field
-                  label="Session"
-                  description="This tool uses the session’s saved notes and updates its recap fields directly."
+              <Field
+                label="Session"
+                description="This tool uses the session's saved notes and updates its recap fields directly."
+              >
+                <select
+                  value={selectedSessionId}
+                  onChange={(event) => setSelectedSessionId(event.target.value)}
+                  className={fieldClass}
                 >
-                  <select
-                    value={selectedSessionId}
-                    onChange={(event) => setSelectedSessionId(event.target.value)}
-                    className={fieldClass}
-                  >
-                    <option value="">Select a session</option>
-                    {(sessions ?? []).map((session) => (
-                      <option key={session._id} value={session._id}>
-                        {session.title || `Session ${session.sessionNumber}`}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </>
+                  <option value="">Select a session</option>
+                  {(sessions ?? []).map((session) => (
+                    <option key={session._id} value={session._id}>
+                      {session.title || `Session ${session.sessionNumber}`}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             }
             actionLabel={generateSummary.isPending ? 'Generating...' : 'Generate Session Summary'}
             onAction={() => void handleGenerateSummary()}
@@ -1088,6 +894,8 @@ export function AIToolsDeskV2({ campaignId }: AIToolsDeskV2Props) {
   }
 }
 
+// ── ToolForm ──────────────────────────────────────────────────────────────────
+
 function ToolForm({
   fields,
   actionLabel,
@@ -1114,6 +922,8 @@ function ToolForm({
   );
 }
 
+// ── Field ─────────────────────────────────────────────────────────────────────
+
 function Field({
   label,
   description,
@@ -1134,9 +944,11 @@ function Field({
   );
 }
 
+// ── Output cards ──────────────────────────────────────────────────────────────
+
 function NPCOutputCard({ npc }: { npc: GeneratedNPC }) {
   return (
-    <div className="space-y-4 rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
+    <div className="space-y-4">
       <div>
         <h5 className="font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">{npc.name}</h5>
         <p className="mt-1 text-sm text-[hsl(42,72%,78%)]">{npc.role}</p>
@@ -1151,7 +963,7 @@ function NPCOutputCard({ npc }: { npc: GeneratedNPC }) {
 
 function EncounterOutputCard({ encounter }: { encounter: GeneratedEncounter }) {
   return (
-    <div className="space-y-4 rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h5 className="font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">{encounter.title}</h5>
@@ -1161,10 +973,18 @@ function EncounterOutputCard({ encounter }: { encounter: GeneratedEncounter }) {
         </div>
       </div>
       <OutputBlock title="Brief" body={encounter.description} />
+      {renderCombatants(encounter)}
+      <OutputBlock title="Tactics" body={encounter.tactics} />
+      {encounter.treasure ? <OutputBlock title="Treasure" body={encounter.treasure} /> : null}
+    </div>
+  );
+
+  function renderCombatants(enc: GeneratedEncounter) {
+    return (
       <div>
-        <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Combatants</p>
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Combatants</p>
         <div className="mt-2 space-y-2">
-          {encounter.npcs.map((npc, index) => (
+          {enc.npcs.map((npc, index) => (
             <div
               key={`${npc.name}-${index}`}
               className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2 text-sm text-[hsl(38,28%,84%)]"
@@ -1177,16 +997,14 @@ function EncounterOutputCard({ encounter }: { encounter: GeneratedEncounter }) {
           ))}
         </div>
       </div>
-      <OutputBlock title="Tactics" body={encounter.tactics} />
-      {encounter.treasure ? <OutputBlock title="Treasure" body={encounter.treasure} /> : null}
-    </div>
-  );
+    );
+  }
 }
 
 function PlotHooksOutputCard({ hooks }: { hooks: GeneratedPlotHooks }) {
   return (
-    <div className="rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
-      <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Hooks</p>
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Hooks</p>
       <div className="mt-3 space-y-2">
         {hooks.hooks.map((hook, index) => (
           <div
@@ -1203,51 +1021,61 @@ function PlotHooksOutputCard({ hooks }: { hooks: GeneratedPlotHooks }) {
 
 function WorldEntityOutputCard({ entity }: { entity: WorldEntity }) {
   return (
-    <div className="space-y-4 rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
+    <div className="space-y-4">
       <div>
         <h5 className="font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">{entity.name}</h5>
         <p className="mt-1 text-sm text-[hsl(42,72%,78%)]">{humanize(entity.type)}</p>
       </div>
       {entity.description ? <OutputBlock title="Description" body={entity.description} /> : null}
-      {'objectives' in entity && entity.objectives?.length ? (
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Objectives</p>
-          <div className="mt-2 space-y-2">
-            {entity.objectives.map((objective) => (
-              <div key={objective.id} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2 text-sm text-[hsl(38,28%,84%)]">
-                {objective.description}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {'objectives' in entity && entity.objectives?.length ? renderObjectives(entity) : null}
       {'rewards' in entity && entity.rewards ? <OutputBlock title="Rewards" body={entity.rewards} /> : null}
-      {entity.typeData && Object.keys(entity.typeData).length > 0 ? (
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">Extra Detail</p>
-          <div className="mt-2 space-y-2">
-            {Object.entries(entity.typeData)
-              .filter(([, value]) => value !== null && value !== undefined && value !== '')
-              .slice(0, 4)
-              .map(([key, value]) => (
-                <div key={key} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-[hsl(34,18%,58%)]">{humanize(key)}</p>
-                  <p className="mt-1 text-sm text-[hsl(38,28%,84%)]">
-                    {Array.isArray(value) ? value.join(', ') : String(value)}
-                  </p>
-                </div>
-              ))}
-          </div>
-        </div>
-      ) : null}
+      {entity.typeData && Object.keys(entity.typeData).length > 0 ? renderExtraDetail(entity) : null}
     </div>
   );
+
+  function renderObjectives(ent: WorldEntity) {
+    if (!('objectives' in ent) || !ent.objectives?.length) return null;
+    return (
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Objectives</p>
+        <div className="mt-2 space-y-2">
+          {ent.objectives.map((objective) => (
+            <div key={objective.id} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2 text-sm text-[hsl(38,28%,84%)]">
+              {objective.description}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderExtraDetail(ent: WorldEntity) {
+    if (!ent.typeData || !Object.keys(ent.typeData).length) return null;
+    return (
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Extra Detail</p>
+        <div className="mt-2 space-y-2">
+          {Object.entries(ent.typeData)
+            .filter(([, value]) => value !== null && value !== undefined && value !== '')
+            .slice(0, 4)
+            .map(([key, value]) => (
+              <div key={key} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[hsl(34,18%,58%)]">{humanize(key)}</p>
+                <p className="mt-1 text-sm text-[hsl(38,28%,84%)]">
+                  {Array.isArray(value) ? value.join(', ') : String(value)}
+                </p>
+              </div>
+            ))}
+        </div>
+      </div>
+    );
+  }
 }
 
 function SessionSummaryOutputCard({ session }: { session: Session }) {
   const summary = session.aiSummary;
   return (
-    <div className="space-y-4 rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
+    <div className="space-y-4">
       <div>
         <h5 className="font-[Cinzel] text-xl text-[hsl(38,34%,88%)]">
           {session.title || `Session ${session.sessionNumber}`}
@@ -1269,7 +1097,7 @@ function SessionSummaryOutputCard({ session }: { session: Session }) {
 
 function RuleAnswerOutputCard({ answer }: { answer: RuleAnswer }) {
   return (
-    <div className="space-y-4 rounded-[20px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(20,18%,9%,0.82)] p-4">
+    <div className="space-y-4">
       <OutputBlock title="Answer" body={answer.answer} />
       {answer.citations.length ? <OutputList title="Citations" items={answer.citations} /> : null}
       {answer.relevantRules.length ? <OutputList title="Relevant Rules" items={answer.relevantRules} /> : null}
@@ -1277,6 +1105,8 @@ function RuleAnswerOutputCard({ answer }: { answer: RuleAnswer }) {
     </div>
   );
 }
+
+// ── Shared output primitives ──────────────────────────────────────────────────
 
 function OutputBlock({
   title,
@@ -1289,7 +1119,7 @@ function OutputBlock({
 }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">{title}</p>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">{title}</p>
       <p className={`mt-2 whitespace-pre-wrap text-sm leading-7 text-[hsl(38,28%,84%)] ${mono ? 'font-mono text-xs' : ''}`}>
         {body}
       </p>
@@ -1300,7 +1130,7 @@ function OutputBlock({
 function OutputList({ title, items }: { title: string; items: string[] }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">{title}</p>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">{title}</p>
       <div className="mt-2 space-y-2">
         {items.map((item, index) => (
           <div key={`${item}-${index}`} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2 text-sm text-[hsl(38,28%,84%)]">
@@ -1312,17 +1142,7 @@ function OutputList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function HeaderQuickAction({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border border-[hsla(42,42%,46%,0.28)] px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[hsl(38,30%,78%)] transition hover:border-[hsla(42,62%,56%,0.44)]"
-    >
-      {label}
-    </button>
-  );
-}
+// ── Metric chip ───────────────────────────────────────────────────────────────
 
 function MetricChip({
   icon: Icon,
@@ -1342,14 +1162,7 @@ function MetricChip({
   );
 }
 
-function NoticeBanner({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="mt-5 rounded-[18px] border border-[hsla(42,52%,38%,0.32)] bg-[hsla(28,34%,12%,0.72)] px-4 py-3">
-      <p className="font-[Cinzel] text-base text-[hsl(42,72%,82%)]">{title}</p>
-      <p className="mt-1 text-sm leading-7 text-[hsl(30,16%,70%)]">{body}</p>
-    </div>
-  );
-}
+// ── InfoPanel ─────────────────────────────────────────────────────────────────
 
 function InfoPanel({
   title,
@@ -1364,12 +1177,12 @@ function InfoPanel({
 }) {
   return (
     <div className="rounded-[22px] border border-[hsla(32,24%,22%,0.68)] bg-[hsla(22,20%,10%,0.68)] p-4">
-      <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(34,18%,58%)]">{title}</p>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">{title}</p>
       <p className="mt-2 text-sm leading-7 text-[hsl(30,14%,66%)]">{subtitle}</p>
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 divide-y divide-[hsla(32,24%,22%,0.32)]">
         {items.length ? (
           items.map((item) => (
-            <div key={`${item.title}-${item.detail}`} className="rounded-[16px] border border-[hsla(32,24%,22%,0.58)] bg-[hsla(22,18%,9%,0.8)] px-3 py-2">
+            <div key={`${item.title}-${item.detail}`} className="py-2 first:pt-0 last:pb-0">
               <p className="text-sm text-[hsl(38,30%,84%)]">{item.title}</p>
               <p className="mt-1 text-xs text-[hsl(30,12%,56%)]">{item.detail}</p>
             </div>
@@ -1381,6 +1194,19 @@ function InfoPanel({
     </div>
   );
 }
+
+// ── NoticeBanner ──────────────────────────────────────────────────────────────
+
+function NoticeBanner({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="mt-5 rounded-[18px] border border-[hsla(42,52%,38%,0.32)] bg-[hsla(28,34%,12%,0.72)] px-4 py-3">
+      <p className="font-[Cinzel] text-base text-[hsl(42,72%,82%)]">{title}</p>
+      <p className="mt-1 text-sm leading-7 text-[hsl(30,16%,70%)]">{body}</p>
+    </div>
+  );
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
 
 function humanize(value: string) {
   return value

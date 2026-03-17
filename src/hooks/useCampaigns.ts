@@ -239,8 +239,8 @@ export function useUpdateTracker() {
 export function useAdjustTracker() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ campaignId, trackerId, delta }: { campaignId: string; trackerId: string; delta: number }) =>
-      campaignsApi.adjustTracker(campaignId, trackerId, delta),
+    mutationFn: ({ campaignId, trackerId, delta, reason, sessionNumber }: { campaignId: string; trackerId: string; delta: number; reason?: string; sessionNumber?: number }) =>
+      campaignsApi.adjustTracker(campaignId, trackerId, delta, { reason, sessionNumber }),
     onSuccess: (_, v) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', v.campaignId, 'trackers'] });
     },

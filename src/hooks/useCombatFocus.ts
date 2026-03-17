@@ -4,7 +4,7 @@ import { useInitiative } from '@/hooks/useLiveSession';
 import { useBattleMap } from '@/hooks/useBattleMap';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useEncounters } from '@/hooks/useEncounters';
-import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
+import { useEnemyTemplates } from '@/hooks/useCreatureTemplates';
 import {
   useSessionWorkspaceState,
 } from '@/components/session/SessionWorkspaceState';

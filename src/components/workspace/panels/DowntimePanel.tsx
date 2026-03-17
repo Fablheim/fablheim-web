@@ -38,13 +38,17 @@ const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   research: 'Research',
   working: 'Working',
   recuperating: 'Recuperating',
+  travel: 'Travel',
+  faction_work: 'Faction Work',
+  business: 'Business',
   other: 'Other',
 };
 
 const STATUS_CONFIG: Record<ActivityStatus, { label: string; color: string; icon: typeof Clock }> = {
   planned: { label: 'Planned', color: 'text-muted-foreground', icon: Clock },
-  in_progress: { label: 'In Progress', color: 'text-amber-400', icon: CircleDot },
+  active: { label: 'Active', color: 'text-amber-400', icon: CircleDot },
   completed: { label: 'Completed', color: 'text-emerald-400', icon: CheckCircle2 },
+  cancelled: { label: 'Cancelled', color: 'text-muted-foreground', icon: Clock },
 };
 
 export function DowntimePanel({ campaignId }: DowntimePanelProps) {
@@ -171,7 +175,7 @@ export function DowntimePanel({ campaignId }: DowntimePanelProps) {
           <ActivityCard
             key={activity._id}
             activity={activity}
-            characterName={chars.get(activity.characterId) ?? 'Unknown'}
+            characterName={chars.get(activity.participantId) ?? 'Unknown'}
             campaignId={campaignId}
           />
         ))}
@@ -199,7 +203,7 @@ function ActivityCard({
   const StatusIcon = statusCfg.icon;
 
   function cycleStatus() {
-    const order: ActivityStatus[] = ['planned', 'in_progress', 'completed'];
+    const order: ActivityStatus[] = ['planned', 'active', 'completed'];
     const idx = order.indexOf(activity.status);
     const next = order[(idx + 1) % order.length];
 
@@ -365,7 +369,8 @@ function CreateDowntimeForm({
       {
         campaignId,
         data: {
-          characterId,
+          participantId: characterId,
+          participantType: 'character' as const,
           name: name.trim(),
           type,
           durationDays,

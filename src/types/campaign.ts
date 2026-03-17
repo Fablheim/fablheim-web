@@ -60,6 +60,7 @@ export interface ArcLinks {
   handoutIds?: string[];
   downtimeIds?: string[];
   calendarEventIds?: string[];
+  trackerIds?: string[];
 }
 
 export interface CampaignArc {
@@ -85,6 +86,15 @@ export interface TrackerThreshold {
   effect?: string;
 }
 
+export interface TrackerAdjustment {
+  delta: number;
+  valueBefore: number;
+  valueAfter: number;
+  reason?: string;
+  sessionNumber?: number;
+  createdAt: string;
+}
+
 export interface WorldStateTracker {
   _id: string;
   name: string;
@@ -94,6 +104,7 @@ export interface WorldStateTracker {
   max: number;
   thresholds: TrackerThreshold[];
   visibility: 'public' | 'dm-only';
+  adjustments?: TrackerAdjustment[];
 }
 
 // ── Calendar types ───────────────────────────────────────
@@ -248,13 +259,25 @@ export interface DeathSaves {
   failures: number;
 }
 
+export interface CharacterClass {
+  classContentId: string;
+  className: string;
+  level: number;
+  subclassContentId?: string | null;
+  subclassName?: string | null;
+  isPrimary: boolean;
+}
+
 export interface Character {
   _id: string;
   campaignId: string;
   userId: string;
   name: string;
   race?: string;
-  class?: string;
+  classes?: CharacterClass[];
+  raceContentId?: string | null;
+  backgroundContentId?: string | null;
+  featContentIds?: string[];
   level: number;
   xp: number;
   backstory?: string;
@@ -299,7 +322,10 @@ export interface CreateCharacterPayload {
   campaignId: string;
   name: string;
   race?: string;
-  class?: string;
+  classes?: CharacterClass[];
+  raceContentId?: string;
+  backgroundContentId?: string;
+  featContentIds?: string[];
   level?: number;
   backstory?: string;
   stats?: Record<string, number>;
@@ -325,6 +351,10 @@ export interface CreateCharacterPayload {
 export type UpdateCharacterPayload = Partial<Omit<CreateCharacterPayload, 'campaignId'>> & {
   mechanicData?: DynamicSchemaData;
   wealthTier?: string;
+  classes?: CharacterClass[];
+  raceContentId?: string | null;
+  backgroundContentId?: string | null;
+  featContentIds?: string[];
 };
 
 // ── Roll Results ─────────────────────────────────────────
@@ -383,6 +413,7 @@ export interface FactionRelationship {
 }
 
 export interface NpcSecret {
+  _id?: string;
   description: string;
   revealed: boolean;
   revealedAt?: string;
@@ -684,6 +715,11 @@ export interface UpdateSessionRequest {
   prepChecklist?: PrepChecklistItem[];
   restEvents?: RestEvent[];
   weather?: string;
+  statistics?: {
+    keyMoments?: string[];
+    npcsIntroduced?: string[];
+    questsAdvanced?: string[];
+  };
 }
 
 // ── Domains ─────────────────────────────────────────────
@@ -833,7 +869,7 @@ export interface Ally {
   name: string;
   addedBy: string;
   ownerCharacterId?: string;
-  ownerCharacter?: Pick<Character, '_id' | 'name' | 'userId' | 'class' | 'level'> | null;
+  ownerCharacter?: Pick<Character, '_id' | 'name' | 'userId' | 'classes' | 'level'> | null;
   controllerUserId?: string;
   description?: string;
   role?: string;

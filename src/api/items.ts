@@ -5,6 +5,8 @@ import type {
   CreateItemPayload,
   UpdateItemPayload,
   UpdateCurrencyPayload,
+  SrdItemTemplate,
+  CloneSrdItemPayload,
 } from '@/types/item';
 
 export const itemsApi = {
@@ -69,6 +71,16 @@ export const itemsApi = {
       `/items/currency/${characterId}`,
       body,
     );
+    return data;
+  },
+
+  getSrdItems: async (): Promise<SrdItemTemplate[]> => {
+    const { data } = await api.get<SrdItemTemplate[]>('/items/srd');
+    return data;
+  },
+
+  cloneSrdItem: async (payload: CloneSrdItemPayload): Promise<Item> => {
+    const { data } = await api.post<Item>('/items/clone-srd', payload);
     return data;
   },
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { EnemyAttack } from '@/types/enemy-template';
+import type { EnemyAttack } from '@/types/creature-template';
 import { normalizeCombatantName } from '@/lib/combat-math';
 
 function getStorageKey(campaignId: string, combatantName: string): string {

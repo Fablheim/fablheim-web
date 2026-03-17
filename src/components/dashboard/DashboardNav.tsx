@@ -24,8 +24,8 @@ import { DropdownMenu, DropdownMenuItem, DropdownMenuDivider, DropdownMenuLabel 
 import type { Campaign } from '@/types/campaign';
 
 function tierLabel(tier: string): string {
-  if (tier === 'professional') return 'PRO+';
-  if (tier === 'pro') return 'GM';
+  if (tier === 'pro') return 'PRO';
+  if (tier === 'gamemaster') return 'GM';
   if (tier === 'hobbyist') return 'HOB';
   return '';
 }
@@ -41,7 +41,7 @@ export function DashboardNav() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isPaidUser = user && user.subscriptionTier !== 'free';
+  const isPaidUser = user && user.subscriptionTier !== 'wanderer';
 
   const dmCampaignIds = new Set(dmCampaigns?.map((c) => c._id) ?? []);
   const playerMemberships = memberships?.filter((m) => !dmCampaignIds.has(m.campaignId._id)) ?? [];

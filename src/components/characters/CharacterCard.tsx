@@ -1,5 +1,6 @@
 import { Pencil, Trash2, Eye, EyeOff, Shield, ArrowRight } from 'lucide-react';
 import type { Character, WorldEntity } from '@/types/campaign';
+import { formatCharacterClass } from '@/lib/character-utils';
 
 export type CharacterListItem =
   | { kind: 'pc'; data: Character; ownerName?: string }
@@ -53,7 +54,7 @@ function PCCard({
   onDelete: () => void;
   onClick: () => void;
 }) {
-  const classRace = [character.race, character.class].filter(Boolean).join(' ') || 'Adventurer';
+  const classRace = [character.race, formatCharacterClass(character)].filter(Boolean).join(' ') || 'Adventurer';
 
   return (
     <div

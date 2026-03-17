@@ -28,6 +28,8 @@ export interface CharacterDraft {
   portraitFile: File | null;
   ancestry?: string;
   charClass?: string;
+  raceContentId?: string;
+  classContentId?: string;
   level?: number;
   stats: Record<string, number>;
   systemData: Record<string, unknown>;
@@ -219,10 +221,11 @@ function renderCurrentStep(
   onUpdateSystemData: (key: string, value: unknown) => void,
   onGoToStep: (stepId: string) => void,
   onUpdateCombat: (field: string, value: number) => void,
+  campaignId?: string,
 ) {
   switch (stepId) {
     case 'identity':
-      return <IdentityStep draft={draft} systemDef={systemDef} onUpdate={onUpdate} errors={errors} />;
+      return <IdentityStep draft={draft} systemDef={systemDef} campaignId={campaignId} onUpdate={onUpdate} errors={errors} />;
     case 'stats':
       return <StatsStep draft={draft} systemDef={systemDef} onUpdateStats={onUpdateStats} errors={errors} />;
     case 'custom':
@@ -342,7 +345,6 @@ function WizardContent({
       campaignId,
       name: draft.name.trim(),
       race: draft.ancestry || undefined,
-      class: draft.charClass || undefined,
       ...(systemDef.identity.level && draft.level != null ? { level: draft.level } : {}),
       stats: Object.keys(draft.stats).length > 0 ? draft.stats : undefined,
       ...(passiveScores ? { passiveScores } : {}),
@@ -352,6 +354,10 @@ function WizardContent({
       ac: draft.ac ?? 10,
       speed: draft.speed ?? 30,
       ...(portrait ? { portrait } : {}),
+      ...(draft.raceContentId ? { raceContentId: draft.raceContentId } : {}),
+      ...(draft.classContentId
+        ? { classes: [{ classContentId: draft.classContentId, className: draft.charClass || 'Unknown', level: draft.level ?? 1, isPrimary: true }] }
+        : {}),
     };
 
     try {
@@ -392,7 +398,7 @@ function WizardContent({
         {renderCurrentStep(
           currentStep?.id, draft, systemDef, errors,
           handleUpdate, handleUpdateStats, handleUpdateSystemData,
-          handleGoToStep, handleUpdateCombat,
+          handleGoToStep, handleUpdateCombat, campaignId,
         )}
 
         <div className="divider-ornate mt-6 mb-4" />

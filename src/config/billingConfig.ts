@@ -6,12 +6,12 @@ export const BILLING_CONFIG = {
       price: '$5.99',
       monthlyCredits: 200,
     },
-    pro: {
+    gamemaster: {
       label: 'Game Master',
       price: '$9.99',
       monthlyCredits: 500,
     },
-    professional: {
+    pro: {
       label: 'Pro',
       price: '$19.99',
       monthlyCredits: 1200,
@@ -21,10 +21,10 @@ export const BILLING_CONFIG = {
     price: '$4.99',
     credits: 100,
     bonusCreditsByTier: {
-      free: 100,
+      wanderer: 100,
       hobbyist: 120,
-      pro: 140,
-      professional: 160,
+      gamemaster: 140,
+      pro: 160,
     },
   },
   aiActionCosts: {

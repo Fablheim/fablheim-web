@@ -95,6 +95,8 @@ export function EncounterMapEditor({ campaignId, encounter }: EncounterMapEditor
 
   const [newTokenName, setNewTokenName] = useState('');
   const [newTokenType, setNewTokenType] = useState<MapToken['type']>('monster');
+  const [newTokenColor, setNewTokenColor] = useState('');
+  const [newTokenParticipantId, setNewTokenParticipantId] = useState<string>('');
 
   const [gridWidth, setGridWidth] = useState(encounter.gridWidth.toString());
   const [gridHeight, setGridHeight] = useState(encounter.gridHeight.toString());
@@ -324,11 +326,19 @@ export function EncounterMapEditor({ campaignId, encounter }: EncounterMapEditor
         return;
       }
       addToken.mutate(
-        { name: newTokenName.trim(), type: newTokenType, x, y },
+        {
+          name: newTokenName.trim(),
+          type: newTokenType,
+          x,
+          y,
+          color: newTokenColor || undefined,
+        },
         {
           onSuccess: () => {
             setPlacingToken(false);
             setNewTokenName('');
+            setNewTokenColor('');
+            setNewTokenParticipantId('');
             setShowAddForm(false);
             toast.success('Token placed');
           },
@@ -656,31 +666,95 @@ export function EncounterMapEditor({ campaignId, encounter }: EncounterMapEditor
   }
 
   function renderAddForm() {
+    const isCustom = newTokenParticipantId === '__custom';
+    const canPlace = newTokenName.trim().length > 0;
+
+    function pickParticipant(id: string) {
+      setNewTokenParticipantId(id);
+      if (id === '__custom' || id === '') {
+        setNewTokenName('');
+        setNewTokenColor('');
+        setNewTokenType('monster');
+        return;
+      }
+      const p = encounter.participants.find((part) => part.id === id);
+      if (p) {
+        setNewTokenName(p.name);
+        setNewTokenColor(p.tokenColor ?? '');
+        setNewTokenType(
+          p.entityType === 'enemy' ? 'monster' : p.entityType === 'companion' ? 'npc' : 'npc',
+        );
+      }
+    }
+
     return (
       <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={newTokenName}
-          onChange={(e) => setNewTokenName(e.target.value)}
-          placeholder="Name"
-          className="w-24 rounded border border-iron bg-accent/40 px-1.5 py-0.5 text-[10px] text-foreground placeholder:text-muted-foreground"
-        />
         <select
-          value={newTokenType}
-          onChange={(e) => setNewTokenType(e.target.value as MapToken['type'])}
-          className="rounded border border-iron bg-accent/40 px-1 py-0.5 text-[10px] text-foreground"
+          value={newTokenParticipantId}
+          onChange={(e) => pickParticipant(e.target.value)}
+          className="rounded border border-iron bg-accent/40 px-1 py-0.5 text-[10px] text-foreground max-w-[140px]"
         >
-          <option value="pc">PC</option>
-          <option value="npc">NPC</option>
-          <option value="monster">Monster</option>
-          <option value="other">Other</option>
+          <option value="">From roster…</option>
+          {encounter.participants.length > 0 && (
+            <>
+              {encounter.participants.filter((p) => p.entityType === 'enemy').length > 0 && (
+                <optgroup label="Enemies">
+                  {encounter.participants
+                    .filter((p) => p.entityType === 'enemy')
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                </optgroup>
+              )}
+              {encounter.participants.filter((p) => p.entityType === 'npc').length > 0 && (
+                <optgroup label="NPCs">
+                  {encounter.participants
+                    .filter((p) => p.entityType === 'npc')
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                </optgroup>
+              )}
+              {encounter.participants.filter((p) => p.entityType === 'companion').length > 0 && (
+                <optgroup label="Companions">
+                  {encounter.participants
+                    .filter((p) => p.entityType === 'companion')
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                </optgroup>
+              )}
+            </>
+          )}
+          <option value="__custom">Custom…</option>
         </select>
+
+        {isCustom && (
+          <>
+            <input
+              type="text"
+              value={newTokenName}
+              onChange={(e) => setNewTokenName(e.target.value)}
+              placeholder="Name"
+              className="w-24 rounded border border-iron bg-accent/40 px-1.5 py-0.5 text-[10px] text-foreground placeholder:text-muted-foreground"
+            />
+            <select
+              value={newTokenType}
+              onChange={(e) => setNewTokenType(e.target.value as MapToken['type'])}
+              className="rounded border border-iron bg-accent/40 px-1 py-0.5 text-[10px] text-foreground"
+            >
+              <option value="pc">PC</option>
+              <option value="npc">NPC</option>
+              <option value="monster">Monster</option>
+              <option value="other">Other</option>
+            </select>
+          </>
+        )}
+
         <button
           type="button"
-          onClick={() => {
-            if (newTokenName.trim()) setPlacingToken(true);
-          }}
-          disabled={!newTokenName.trim()}
+          onClick={() => { if (canPlace) setPlacingToken(true); }}
+          disabled={!canPlace}
           className="rounded-md border border-brass/40 bg-brass/10 px-2 py-0.5 text-[10px] text-brass hover:bg-brass/20 disabled:opacity-50 transition-colors font-[Cinzel] uppercase"
         >
           Place
@@ -691,6 +765,8 @@ export function EncounterMapEditor({ campaignId, encounter }: EncounterMapEditor
             setShowAddForm(false);
             setPlacingToken(false);
             setNewTokenName('');
+            setNewTokenColor('');
+            setNewTokenParticipantId('');
           }}
           className="text-[10px] text-muted-foreground hover:text-foreground"
         >

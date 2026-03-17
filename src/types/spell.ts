@@ -25,6 +25,9 @@ export interface Spell {
   concentration: boolean;
   system: string;
   source: string;
+  campaignId?: string | null;
+  isHomebrew?: boolean;
+  createdBy?: string | null;
 }
 
 export interface CharacterSpell {
@@ -52,5 +55,23 @@ export interface SpellQuery {
   school?: string;
   class?: string;
   search?: string;
+  system?: string;
+  campaignId?: string;
+}
+
+export interface CreateSpellPayload {
+  name: string;
+  level: number;
+  school: string;
+  castingTime: string;
+  range: string;
+  duration: string;
+  components?: string[];
+  material?: string;
+  description: string;
+  higherLevels?: string;
+  classes?: string[];
+  ritual?: boolean;
+  concentration?: boolean;
   system?: string;
 }

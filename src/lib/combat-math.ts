@@ -1,6 +1,6 @@
 import type { CharacterAttack } from '@/types/campaign';
 import type { InitiativeEntry } from '@/types/live-session';
-import type { EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyTemplate } from '@/types/creature-template';
 
 // ── Action Economy ──────────────────────────────────────────
 

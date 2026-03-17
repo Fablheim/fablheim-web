@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  Copy,
   ChevronRight,
   Heart,
   Loader2,
@@ -10,62 +9,46 @@ import {
   Shield,
   Sparkles,
   Swords,
-  Trash2,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { encountersApi } from '@/api/encounters';
-import defaultForestMap from '@/assets/battle-map.webp';
-import defaultStoneDungeonMap from '@/assets/battle-map-stone-dungeon.webp';
-import defaultOpenGrasslandMap from '@/assets/battle-map-open-grassland.webp';
 import { ImageUpload } from '@/components/ui/ImageUpload';
-import { useBattleMap } from '@/hooks/useBattleMap';
-import { useCreateEncounter, useDeleteEncounter, useEncounter, useLoadEncounter, useUpdateEncounter, useEncounters } from '@/hooks/useEncounters';
+import { EncounterMapEditor } from '@/components/encounters/EncounterMapEditor';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useSessions } from '@/hooks/useSessions';
 import { useWorldEntities } from '@/hooks/useWorldEntities';
+import { useArcs } from '@/hooks/useCampaigns';
+import type { CampaignArc } from '@/types/campaign';
 import { useAllies } from '@/hooks/useAllies';
-import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
-import {
-  useInitiative,
-  useUpdateInitiativeEntry,
-} from '@/hooks/useLiveSession';
+import { useEnemyTemplates } from '@/hooks/useCreatureTemplates';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character, WorldEntity, Ally } from '@/types/campaign';
 import type {
   EncounterParticipant,
   EncounterParticipantAttack,
+  EncounterParticipantTrait,
   EncounterParticipantType,
 } from '@/types/encounter';
-import type { EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyTemplate } from '@/types/creature-template';
 import type { ConditionDef } from '@/types/combat-rules';
-import type { InitiativeEntry } from '@/types/live-session';
-import type { EncounterDifficulty, EncounterStatus, LoadEncounterRequest } from '@/types/encounter';
+import type { EncounterDifficulty, EncounterStatus } from '@/types/encounter';
+import { shellPanelClass } from '@/lib/panel-styles';
+import { useEncounterPrepContext } from './EncounterPrepContext';
 
 interface EncounterCenterStageV2Props {
   campaignId: string;
 }
 
-type PickerType = EncounterParticipantType | null;
 type DetailSubject =
   | { kind: 'player'; character: Character }
   | { kind: 'participant'; participant: EncounterParticipant };
-
-const panelClass =
-  'rounded-[24px] border border-[hsla(32,24%,24%,0.68)] bg-[linear-gradient(180deg,hsla(26,24%,12%,0.96)_0%,hsla(22,24%,9%,0.98)_100%)] shadow-[0_30px_80px_rgba(0,0,0,0.28)]';
 
 const inputClass =
   'w-full rounded-2xl border border-[hsla(32,24%,28%,0.72)] bg-[hsla(26,22%,10%,0.9)] px-3 py-2.5 text-sm text-[hsl(38,26%,86%)] placeholder:text-[hsl(30,12%,42%)] outline-none transition focus:border-[hsla(212,42%,58%,0.42)] focus:bg-[hsla(26,22%,12%,0.94)]';
 
 const numberInputClass = `${inputClass} text-center`;
 const textareaClass = `${inputClass} min-h-[120px] resize-y`;
-const DEFAULT_MAPS = [
-  { key: 'none', label: 'No Map', url: '' },
-  { key: 'forest', label: 'Forest Clearing', url: defaultForestMap },
-  { key: 'stone', label: 'Stone Dungeon', url: defaultStoneDungeonMap },
-  { key: 'grass', label: 'Open Grassland', url: defaultOpenGrasslandMap },
-] as const;
-
 const DEFAULT_CONDITIONS: ConditionDef[] = [
   { key: 'blinded', label: 'Blinded', description: '' },
   { key: 'charmed', label: 'Charmed', description: '' },
@@ -81,80 +64,64 @@ const DEFAULT_CONDITIONS: ConditionDef[] = [
 ];
 
 export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Props) {
-  const { data: encounters } = useEncounters(campaignId);
-  const { data: battleMap } = useBattleMap(campaignId);
+  // ── Shared context ───────────────────────────────────────
+  const {
+    encounter,
+    pickerType,
+    setPickerType,
+    pickerQuery,
+    setPickerQuery,
+    updateEncounterPatch,
+    selectedKey,
+    setSelectedKey,
+    upsertParticipant,
+    removeParticipant,
+  } = useEncounterPrepContext();
+
+  // ── Data ─────────────────────────────────────────────────
   const { data: sessions } = useSessions(campaignId);
   const { data: characters } = useCharacters(campaignId);
   const { data: worldEntities } = useWorldEntities(campaignId);
   const { data: allies } = useAllies(campaignId);
   const { data: enemyTemplates } = useEnemyTemplates();
-  const { data: initiative } = useInitiative(campaignId);
+const { uploadBattleMap, progress: uploadProgress } = useFileUpload();
 
-  const createEncounter = useCreateEncounter(campaignId);
-  const deleteEncounter = useDeleteEncounter(campaignId);
-  const loadEncounter = useLoadEncounter(campaignId);
-  const { uploadBattleMap, progress: uploadProgress } = useFileUpload();
-  const updateInitiativeEntry = useUpdateInitiativeEntry(campaignId);
-
-  const [selectedEncounterId, setSelectedEncounterId] = useState<string | null>(null);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [pickerType, setPickerType] = useState<PickerType>(null);
-  const [pickerQuery, setPickerQuery] = useState('');
-  const [deltaAmount, setDeltaAmount] = useState('5');
+  // ── Local UI state ────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'notes' | 'map' | 'stat-block'>('notes');
   const [conditionDraft, setConditionDraft] = useState('');
-  const [showLoadOptions, setShowLoadOptions] = useState(false);
 
-  const hasLoadedMap = !!(
-    battleMap?.backgroundImageUrl ||
-    battleMap?.isActive ||
-    (battleMap?.tokens?.length ?? 0) > 0
-  );
-  const [loadOptions, setLoadOptions] = useState<LoadEncounterRequest>({
-    addToInitiative: true,
-    clearExisting: true,
-    clearExistingMap: true,
-    spawnTokens: hasLoadedMap,
-    autoRollInitiative: true,
-    startCombat: false,
-  });
-
-  const encounterId = selectedEncounterId;
-  const { data: encounter } = useEncounter(campaignId, encounterId ?? undefined);
-  const updateEncounter = useUpdateEncounter(campaignId, encounterId ?? '');
-
+  // ── Derived ───────────────────────────────────────────────
   const conditionOptions = DEFAULT_CONDITIONS;
   const npcEntities = useMemo(
-    () => (worldEntities ?? []).filter((entity) => entity.type === 'npc' || entity.type === 'npc_minor'),
+    () => (worldEntities ?? []).filter((e) => e.type === 'npc' || e.type === 'npc_minor'),
     [worldEntities],
   );
   const locationEntities = useMemo(
-    () => (worldEntities ?? []).filter((entity) => entity.type === 'location' || entity.type === 'location_detail'),
+    () => (worldEntities ?? []).filter((e) => e.type === 'location' || e.type === 'location_detail'),
     [worldEntities],
   );
   const participants = useMemo(() => encounter?.participants ?? [], [encounter?.participants]);
   const participantById = useMemo(
-    () => new Map(participants.map((participant) => [participant.id, participant])),
+    () => new Map(participants.map((p) => [p.id, p])),
     [participants],
   );
   const selectableKeys = useMemo(
     () => [
-      ...(characters ?? []).map((character) => `player:${character._id}`),
-      ...participants.map((participant) => `participant:${participant.id}`),
+      ...(characters ?? []).map((c) => `player:${c._id}`),
+      ...participants.map((p) => `participant:${p.id}`),
     ],
     [characters, participants],
   );
-
   const resolvedSelectedKey = useMemo(() => {
     if (!selectableKeys.length) return null;
     if (selectedKey && selectableKeys.includes(selectedKey)) return selectedKey;
     return null;
   }, [selectableKeys, selectedKey]);
-
   const detailSubject = useMemo<DetailSubject | null>(() => {
     if (!resolvedSelectedKey) return null;
     if (resolvedSelectedKey.startsWith('player:')) {
       const id = resolvedSelectedKey.replace('player:', '');
-      const character = (characters ?? []).find((item) => item._id === id);
+      const character = (characters ?? []).find((c) => c._id === id);
       return character ? { kind: 'player', character } : null;
     }
     if (resolvedSelectedKey.startsWith('participant:')) {
@@ -165,232 +132,31 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
     return null;
   }, [characters, participantById, resolvedSelectedKey]);
 
-  const linkedInitiativeEntry = useMemo<InitiativeEntry | null>(() => {
-    if (!detailSubject || !initiative?.entries?.length) return null;
-    if (detailSubject.kind === 'player') {
-      return initiative.entries.find((entry) =>
-        entry.characterId === detailSubject.character._id ||
-        entry.name.toLowerCase() === detailSubject.character.name.toLowerCase(),
-      ) ?? null;
-    }
+  // ── Participant management ────────────────────────────────
 
-    return initiative.entries.find((entry) =>
-      entry.name.toLowerCase() === detailSubject.participant.name.toLowerCase(),
-    ) ?? null;
-  }, [detailSubject, initiative]);
+  // Switch to stat-block tab when a roster item is selected from the right panel
+  useEffect(() => {
+    if (selectedKey) setActiveTab('stat-block');
+  }, [selectedKey]);
 
-  function updateEncounterPatch(patch: Record<string, unknown>) {
-    if (!encounter) return;
-    updateEncounter.mutate(patch as never, {
-      onError: () => toast.error('Failed to update encounter'),
-    });
-  }
-
-  function createBlankEncounter() {
-    const count = (encounters?.length ?? 0) + 1;
-    createEncounter.mutate(
-      { name: `Encounter ${count}`, difficulty: 'medium' },
-      {
-        onSuccess: (created) => {
-          setSelectedEncounterId(created._id);
-          setSelectedKey(null);
-          toast.success('New encounter created');
-        },
-        onError: () => toast.error('Failed to create encounter'),
-      },
-    );
-  }
-
-  function createEncounterAndContinue(onReady?: (createdId: string) => void) {
-    const count = (encounters?.length ?? 0) + 1;
-    createEncounter.mutate(
-      { name: `Encounter ${count}`, difficulty: 'medium' },
-      {
-        onSuccess: (created) => {
-          setSelectedEncounterId(created._id);
-          setSelectedKey(null);
-          toast.success('New encounter created');
-          onReady?.(created._id);
-        },
-        onError: () => toast.error('Failed to create encounter'),
-      },
-    );
-  }
-
-  function openParticipantPicker(type: EncounterParticipantType) {
-    if (encounter) {
-      setPickerType(type);
-      return;
-    }
-
-    createEncounterAndContinue(() => {
-      setPickerType(type);
-    });
-  }
-
-  async function duplicateEncounter() {
-    if (!encounter) return;
-    try {
-      const created = await createEncounter.mutateAsync({
-        name: `${encounter.name} (Copy)`,
-        description: encounter.description || undefined,
-        difficulty: encounter.difficulty,
-        estimatedXP: encounter.estimatedXP || undefined,
-        locationEntityId: encounter.locationEntityId,
-        sessionId: encounter.sessionId,
-        gridWidth: encounter.gridWidth,
-        gridHeight: encounter.gridHeight,
-        gridSquareSizeFt: encounter.gridSquareSizeFt,
-        backgroundImageUrl: encounter.backgroundImageUrl,
-        notes: encounter.notes || undefined,
-        tags: encounter.tags.length ? encounter.tags : undefined,
-      });
-
-      await encountersApi.update(campaignId, created._id, {
-        status: encounter.status,
-        tactics: encounter.tactics,
-        terrain: encounter.terrain,
-        treasure: encounter.treasure,
-        hooks: encounter.hooks,
-        npcs: encounter.npcs,
-        participants: encounter.participants,
-      });
-
-      setSelectedEncounterId(created._id);
-      toast.success('Encounter duplicated');
-    } catch {
-      toast.error('Failed to duplicate encounter');
-    }
-  }
-
-  function deleteSelectedEncounter() {
-    if (!encounter) return;
-    deleteEncounter.mutate(encounter._id, {
-      onSuccess: () => {
-        setSelectedEncounterId(null);
-        setSelectedKey(null);
-        toast.success('Encounter deleted');
-      },
-      onError: () => toast.error('Failed to delete encounter'),
-    });
-  }
-
-  function openLoadOptions() {
-    setLoadOptions((prev) => ({
-      ...prev,
-      spawnTokens: hasLoadedMap ? prev.spawnTokens : false,
-    }));
-    setShowLoadOptions(true);
-  }
-
-  function handleLoadToSession() {
-    if (!encounter) return;
-    loadEncounter.mutate(
-      {
-        encounterId: encounter._id,
-        body: {
-          ...loadOptions,
-          spawnTokens: hasLoadedMap ? loadOptions.spawnTokens : false,
-        },
-      },
-      {
-        onSuccess: () => {
-          setShowLoadOptions(false);
-          toast.success('Encounter loaded into session');
-        },
-        onError: () => toast.error('Failed to load encounter'),
-      },
-    );
-  }
-
-  function upsertParticipant(nextParticipant: EncounterParticipant) {
-    if (!encounter) return;
-    const nextParticipants = participants.some((participant) => participant.id === nextParticipant.id)
-      ? participants.map((participant) => (participant.id === nextParticipant.id ? nextParticipant : participant))
-      : [...participants, nextParticipant];
-    updateEncounterPatch({ participants: nextParticipants });
-  }
-
-  function removeParticipant(participantId: string) {
-    if (!encounter) return;
-    updateEncounterPatch({
-      participants: participants.filter((participant) => participant.id !== participantId),
-    });
-    setSelectedKey(null);
-  }
-
-  function applyPrepHpDelta(participant: EncounterParticipant, delta: number) {
-    const current = participant.hpCurrent ?? participant.hpMax ?? 0;
-    const max = participant.hpMax ?? participant.hpCurrent ?? 0;
-    upsertParticipant({
-      ...participant,
-      hpCurrent: max ? clamp(current + delta, 0, max) : Math.max(0, current + delta),
-    });
-  }
-
-  function applyInitiativeHpDelta(entry: InitiativeEntry, delta: number) {
-    const current = entry.currentHp ?? 0;
-    const max = entry.maxHp ?? current;
-    updateInitiativeEntry.mutate(
-      {
-        entryId: entry.id,
-        body: { currentHp: max ? clamp(current + delta, 0, max) : Math.max(0, current + delta) },
-      },
-      { onError: () => toast.error('Failed to update HP') },
-    );
-  }
-
-  function addPrepCondition(participant: EncounterParticipant, condition: string) {
-    if (!condition) return;
-    if (participant.conditions.includes(condition)) return;
+  function addCondition(participant: EncounterParticipant, condition: string) {
+    if (!condition || participant.conditions.includes(condition)) return;
     upsertParticipant({ ...participant, conditions: [...participant.conditions, condition] });
     setConditionDraft('');
   }
 
-  function removePrepCondition(participant: EncounterParticipant, condition: string) {
-    upsertParticipant({
-      ...participant,
-      conditions: participant.conditions.filter((item) => item !== condition),
-    });
-  }
-
-  function addInitiativeCondition(entry: InitiativeEntry, condition: string) {
-    if (!condition) return;
-    const current = entry.conditions ?? [];
-    if (current.some((item) => item.name === condition)) return;
-    updateInitiativeEntry.mutate(
-      {
-        entryId: entry.id,
-        body: {
-          conditions: [
-            ...current,
-            { id: safeId('cond'), name: condition },
-          ],
-        },
-      },
-      { onError: () => toast.error('Failed to add condition') },
-    );
-    setConditionDraft('');
-  }
-
-  function removeInitiativeCondition(entry: InitiativeEntry, condition: string) {
-    updateInitiativeEntry.mutate(
-      {
-        entryId: entry.id,
-        body: {
-          conditions: (entry.conditions ?? []).filter((item) => item.name !== condition),
-        },
-      },
-      { onError: () => toast.error('Failed to remove condition') },
-    );
+  function removeCondition(participant: EncounterParticipant, condition: string) {
+    upsertParticipant({ ...participant, conditions: participant.conditions.filter((c) => c !== condition) });
   }
 
   function addParticipantFromTemplate(template: EnemyTemplate) {
+    const existingCount = participants.filter((p) => p.entityId === template._id).length;
+    const name = existingCount > 0 ? `${template.name} ${existingCount + 1}` : template.name;
     const participant: EncounterParticipant = {
       id: safeId('encp'),
       entityType: 'enemy',
       entityId: template._id,
-      name: template.name,
+      name,
       sourceLabel: template.source || template.category,
       hpCurrent: template.hp.average,
       hpMax: template.hp.average,
@@ -399,39 +165,38 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
       speed: formatEnemySpeed(template),
       conditions: [],
       notes: template.notes,
-      attacks: template.attacks.map((attack) => ({
-        name: attack.name,
-        bonus: attack.bonus,
-        damage: attack.damage,
-        notes: attack.description,
-      })),
+      cr: template.cr,
+      size: template.size,
+      abilities: template.abilities,
+      tokenImage: template.tokenImage,
+      tokenColor: template.tokenColor,
+      attacks: template.attacks.map((a) => ({ name: a.name, bonus: a.bonus, damage: a.damage, actionCost: a.actionCost, range: a.range, notes: a.description })),
+      traits: template.traits.map((t) => ({ name: t.name, description: t.description })),
     };
     upsertParticipant(participant);
     setSelectedKey(`participant:${participant.id}`);
-    setPickerType(null);
-    toast.success(`${template.name} added to encounter`);
+    toast.success(`${template.name} added`);
   }
 
   function addParticipantFromNpc(entity: WorldEntity) {
-    const typeData = (entity.typeData ?? {}) as Record<string, unknown>;
+    const td = (entity.typeData ?? {}) as Record<string, unknown>;
     const participant: EncounterParticipant = {
       id: safeId('encp'),
       entityType: 'npc',
       entityId: entity._id,
       name: entity.name,
       sourceLabel: entity.type === 'npc_minor' ? 'Minor NPC' : 'NPC',
-      hpCurrent: readNumber(typeData.hp),
-      hpMax: readNumber(typeData.hp),
-      ac: readNumber(typeData.ac),
-      initiativeBonus: readNumber(typeData.initiativeBonus) ?? 0,
-      speed: readString(typeData.speed),
+      hpCurrent: readNumber(td.hp),
+      hpMax: readNumber(td.hp),
+      ac: readNumber(td.ac),
+      initiativeBonus: readNumber(td.initiativeBonus) ?? 0,
+      speed: readString(td.speed),
       conditions: [],
       notes: entity.description,
     };
     upsertParticipant(participant);
     setSelectedKey(`participant:${participant.id}`);
-    setPickerType(null);
-    toast.success(`${entity.name} added to encounter`);
+    toast.success(`${entity.name} added`);
   }
 
   function addParticipantFromCompanion(ally: Ally) {
@@ -448,29 +213,33 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
       speed: ally.statBlock.speed,
       conditions: [],
       notes: ally.statBlock.notes || ally.notes || ally.description,
-      attacks: ally.statBlock.actions
-        ? [{ name: 'Actions', notes: ally.statBlock.actions }]
-        : undefined,
+      attacks: ally.statBlock.actions ? [{ name: 'Actions', notes: ally.statBlock.actions }] : undefined,
     };
     upsertParticipant(participant);
     setSelectedKey(`participant:${participant.id}`);
-    setPickerType(null);
-    toast.success(`${ally.name} added to encounter`);
+    toast.success(`${ally.name} added`);
   }
 
   function saveDetailNotes(value: string) {
-    if (!detailSubject) return;
-    if (detailSubject.kind === 'participant') {
+    if (detailSubject?.kind === 'participant') {
       upsertParticipant({ ...detailSubject.participant, notes: value });
     }
-    if (linkedInitiativeEntry) {
-      updateInitiativeEntry.mutate(
-        {
-          entryId: linkedInitiativeEntry.id,
-          body: { notes: value },
-        },
-        { onError: () => toast.error('Failed to update notes') },
-      );
+  }
+
+  function saveParticipantField(field: 'name' | 'hpMax' | 'ac', value: string) {
+    if (detailSubject?.kind !== 'participant') return;
+    const p = detailSubject.participant;
+    if (field === 'name') {
+      const trimmed = value.trim();
+      if (trimmed) upsertParticipant({ ...p, name: trimmed });
+    } else if (field === 'hpMax') {
+      const n = Number(value);
+      if (!Number.isNaN(n) && n >= 0) {
+        upsertParticipant({ ...p, hpMax: n, hpCurrent: Math.min(p.hpCurrent ?? n, n) });
+      }
+    } else if (field === 'ac') {
+      const n = Number(value);
+      if (!Number.isNaN(n)) upsertParticipant({ ...p, ac: n || undefined });
     }
   }
 
@@ -479,232 +248,14 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return;
     upsertParticipant({ ...detailSubject.participant, initiativeBonus: numeric });
-    if (linkedInitiativeEntry) {
-      updateInitiativeEntry.mutate(
-        {
-          entryId: linkedInitiativeEntry.id,
-          body: { initiativeRoll: numeric },
-        },
-        { onError: () => toast.error('Failed to update initiative') },
-      );
-    }
   }
 
-  const participantCount = (characters?.length ?? 0) + participants.length;
-  const associatedSession = sessions?.find((session) => session._id === encounter?.sessionId);
+  // ── Render ────────────────────────────────────────────────
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top,hsla(18,48%,20%,0.14),transparent_34%),linear-gradient(180deg,hsl(222,18%,8%)_0%,hsl(20,20%,7%)_100%)] text-[hsl(38,24%,88%)]">
-      <div className="shrink-0 border-b border-[hsla(32,24%,24%,0.4)] px-4 py-3">
-        <p className="text-[10px] uppercase tracking-[0.26em] text-[hsl(212,24%,66%)]">Encounter Desk</p>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-['IM_Fell_English'] text-[28px] leading-none text-[hsl(38,42%,90%)]">
-              {encounter?.name ?? 'Encounters'}
-            </h2>
-            <p className="mt-2 text-xs text-[hsl(30,14%,62%)]">
-              Build the battle before the session: assemble participants, tune combat stats, and link the encounter to the right scene.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <MetaPill icon={Swords} label="Difficulty" value={encounter?.difficulty ?? 'draft'} />
-            <MetaPill icon={Users} label="Participants" value={String(participantCount)} />
-            <MetaPill icon={ScrollText} label="Session" value={associatedSession?.title ?? 'Unlinked'} />
-            {initiative?.isActive && <MetaPill icon={Sparkles} label="Live Session" value="Combat Active" />}
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => openParticipantPicker('enemy')} className={actionButtonClass()}>
-            <Plus className="h-4 w-4" />
-            Add Enemy
-          </button>
-          <button type="button" onClick={() => openParticipantPicker('npc')} className={actionButtonClass()}>
-            <Plus className="h-4 w-4" />
-            Add NPC
-          </button>
-          <button type="button" onClick={() => openParticipantPicker('companion')} className={actionButtonClass()}>
-            <Plus className="h-4 w-4" />
-            Add Companion
-          </button>
-          <button type="button" onClick={duplicateEncounter} disabled={!encounter || createEncounter.isPending} className={actionButtonClass()}>
-            <Copy className="h-4 w-4" />
-            Duplicate
-          </button>
-          <button type="button" onClick={deleteSelectedEncounter} disabled={!encounter || deleteEncounter.isPending} className={actionButtonClass()}>
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={openLoadOptions}
-            disabled={!encounter || loadEncounter.isPending}
-            className={actionButtonClass(true)}
-          >
-            <Sparkles className="h-4 w-4" />
-            {loadEncounter.isPending ? 'Loading…' : 'Load to Session'}
-          </button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
-        <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className={`${panelClass} min-h-0 overflow-visible`}>
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="relative z-20 shrink-0 border-b border-[hsla(32,24%,24%,0.42)] px-4 py-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Encounter Roster</p>
-                <div className="mt-3 flex items-center gap-2">
-                  <select
-                    value={encounterId ?? ''}
-                    onChange={(event) => setSelectedEncounterId(event.target.value || null)}
-                    className={inputClass}
-                  >
-                    <option value="">
-                      {(encounters ?? []).length ? 'Select an encounter' : 'No encounters yet'}
-                    </option>
-                    {(encounters ?? []).map((item) => (
-                      <option key={item._id} value={item._id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={() => createEncounterAndContinue()} className={actionButtonClass(true)}>
-                    <Plus className="h-4 w-4" />
-                    New
-                  </button>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                {!encounter ? (
-                  <EmptyEncounterState onCreate={createBlankEncounter} />
-                ) : (
-                  <>
-                    {initiative?.isActive && (
-                      <div className="mb-4 rounded-[16px] border border-[hsla(42,62%,52%,0.24)] bg-[hsla(42,52%,16%,0.24)] px-3 py-3 text-sm text-[hsl(38,34%,82%)]">
-                        Combat is currently active in the live session. This page stays in prep mode so you can keep shaping the encounter without turning into the combat runner.
-                      </div>
-                    )}
-                  <PrepRoster
-                    characters={characters ?? []}
-                    participants={participants}
-                    selectedKey={resolvedSelectedKey}
-                    onSelect={setSelectedKey}
-                  />
-                  </>
-                )}
-              </div>
-            </div>
-          </aside>
-
-          <section className={`${panelClass} min-h-0 overflow-visible`}>
-            <div className="flex h-full min-h-0 flex-col">
-              {encounter && (
-                <div className="relative z-10 shrink-0 border-b border-[hsla(32,24%,24%,0.42)] px-5 py-4">
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-                    <label>
-                      <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Encounter Title</span>
-                      <input
-                        defaultValue={encounter.name}
-                        onBlur={(event) => {
-                          const value = event.target.value.trim();
-                          if (value && value !== encounter.name) updateEncounterPatch({ name: value });
-                        }}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label>
-                      <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Associated Session</span>
-                      <select
-                        value={encounter.sessionId ?? ''}
-                        onChange={(event) => updateEncounterPatch({ sessionId: event.target.value || null })}
-                        className={inputClass}
-                      >
-                        <option value="">No linked session</option>
-                        {(sessions ?? []).map((session) => (
-                          <option key={session._id} value={session._id}>
-                            {session.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                  {encounter && (
-                    <EncounterDossier
-                      encounter={encounter}
-                      locationEntities={locationEntities}
-                      sessions={sessions ?? []}
-                      onPatch={updateEncounterPatch}
-                    />
-                  )}
-
-                  {encounter && (
-                    <EncounterBattlemapPrep
-                      key={`${encounter._id}-${encounter.updatedAt}`}
-                      encounter={encounter}
-                      uploadProgress={uploadProgress}
-                      uploadPending={uploadBattleMap.isPending}
-                      onUpload={(file) => {
-                        uploadBattleMap.mutate(
-                          { file, campaignId },
-                          {
-                            onSuccess: (result) => {
-                              updateEncounterPatch({ backgroundImageUrl: result.url });
-                              toast.success('Battlemap uploaded');
-                            },
-                            onError: () => toast.error('Failed to upload battlemap'),
-                          },
-                        );
-                      }}
-                      onPatch={updateEncounterPatch}
-                    />
-                  )}
-
-                  <ParticipantDetail
-                    subject={detailSubject}
-                    encounter={encounter ?? null}
-                    characters={characters ?? []}
-                    participantCount={participants.length}
-                    linkedInitiativeEntry={linkedInitiativeEntry}
-                    conditionOptions={conditionOptions}
-                    deltaAmount={deltaAmount}
-                    onDeltaAmountChange={setDeltaAmount}
-                    onSaveInitiative={saveInitiativeValue}
-                    conditionDraft={conditionDraft}
-                    onConditionDraftChange={setConditionDraft}
-                    onApplyDamage={(amount) => {
-                      if (!detailSubject) return;
-                      if (detailSubject.kind === 'participant') applyPrepHpDelta(detailSubject.participant, -amount);
-                      if (linkedInitiativeEntry) applyInitiativeHpDelta(linkedInitiativeEntry, -amount);
-                    }}
-                    onApplyHeal={(amount) => {
-                      if (!detailSubject) return;
-                      if (detailSubject.kind === 'participant') applyPrepHpDelta(detailSubject.participant, amount);
-                      if (linkedInitiativeEntry) applyInitiativeHpDelta(linkedInitiativeEntry, amount);
-                    }}
-                    onAddCondition={() => {
-                      if (!conditionDraft || !detailSubject) return;
-                      if (detailSubject.kind === 'participant') addPrepCondition(detailSubject.participant, conditionDraft);
-                      if (linkedInitiativeEntry) addInitiativeCondition(linkedInitiativeEntry, conditionDraft);
-                    }}
-                    onRemoveCondition={(condition) => {
-                      if (!detailSubject) return;
-                      if (detailSubject.kind === 'participant') removePrepCondition(detailSubject.participant, condition);
-                      if (linkedInitiativeEntry) removeInitiativeCondition(linkedInitiativeEntry, condition);
-                    }}
-                    onSaveNotes={saveDetailNotes}
-                    onRemoveParticipant={(participantId) => removeParticipant(participantId)}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+    <div className="flex h-full min-h-0 flex-col bg-[radial-gradient(circle_at_top,hsla(18,48%,20%,0.14),transparent_34%),linear-gradient(180deg,hsl(222,18%,8%)_0%,hsl(20,20%,7%)_100%)] text-[hsl(38,24%,88%)]">
+      <div className="min-h-0 flex-1 p-4">
+        {renderSection()}
       </div>
 
       {pickerType && encounter && (
@@ -712,10 +263,7 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
           type={pickerType}
           query={pickerQuery}
           onQueryChange={setPickerQuery}
-          onClose={() => {
-            setPickerType(null);
-            setPickerQuery('');
-          }}
+          onClose={() => { setPickerType(null); setPickerQuery(''); }}
           enemyTemplates={enemyTemplates ?? []}
           npcEntities={npcEntities}
           allies={allies ?? []}
@@ -724,93 +272,141 @@ export function EncounterCenterStageV2({ campaignId }: EncounterCenterStageV2Pro
           onPickCompanion={addParticipantFromCompanion}
         />
       )}
+    </div>
+  );
 
-      {showLoadOptions && encounter && (
-        <LoadEncounterModal
-          encounterName={encounter.name}
-          options={loadOptions}
-          hasLoadedMap={hasLoadedMap}
-          pending={loadEncounter.isPending}
-          onChange={(patch) => setLoadOptions((prev) => ({ ...prev, ...patch }))}
-          onClose={() => setShowLoadOptions(false)}
-          onConfirm={handleLoadToSession}
+  // ── Section ───────────────────────────────────────────────
+
+  function renderSection() {
+    return (
+      <section className={`${shellPanelClass} flex-1 min-h-0 flex flex-col overflow-hidden`}>
+        {encounter && renderSectionHeader()}
+        {renderNotesTab()}
+        {renderMapTab()}
+        {renderStatBlockTab()}
+      </section>
+    );
+  }
+
+  function renderSectionHeader() {
+    if (!encounter) return null;
+    return (
+      <div className="relative z-10 shrink-0 border-b border-[hsla(32,24%,24%,0.42)]">
+        <TabStrip
+          active={activeTab}
+          onSelect={setActiveTab}
+          statBlockLabel={detailSubject?.kind === 'participant' ? detailSubject.participant.name : undefined}
+          onCloseStatBlock={activeTab === 'stat-block' ? () => { setSelectedKey(null); setActiveTab('notes'); } : undefined}
         />
-      )}
-    </div>
-  );
-}
-
-function EmptyEncounterState({ onCreate }: { onCreate: () => void }) {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <div className="max-w-sm text-center">
-        <p className="font-['IM_Fell_English'] text-2xl text-[hsl(38,40%,90%)]">No encounter yet.</p>
-        <p className="mt-3 text-sm leading-7 text-[hsl(30,14%,58%)]">
-          Start by creating an encounter, then add enemies, NPCs, and companions into the roster from the header actions.
-        </p>
-        <button type="button" onClick={onCreate} className={`${actionButtonClass(true)} mt-5`}>
-          <Plus className="h-4 w-4" />
-          Create Your First Encounter
-        </button>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function PrepRoster({
-  characters,
-  participants,
-  selectedKey,
-  onSelect,
-}: {
-  characters: Character[];
-  participants: EncounterParticipant[];
-  selectedKey: string | null;
-  onSelect: (key: string) => void;
-}) {
-  const groups = [
-    { label: 'Players', rows: characters.map((character) => ({ key: `player:${character._id}`, name: character.name, subtitle: character.class ? `${character.class} ${character.level}` : `Level ${character.level}`, hpCurrent: character.hp.current, hpMax: character.hp.max, ac: character.ac, conditions: character.conditions })) },
-    { label: 'Companions', rows: participants.filter((participant) => participant.entityType === 'companion').map(toParticipantRow) },
-    { label: 'NPCs', rows: participants.filter((participant) => participant.entityType === 'npc').map(toParticipantRow) },
-    { label: 'Enemies', rows: participants.filter((participant) => participant.entityType === 'enemy').map(toParticipantRow) },
-  ];
-
-  return (
-    <div className="space-y-5">
-      {groups.map((group) => (
-        <div key={group.label}>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">{group.label}</p>
-          <div className="mt-2 space-y-2">
-            {group.rows.length ? group.rows.map((row) => (
-              <button
-                key={row.key}
-                type="button"
-                onClick={() => onSelect(row.key)}
-                className={`w-full rounded-[16px] border px-3 py-3 text-left transition ${
-                  selectedKey === row.key
-                    ? 'border-[hsla(212,42%,58%,0.36)] bg-[hsla(212,42%,58%,0.1)]'
-                    : 'border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] hover:border-[hsla(212,24%,34%,0.42)]'
-                }`}
-              >
-                <RosterRow row={row} />
-              </button>
-            )) : (
-              <p className="rounded-[16px] border border-[hsla(32,24%,24%,0.36)] bg-[hsla(22,18%,10%,0.5)] px-3 py-3 text-sm text-[hsl(30,14%,52%)]">
-                No {group.label.toLowerCase()} in this encounter yet.
-              </p>
-            )}
-          </div>
+  function renderNotesTab() {
+    if (encounter && activeTab !== 'notes') return null;
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[840px] px-4 py-5 pb-10">
+          {encounter ? (
+            <EncounterDossier
+              encounter={encounter}
+              locationEntities={locationEntities}
+              sessions={(sessions ?? []).filter((s): s is typeof s & { title: string } => !!s.title)}
+              playerCount={characters?.length ?? 0}
+              onPatch={updateEncounterPatch}
+              campaignId={campaignId}
+              encounterId={encounter._id}
+            />
+          ) : (
+            <ParticipantDetail
+              subject={null}
+              encounter={null}
+              characters={characters ?? []}
+              participantCount={0}
+              conditionOptions={conditionOptions}
+              onSaveInitiative={saveInitiativeValue}
+              conditionDraft={conditionDraft}
+              onConditionDraftChange={setConditionDraft}
+              onAddCondition={() => {}}
+              onRemoveCondition={() => {}}
+              onSaveNotes={saveDetailNotes}
+              onSaveParticipantField={saveParticipantField}
+              onRemoveParticipant={removeParticipant}
+            />
+          )}
         </div>
-      ))}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  function renderMapTab() {
+    if (!encounter || activeTab !== 'map') return null;
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-10">
+        <EncounterBattlemapSection
+          encounter={encounter}
+          campaignId={campaignId}
+          uploadProgress={uploadProgress}
+          uploadPending={uploadBattleMap.isPending}
+          onUpload={(file) => {
+            uploadBattleMap.mutate(
+              { file, campaignId },
+              {
+                onSuccess: (result) => {
+                  updateEncounterPatch({ backgroundImageUrl: result.url });
+                  toast.success('Battlemap uploaded');
+                },
+                onError: () => toast.error('Failed to upload battlemap'),
+              },
+            );
+          }}
+        />
+      </div>
+    );
+  }
+
+  function renderStatBlockTab() {
+    if (!encounter || activeTab !== 'stat-block') return null;
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[840px] px-4 py-5 pb-10">
+          <ParticipantDetail
+            subject={detailSubject}
+            encounter={encounter}
+            characters={characters ?? []}
+            participantCount={participants.length}
+            conditionOptions={conditionOptions}
+            onSaveInitiative={saveInitiativeValue}
+            conditionDraft={conditionDraft}
+            onConditionDraftChange={setConditionDraft}
+            onAddCondition={() => {
+              if (!conditionDraft || detailSubject?.kind !== 'participant') return;
+              addCondition(detailSubject.participant, conditionDraft);
+            }}
+            onRemoveCondition={(condition) => {
+              if (detailSubject?.kind !== 'participant') return;
+              removeCondition(detailSubject.participant, condition);
+            }}
+            onSaveNotes={saveDetailNotes}
+            onSaveParticipantField={saveParticipantField}
+            onRemoveParticipant={removeParticipant}
+          />
+        </div>
+      </div>
+    );
+  }
 }
+
+// ── Sub-components ────────────────────────────────────────────
 
 function EncounterDossier({
   encounter,
   locationEntities,
   sessions,
+  playerCount,
   onPatch,
+  campaignId,
+  encounterId,
 }: {
   encounter: {
     name: string;
@@ -829,18 +425,41 @@ function EncounterDossier({
   };
   locationEntities: WorldEntity[];
   sessions: Array<{ _id: string; title: string }>;
+  playerCount: number;
   onPatch: (patch: Record<string, unknown>) => void;
+  campaignId: string;
+  encounterId: string;
 }) {
+  const { data: arcsData } = useArcs(campaignId);
+  const linkedArcs = useMemo(() => {
+    if (!arcsData) return [];
+    return (arcsData as CampaignArc[]).filter(
+      (arc) => arc.links?.encounterIds?.includes(encounterId),
+    );
+  }, [arcsData, encounterId]);
+
   return (
-    <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Encounter Dossier</p>
-          <h3 className="mt-1 font-['IM_Fell_English'] text-[28px] leading-none text-[hsl(38,40%,90%)]">
-            Prep Notes & Framing
-          </h3>
+    <div>
+      {linkedArcs.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Advances</span>
+          {linkedArcs.slice(0, 3).map((arc) => (
+            <span
+              key={arc._id}
+              className="inline-flex items-center gap-1 rounded-full border border-[hsla(38,60%,52%,0.32)] bg-[hsla(38,60%,52%,0.1)] px-2 py-0.5 text-[10px] font-medium text-[hsl(38,82%,63%)]"
+            >
+              {arc.name}
+              <span className="text-[9px] opacity-60">{arc.status}</span>
+            </span>
+          ))}
+          {linkedArcs.length > 3 && (
+            <span className="text-[10px] text-[hsl(30,12%,58%)]">+{linkedArcs.length - 3} more</span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
+      )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Prep Notes & Framing</p>
+        <div className="flex flex-wrap gap-1.5">
           <DetailBadge>{startCase(encounter.difficulty)}</DetailBadge>
           <DetailBadge>{startCase(encounter.status)}</DetailBadge>
           <DetailBadge>{encounter.estimatedXP ? `${encounter.estimatedXP} XP` : 'XP unset'}</DetailBadge>
@@ -852,7 +471,7 @@ function EncounterDossier({
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Description</span>
           <textarea
             defaultValue={encounter.description}
-            onBlur={(event) => onPatch({ description: event.target.value })}
+            onBlur={(e) => onPatch({ description: e.target.value })}
             rows={4}
             className={`${inputClass} min-h-[110px] resize-y`}
             placeholder="What is the setup, pressure, or battlefield fiction for this encounter?"
@@ -862,29 +481,17 @@ function EncounterDossier({
         <div className="grid gap-3 sm:grid-cols-2">
           <label>
             <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Difficulty</span>
-            <select
-              value={encounter.difficulty}
-              onChange={(event) => onPatch({ difficulty: event.target.value as EncounterDifficulty })}
-              className={inputClass}
-            >
-              {['easy', 'medium', 'hard', 'deadly'].map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {startCase(difficulty)}
-                </option>
+            <select value={encounter.difficulty} onChange={(e) => onPatch({ difficulty: e.target.value as EncounterDifficulty })} className={inputClass}>
+              {['easy', 'medium', 'hard', 'deadly'].map((d) => (
+                <option key={d} value={d}>{startCase(d)}</option>
               ))}
             </select>
           </label>
           <label>
             <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Status</span>
-            <select
-              value={encounter.status}
-              onChange={(event) => onPatch({ status: event.target.value as EncounterStatus })}
-              className={inputClass}
-            >
-              {['draft', 'ready', 'used'].map((status) => (
-                <option key={status} value={status}>
-                  {startCase(status)}
-                </option>
+            <select value={encounter.status} onChange={(e) => onPatch({ status: e.target.value as EncounterStatus })} className={inputClass}>
+              {['draft', 'ready', 'used'].map((s) => (
+                <option key={s} value={s}>{startCase(s)}</option>
               ))}
             </select>
           </label>
@@ -892,102 +499,71 @@ function EncounterDossier({
             <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Estimated XP</span>
             <input
               defaultValue={encounter.estimatedXP || ''}
-              onBlur={(event) => onPatch({ estimatedXP: Number(event.target.value) || 0 })}
+              onBlur={(e) => onPatch({ estimatedXP: Number(e.target.value) || 0 })}
               inputMode="numeric"
               className={inputClass}
             />
+            {encounter.estimatedXP > 0 && playerCount > 0 && (
+              <p className="mt-1 text-[10px] text-[hsl(30,12%,52%)]">
+                ~{Math.round(encounter.estimatedXP / playerCount).toLocaleString()} per player ({playerCount}p)
+              </p>
+            )}
           </label>
           <label>
             <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Location</span>
-            <select
-              value={encounter.locationEntityId ?? ''}
-              onChange={(event) => onPatch({ locationEntityId: event.target.value || null })}
-              className={inputClass}
-            >
+            <select value={encounter.locationEntityId ?? ''} onChange={(e) => onPatch({ locationEntityId: e.target.value || null })} className={inputClass}>
               <option value="">No linked location</option>
-              {locationEntities.map((location) => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
+              {locationEntities.map((loc) => (
+                <option key={loc._id} value={loc._id}>{loc.name}</option>
               ))}
             </select>
           </label>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Session Link</span>
-            <select
-              value={encounter.sessionId ?? ''}
-              onChange={(event) => onPatch({ sessionId: event.target.value || null })}
-              className={inputClass}
-            >
+            <select value={encounter.sessionId ?? ''} onChange={(e) => onPatch({ sessionId: e.target.value || null })} className={inputClass}>
               <option value="">No linked session</option>
-              {sessions.map((session) => (
-                <option key={session._id} value={session._id}>
-                  {session.title}
-                </option>
+              {sessions.map((s) => (
+                <option key={s._id} value={s._id}>{s.title}</option>
               ))}
             </select>
           </label>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3 border-t border-[hsla(32,24%,24%,0.36)] pt-4 lg:grid-cols-2">
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Tactics</span>
-          <textarea
-            defaultValue={encounter.tactics ?? ''}
-            onBlur={(event) => onPatch({ tactics: event.target.value })}
-            className={textareaClass}
-            placeholder="How do these participants fight, retreat, or coordinate?"
-          />
+          <textarea defaultValue={encounter.tactics ?? ''} onBlur={(e) => onPatch({ tactics: e.target.value })} className={textareaClass} placeholder="How do these participants fight, retreat, or coordinate?" />
         </label>
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Terrain</span>
-          <textarea
-            defaultValue={encounter.terrain ?? ''}
-            onBlur={(event) => onPatch({ terrain: event.target.value })}
-            className={textareaClass}
-            placeholder="Chokepoints, hazards, verticality, visibility, cover…"
-          />
+          <textarea defaultValue={encounter.terrain ?? ''} onBlur={(e) => onPatch({ terrain: e.target.value })} className={textareaClass} placeholder="Chokepoints, hazards, verticality, visibility, cover…" />
         </label>
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Treasure / Aftermath</span>
-          <textarea
-            defaultValue={encounter.treasure ?? ''}
-            onBlur={(event) => onPatch({ treasure: event.target.value })}
-            className={textareaClass}
-            placeholder="Loot, clues, consequences, or rewards."
-          />
+          <textarea defaultValue={encounter.treasure ?? ''} onBlur={(e) => onPatch({ treasure: e.target.value })} className={textareaClass} placeholder="Loot, clues, consequences, or rewards." />
         </label>
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Hooks</span>
           <textarea
             defaultValue={encounter.hooks.join('\n')}
-            onBlur={(event) => onPatch({
-              hooks: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean),
-            })}
+            onBlur={(e) => onPatch({ hooks: e.target.value.split('\n').map((h) => h.trim()).filter(Boolean) })}
             className={textareaClass}
             placeholder="One beat per line."
           />
         </label>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3 border-t border-[hsla(32,24%,24%,0.36)] pt-4 lg:grid-cols-2">
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">GM Notes</span>
-          <textarea
-            defaultValue={encounter.notes}
-            onBlur={(event) => onPatch({ notes: event.target.value })}
-            className={`${textareaClass} min-h-[150px]`}
-            placeholder="Private reminders, pacing notes, fallback plans."
-          />
+          <textarea defaultValue={encounter.notes} onBlur={(e) => onPatch({ notes: e.target.value })} className={`${textareaClass} min-h-[150px]`} placeholder="Private reminders, pacing notes, fallback plans." />
         </label>
         <label>
           <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Tags</span>
           <textarea
             defaultValue={encounter.tags.join(', ')}
-            onBlur={(event) => onPatch({
-              tags: event.target.value.split(',').map((item) => item.trim()).filter(Boolean),
-            })}
+            onBlur={(e) => onPatch({ tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
             className={textareaClass}
             placeholder="ambush, social pressure, boss fight, city watch"
           />
@@ -997,257 +573,53 @@ function EncounterDossier({
   );
 }
 
-function EncounterBattlemapPrep({
+function EncounterBattlemapSection({
   encounter,
+  campaignId,
   uploadProgress,
   uploadPending,
   onUpload,
-  onPatch,
 }: {
-  encounter: {
-    gridWidth: number;
-    gridHeight: number;
-    gridSquareSizeFt: number;
-    backgroundImageUrl?: string;
-    tokens: Array<{ id: string }>;
-  };
+  encounter: import('@/types/encounter').Encounter;
+  campaignId: string;
   uploadProgress: { percentage: number } | null;
   uploadPending: boolean;
   onUpload: (file: File) => void;
-  onPatch: (patch: Record<string, unknown>) => void;
 }) {
-  const [gridWidth, setGridWidth] = useState(String(encounter.gridWidth));
-  const [gridHeight, setGridHeight] = useState(String(encounter.gridHeight));
-  const [gridSquareSizeFt, setGridSquareSizeFt] = useState(String(encounter.gridSquareSizeFt));
-  const [bgUrl, setBgUrl] = useState(encounter.backgroundImageUrl ?? '');
-
-  function applyMapSettings() {
-    const width = Number.parseInt(gridWidth, 10);
-    const height = Number.parseInt(gridHeight, 10);
-    const squareFeet = Number.parseInt(gridSquareSizeFt, 10);
-
-    if (!width || width < 5 || width > 100) {
-      toast.error('Grid width must be between 5 and 100');
-      return;
-    }
-    if (!height || height < 5 || height > 100) {
-      toast.error('Grid height must be between 5 and 100');
-      return;
-    }
-    if (!squareFeet || squareFeet < 1 || squareFeet > 30) {
-      toast.error('Grid square size must be between 1 and 30 feet');
-      return;
-    }
-
-    onPatch({
-      gridWidth: width,
-      gridHeight: height,
-      gridSquareSizeFt: squareFeet,
-      backgroundImageUrl: bgUrl.trim() || undefined,
-    });
-    toast.success('Battlemap settings saved');
-  }
-
   return (
-    <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Battlemap Setup</p>
-          <h3 className="mt-1 font-['IM_Fell_English'] text-[28px] leading-none text-[hsl(38,40%,90%)]">
-            Staging Ground
-          </h3>
-          <p className="mt-2 text-sm leading-7 text-[hsl(30,14%,58%)]">
-            Upload or choose a map, set the grid, and make sure the encounter will land cleanly in session.
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Battlemap Setup</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-[hsl(30,13%,62%)]">
+            Pre-place tokens on the grid before loading into session.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <DetailBadge>{encounter.gridWidth} x {encounter.gridHeight}</DetailBadge>
           <DetailBadge>{encounter.gridSquareSizeFt} ft squares</DetailBadge>
           <DetailBadge>{encounter.tokens.length} saved token{encounter.tokens.length === 1 ? '' : 's'}</DetailBadge>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <div className="rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] p-4">
-            <ImageUpload
-              onFileSelect={onUpload}
-              maxSizeMB={10}
-              currentImage={bgUrl || undefined}
-              label="Battlemap Upload"
-            />
-            {uploadPending && (
-              <div className="mt-3 space-y-2">
-                <div className="inline-flex items-center gap-2 text-xs text-[hsl(30,14%,58%)]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Uploading map...
-                </div>
+      <div className="mt-3 flex items-center gap-3">
+        <ImageUpload onFileSelect={onUpload} maxSizeMB={10} label="Upload Map" compact />
+        {uploadPending && (
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-[hsl(30,14%,58%)]">
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            <div className="min-w-0 flex-1">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[hsla(32,24%,20%,0.8)]">
                 {uploadProgress && (
-                  <div className="h-2 overflow-hidden rounded-full bg-[hsla(32,24%,20%,0.8)]">
-                    <div
-                      className="h-full rounded-full bg-[hsl(42,72%,52%)] transition-all"
-                      style={{ width: `${uploadProgress.percentage}%` }}
-                    />
-                  </div>
+                  <div className="h-full rounded-full bg-[hsl(42,72%,52%)] transition-all" style={{ width: `${uploadProgress.percentage}%` }} />
                 )}
               </div>
-            )}
-          </div>
-
-          <div className="rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Map Sources</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {DEFAULT_MAPS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setBgUrl(option.url)}
-                  className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.18em] transition ${
-                    bgUrl === option.url
-                      ? 'border-[hsla(42,72%,52%,0.34)] bg-[hsla(42,72%,42%,0.16)] text-[hsl(42,82%,78%)]'
-                      : 'border-[hsla(212,24%,28%,0.34)] bg-[hsla(220,18%,12%,0.74)] text-[hsl(212,34%,74%)]'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Map URL</span>
-              <input
-                value={bgUrl}
-                onChange={(event) => setBgUrl(event.target.value)}
-                placeholder="https://..."
-                className={inputClass}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Grid & Scale</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <label>
-                <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Width</span>
-                <input value={gridWidth} onChange={(event) => setGridWidth(event.target.value)} inputMode="numeric" className={inputClass} />
-              </label>
-              <label>
-                <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Height</span>
-                <input value={gridHeight} onChange={(event) => setGridHeight(event.target.value)} inputMode="numeric" className={inputClass} />
-              </label>
-              <label>
-                <span className="mb-2 block text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">Square Ft</span>
-                <input value={gridSquareSizeFt} onChange={(event) => setGridSquareSizeFt(event.target.value)} inputMode="numeric" className={inputClass} />
-              </label>
-            </div>
-            <button type="button" onClick={applyMapSettings} className={`${actionButtonClass(true)} mt-4`}>
-              Save Map Setup
-            </button>
-          </div>
-
-          <div className="rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Preview</p>
-              <span className="text-xs text-[hsl(30,14%,58%)]">
-                {gridWidth || encounter.gridWidth} x {gridHeight || encounter.gridHeight}
-              </span>
-            </div>
-            <div className="mt-3 overflow-hidden rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(20,18%,8%,0.86)]">
-              {bgUrl ? (
-                <img
-                  src={bgUrl}
-                  alt="Encounter battlemap preview"
-                  className="aspect-[16/10] w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-[16/10] items-center justify-center bg-[linear-gradient(135deg,hsla(28,18%,12%,0.96),hsla(18,18%,8%,0.96))]">
-                  <p className="max-w-xs text-center text-sm leading-7 text-[hsl(30,14%,58%)]">
-                    No battlemap selected yet. Upload one, paste a URL, or choose a preset to stage the field.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
-}
 
-function LoadEncounterModal({
-  encounterName,
-  options,
-  hasLoadedMap,
-  pending,
-  onChange,
-  onClose,
-  onConfirm,
-}: {
-  encounterName: string;
-  options: LoadEncounterRequest;
-  hasLoadedMap: boolean;
-  pending: boolean;
-  onChange: (patch: Partial<LoadEncounterRequest>) => void;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 px-4">
-      <div className={`${panelClass} w-full max-w-xl overflow-hidden`}>
-        <div className="border-b border-[hsla(32,24%,24%,0.42)] px-5 py-4">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Load Encounter</p>
-          <h3 className="mt-1 font-['IM_Fell_English'] text-3xl text-[hsl(38,40%,90%)]">{encounterName}</h3>
-          <p className="mt-2 text-sm text-[hsl(30,14%,58%)]">
-            Keep the prep desk here, but choose how this encounter should arrive in the live session.
-          </p>
-        </div>
-
-        <div className="space-y-3 px-5 py-5 text-sm text-[hsl(38,26%,86%)]">
-          <ToggleRow
-            checked={options.addToInitiative ?? true}
-            label="Add to initiative"
-            onChange={(checked) => onChange({ addToInitiative: checked })}
-          />
-          <ToggleRow
-            checked={options.clearExisting ?? true}
-            label="Clear existing initiative first"
-            onChange={(checked) => onChange({ clearExisting: checked })}
-          />
-          <ToggleRow
-            checked={options.clearExistingMap ?? true}
-            label="Clear existing map first"
-            onChange={(checked) => onChange({ clearExistingMap: checked })}
-          />
-          <ToggleRow
-            checked={hasLoadedMap ? options.spawnTokens ?? false : false}
-            label={`Spawn tokens on map${hasLoadedMap ? '' : ' (map not active)'}`}
-            disabled={!hasLoadedMap}
-            onChange={(checked) => onChange({ spawnTokens: checked })}
-          />
-          <ToggleRow
-            checked={options.autoRollInitiative ?? true}
-            label="Auto-roll non-player initiative"
-            disabled={!(options.addToInitiative ?? true)}
-            onChange={(checked) => onChange({ autoRollInitiative: checked })}
-          />
-          <ToggleRow
-            checked={options.startCombat ?? false}
-            label="Start combat immediately"
-            disabled={!(options.addToInitiative ?? true)}
-            onChange={(checked) => onChange({ startCombat: checked })}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-[hsla(32,24%,24%,0.42)] px-5 py-4">
-          <button type="button" onClick={onClose} disabled={pending} className={actionButtonClass()}>
-            Cancel
-          </button>
-          <button type="button" onClick={onConfirm} disabled={pending} className={actionButtonClass(true)}>
-            {pending ? 'Loading…' : 'Load Encounter'}
-          </button>
-        </div>
+      <div className="mt-3 overflow-hidden rounded-xl border border-[hsla(32,24%,24%,0.42)]" style={{ height: 560 }}>
+        <EncounterMapEditor campaignId={campaignId} encounter={encounter} />
       </div>
     </div>
   );
@@ -1258,62 +630,77 @@ function ParticipantDetail({
   encounter,
   characters,
   participantCount,
-  linkedInitiativeEntry,
   conditionOptions,
-  deltaAmount,
-  onDeltaAmountChange,
   onSaveInitiative,
   conditionDraft,
   onConditionDraftChange,
-  onApplyDamage,
-  onApplyHeal,
   onAddCondition,
   onRemoveCondition,
   onSaveNotes,
+  onSaveParticipantField,
   onRemoveParticipant,
 }: {
   subject: DetailSubject | null;
-  encounter: {
-    difficulty: EncounterDifficulty;
-    estimatedXP: number;
-    sessionId?: string;
-    notes: string;
-    tactics?: string;
-    terrain?: string;
-  } | null;
+  encounter: { difficulty: EncounterDifficulty; estimatedXP: number; notes: string; tactics?: string; terrain?: string; } | null;
   characters: Character[];
   participantCount: number;
-  linkedInitiativeEntry: InitiativeEntry | null;
   conditionOptions: ConditionDef[];
-  deltaAmount: string;
-  onDeltaAmountChange: (value: string) => void;
   onSaveInitiative: (value: string) => void;
   conditionDraft: string;
   onConditionDraftChange: (value: string) => void;
-  onApplyDamage: (amount: number) => void;
-  onApplyHeal: (amount: number) => void;
   onAddCondition: () => void;
   onRemoveCondition: (condition: string) => void;
   onSaveNotes: (value: string) => void;
+  onSaveParticipantField: (field: 'name' | 'hpMax' | 'ac', value: string) => void;
   onRemoveParticipant: (participantId: string) => void;
 }) {
+  const [flipped, setFlipped] = useState(false);
+
+  const subjectId = subject?.kind === 'participant' ? subject.participant.id : subject?.kind === 'player' ? subject.character._id : null;
+  useEffect(() => {
+    setFlipped(false);
+  }, [subjectId]);
+
   if (!subject) {
-    const partyLevelTotal = characters.reduce((sum, character) => sum + character.level, 0);
+    const partyLevelTotal = characters.reduce((sum, c) => sum + c.level, 0);
     const averagePartyLevel = characters.length ? (partyLevelTotal / characters.length).toFixed(1) : '—';
-    const totalPartyHp = characters.reduce((sum, character) => sum + (character.hp.max ?? 0), 0);
+    const totalPartyHp = characters.reduce((sum, c) => sum + (c.hp.max ?? 0), 0);
 
+    return renderOverview(averagePartyLevel, totalPartyHp);
+  }
+
+  const stats = getDetailStats(subject);
+  const conditions = getDetailConditions(subject);
+  const notes = getDetailNotes(subject);
+  const attacks = getDetailAttacks(subject);
+  const traits = getDetailTraits(subject);
+  const isEncounterParticipant = subject.kind === 'participant';
+  const participant = subject.kind === 'participant' ? subject.participant : null;
+
+  return (
+    <div>
+      {renderDetailHeader()}
+      <div style={{ perspective: '1200px' }}>
+        <div
+          className="grid transition-transform duration-500 [transform-style:preserve-3d]"
+          style={{ transform: flipped ? 'rotateY(180deg)' : 'none' }}
+        >
+          {renderStatsFace()}
+          {renderLoreFace()}
+        </div>
+      </div>
+    </div>
+  );
+
+  function renderOverview(averagePartyLevel: string, totalPartyHp: number) {
     return (
-      <div className="space-y-4">
-        <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] px-5 py-5">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Encounter Overview</p>
-          <h3 className="mt-1 font-['IM_Fell_English'] text-[34px] leading-none text-[hsl(38,40%,90%)]">
-            Prep the table first
-          </h3>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[hsl(30,14%,58%)]">
-            Select a participant when you want to adjust a specific stat block. Until then, this panel should help you judge whether the scene is ready for the party.
+      <div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Encounter Overview</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-[hsl(30,13%,62%)]">
+            Select a participant to adjust stats. Until then, use this to judge whether the scene is ready for the party.
           </p>
-
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
             <StatTile icon={Users} label="Party Size" value={String(characters.length)} />
             <StatTile icon={Sparkles} label="Avg Level" value={String(averagePartyLevel)} />
             <StatTile icon={Heart} label="Party HP" value={String(totalPartyHp || '—')} />
@@ -1321,212 +708,302 @@ function ParticipantDetail({
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-          <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Party Rating</p>
-            <div className="mt-3 space-y-3 text-sm text-[hsl(30,14%,58%)]">
-              <div className="rounded-[16px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] px-3 py-3">
-                <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">
-                  {encounter ? startCase(encounter.difficulty) : 'Draft'} encounter
-                </p>
-                <p className="mt-2 leading-6">
-                  {encounter?.estimatedXP
-                    ? `${encounter.estimatedXP} XP budget currently set for this scene.`
-                    : 'No XP budget has been set yet for this encounter.'}
-                </p>
+        <div className="mt-4 border-t border-[hsla(32,24%,24%,0.36)] pt-4">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Party Rating</p>
+          <div className="mt-3 divide-y divide-[hsla(32,24%,24%,0.36)] text-[13px] text-[hsl(35,24%,88%)]">
+            <div className="pb-3">
+              <p className="text-[13px] text-[hsl(35,24%,88%)]">
+                {encounter ? startCase(encounter.difficulty) : 'Draft'} encounter
+              </p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">
+                {encounter?.estimatedXP
+                  ? `${encounter.estimatedXP} XP budget currently set for this scene.`
+                  : 'No XP budget has been set yet for this encounter.'}
+              </p>
+            </div>
+            <div className="pt-3">
+              <p className="text-[13px] text-[hsl(35,24%,88%)]">Read at a glance</p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">
+                {characters.length
+                  ? `Built for ${characters.length} player${characters.length === 1 ? '' : 's'} around level ${averagePartyLevel}.`
+                  : 'No party characters were found for this campaign yet.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-[hsla(32,24%,24%,0.36)] pt-4">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">GM Prep Notes</p>
+          <div className="mt-3 space-y-3 text-[13px] leading-7 text-[hsl(35,24%,88%)]">
+            <p className="text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">{encounter?.notes?.trim() || 'No encounter notes yet.'}</p>
+            {encounter?.tactics && (
+              <p className="text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">
+                <span className="text-[hsl(35,24%,88%)]">Tactics:</span> {encounter.tactics}
+              </p>
+            )}
+            {encounter?.terrain && (
+              <p className="text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">
+                <span className="text-[hsl(35,24%,88%)]">Terrain:</span> {encounter.terrain}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-[hsla(32,24%,24%,0.36)] pt-4">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Next Step</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-[hsl(30,12%,58%)]">
+            Add enemies, NPCs, or companions from the right panel, then click a participant in the roster to tune HP, AC, initiative bonus, or conditions.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function renderDetailHeader() {
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Participant Detail</p>
+          <p className="mt-1 font-['Cinzel'] text-[14px] text-[hsl(38,36%,82%)]">{stats.name}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <DetailBadge>{stats.typeLabel}</DetailBadge>
+            <DetailBadge>{stats.sourceLabel}</DetailBadge>
+            {stats.cr && <DetailBadge>CR {stats.cr}</DetailBadge>}
+            {stats.size && <DetailBadge>{startCase(stats.size)}</DetailBadge>}
+            {stats.speed && <DetailBadge>{stats.speed}</DetailBadge>}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFlipped((f) => !f)}
+            className="inline-flex items-center gap-2 rounded-full border border-[hsla(32,26%,26%,0.45)] bg-[hsla(24,14%,12%,0.74)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[hsl(30,12%,64%)] transition hover:border-[hsla(32,36%,36%,0.5)] hover:text-[hsl(35,20%,78%)]"
+          >
+            {flipped ? 'Stats' : 'Lore'}
+          </button>
+          {isEncounterParticipant && (
+            <button
+              type="button"
+              onClick={() => onRemoveParticipant(participant!.id)}
+              className="inline-flex items-center gap-2 rounded-full border border-[hsla(2,52%,42%,0.34)] bg-[hsla(2,42%,12%,0.54)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[hsl(2,62%,78%)]"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderEditPanel() {
+    return (
+      <div className="space-y-4">
+        {isEncounterParticipant && (
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Edit Stats</p>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">Name</label>
+              <input
+                key={`name-${participant!.id}`}
+                defaultValue={participant!.name}
+                onBlur={(e) => onSaveParticipantField('name', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">Max HP</label>
+                <input key={`maxhp-${participant!.id}`} defaultValue={participant!.hpMax ?? ''} onBlur={(e) => onSaveParticipantField('hpMax', e.target.value)} className={numberInputClass} inputMode="numeric" />
               </div>
-              <div className="rounded-[16px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] px-3 py-3">
-                <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">Read at a glance</p>
-                <p className="mt-2 leading-6">
-                  {characters.length
-                    ? `Built for ${characters.length} player${characters.length === 1 ? '' : 's'} around level ${averagePartyLevel}.`
-                    : 'No party characters were found for this campaign yet.'}
-                </p>
+              <div>
+                <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">AC</label>
+                <input key={`ac-${participant!.id}`} defaultValue={participant!.ac ?? ''} onBlur={(e) => onSaveParticipantField('ac', e.target.value)} className={numberInputClass} inputMode="numeric" />
+              </div>
+              <div>
+                <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">Init</label>
+                <input key={`init-${participant!.id}`} defaultValue={participant!.initiativeBonus ?? ''} onBlur={(e) => onSaveInitiative(e.target.value)} className={numberInputClass} inputMode="numeric" />
               </div>
             </div>
           </div>
+        )}
 
-          <div className="space-y-4">
-            <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">GM Prep Notes</p>
-              <div className="mt-3 space-y-3 text-sm leading-7 text-[hsl(30,14%,58%)]">
-                <p>{encounter?.notes?.trim() || 'No encounter notes yet.'}</p>
-                {encounter?.tactics && (
-                  <p>
-                    <span className="font-[Cinzel] text-[hsl(38,34%,86%)]">Tactics:</span> {encounter.tactics}
-                  </p>
-                )}
-                {encounter?.terrain && (
-                  <p>
-                    <span className="font-[Cinzel] text-[hsl(38,34%,86%)]">Terrain:</span> {encounter.terrain}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Next Step</p>
-              <p className="mt-3 text-sm leading-7 text-[hsl(30,14%,58%)]">
-                Add enemies, NPCs, or companions from the header, then click a participant in the roster when you want to tune HP, AC, initiative bonus, or conditions.
-              </p>
-            </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Starting Conditions</p>
+          <div className="mt-3 flex gap-2">
+            <select value={conditionDraft} onChange={(e) => onConditionDraftChange(e.target.value)} className={inputClass}>
+              <option value="">Choose condition</option>
+              {conditionOptions.map((c) => (
+                <option key={c.key} value={c.label}>{c.label}</option>
+              ))}
+            </select>
+            <button type="button" onClick={onAddCondition} className={actionButtonClass()}>
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {conditions.length ? conditions.map((condition) => (
+              <button
+                key={condition}
+                type="button"
+                onClick={() => onRemoveCondition(condition)}
+                className="rounded-full border border-[hsla(32,26%,26%,0.45)] bg-[hsla(24,14%,11%,0.98)] px-3 py-1.5 text-xs text-[hsl(35,24%,88%)]"
+              >
+                {condition}
+              </button>
+            )) : (
+              <p className="text-sm text-[hsl(30,14%,56%)]">No active conditions.</p>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  const stats = getDetailStats(subject, linkedInitiativeEntry);
-  const conditions = getDetailConditions(subject, linkedInitiativeEntry);
-  const notes = getDetailNotes(subject, linkedInitiativeEntry);
-  const attacks = getDetailAttacks(subject);
-  const isEncounterParticipant = subject.kind === 'participant';
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] px-5 py-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Participant Detail</p>
-            <h3 className="mt-1 font-['IM_Fell_English'] text-[34px] leading-none text-[hsl(38,40%,90%)]">
-              {stats.name}
-            </h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <DetailBadge>{stats.typeLabel}</DetailBadge>
-              <DetailBadge>{stats.sourceLabel}</DetailBadge>
-              {stats.speed && <DetailBadge>{stats.speed}</DetailBadge>}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {isEncounterParticipant && (
-              <button
-                type="button"
-                onClick={() => onRemoveParticipant(subject.participant.id)}
-                className="inline-flex items-center gap-2 rounded-full border border-[hsla(2,52%,42%,0.34)] bg-[hsla(2,42%,12%,0.54)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[hsl(2,62%,78%)]"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
+  function renderStatsFace() {
+    return (
+      <div className="col-start-1 row-start-1 [backface-visibility:hidden]">
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
           <StatTile icon={Heart} label="HP" value={formatHp(stats.hpCurrent, stats.hpMax)} />
           <StatTile icon={Shield} label="AC" value={stats.ac ? String(stats.ac) : '—'} />
-          <StatTile icon={Sparkles} label={isEncounterParticipant ? 'Init Bonus' : 'Initiative'} value={stats.initiative ?? '—'} />
+          <StatTile icon={Sparkles} label="Init Bonus" value={stats.initiative ?? '—'} />
           <StatTile icon={ScrollText} label="Conditions" value={String(conditions.length)} />
         </div>
-        {linkedInitiativeEntry && (
-          <p className="mt-4 text-sm text-[hsl(30,14%,58%)]">
-            This participant is also active in live initiative right now. Prep changes here stay encounter-first, and linked combat values are mirrored into the active session.
-          </p>
-        )}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Quick Actions</p>
-            <div className="mt-3 space-y-3">
-              <input
-                value={deltaAmount}
-                onChange={(event) => onDeltaAmountChange(event.target.value)}
-                className={numberInputClass}
-                inputMode="numeric"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => onApplyDamage(Number(deltaAmount) || 0)} className={dangerButtonClass()}>
-                  Damage
-                </button>
-                <button type="button" onClick={() => onApplyHeal(Number(deltaAmount) || 0)} className={successButtonClass()}>
-                  Heal
-                </button>
-              </div>
-              {isEncounterParticipant && (
-                <div>
-                  <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">Initiative Bonus</label>
-                  <input
-                    key={subject.participant.id}
-                    defaultValue={subject.participant.initiativeBonus ?? ''}
-                    onBlur={(event) => onSaveInitiative(event.target.value)}
-                    className={numberInputClass}
-                    inputMode="numeric"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Conditions</p>
-            <div className="mt-3 flex gap-2">
-              <select value={conditionDraft} onChange={(event) => onConditionDraftChange(event.target.value)} className={inputClass}>
-                <option value="">Choose condition</option>
-                {conditionOptions.map((condition) => (
-                  <option key={condition.key} value={condition.label}>
-                    {condition.label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={onAddCondition} className={actionButtonClass()}>
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {conditions.length ? conditions.map((condition) => (
-                <button
-                  key={condition}
-                  type="button"
-                  onClick={() => onRemoveCondition(condition)}
-                  className="rounded-full border border-[hsla(212,24%,28%,0.34)] bg-[hsla(220,18%,12%,0.74)] px-3 py-1.5 text-xs text-[hsl(212,34%,74%)]"
-                >
-                  {condition}
-                </button>
-              )) : (
-                <p className="text-sm text-[hsl(30,14%,56%)]">No active conditions.</p>
-              )}
-            </div>
-          </div>
+        <div className="mt-4 grid gap-4 border-t border-[hsla(32,24%,24%,0.36)] pt-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+          {renderEditPanel()}
+          {renderCombatPanel()}
         </div>
+      </div>
+    );
+  }
 
-        <div className="space-y-4">
-          {attacks.length > 0 && (
-            <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Attack Options</p>
-              <div className="mt-3 space-y-3">
-                {attacks.map((attack) => (
-                  <div key={attack.name} className="rounded-[16px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] px-3 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">{attack.name}</p>
+  function renderCombatPanel() {
+    const character = subject!.kind === 'player' ? subject!.character : null;
+    return (
+      <div className="space-y-4">
+        {character && (
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Passive Scores</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[
+                { label: 'Perception', value: character.passiveScores.perception },
+                { label: 'Insight', value: character.passiveScores.insight },
+                { label: 'Investigation', value: character.passiveScores.investigation },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-[hsla(32,26%,26%,0.45)] bg-[linear-gradient(180deg,hsla(26,16%,15%,0.96),hsla(24,14%,11%,0.98))] px-2 py-2 text-center">
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">{label}</p>
+                  <p className="mt-1 font-['Cinzel'] text-[15px] leading-none text-[hsl(35,24%,92%)]">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {stats.abilities && Object.keys(stats.abilities).length > 0 && (
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Ability Scores</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {Object.entries(stats.abilities).map(([key, score]) => (
+                <div key={key} className="rounded-xl border border-[hsla(32,26%,26%,0.45)] bg-[linear-gradient(180deg,hsla(26,16%,15%,0.96),hsla(24,14%,11%,0.98))] px-2 py-2 text-center">
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">{key.slice(0, 3)}</p>
+                  <p className="mt-1 font-['Cinzel'] text-[15px] leading-none text-[hsl(35,24%,92%)]">{score}</p>
+                  <p className="mt-0.5 text-[10px] text-[hsl(30,12%,58%)]">{abilityMod(score)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {attacks.length > 0 && (
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Attacks</p>
+            <div className="mt-3 divide-y divide-[hsla(32,24%,24%,0.36)]">
+              {attacks.map((attack) => (
+                <div key={attack.name} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-[Cinzel] text-[14px] text-[hsl(35,24%,92%)]">{attack.name}</p>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                      {attack.actionCost && <DetailBadge>{startCase(attack.actionCost)}</DetailBadge>}
                       {(attack.bonus != null || attack.damage) && (
-                        <p className="text-xs text-[hsl(30,14%,58%)]">
+                        <span className="text-xs text-[hsl(30,14%,58%)]">
                           {attack.bonus != null ? `${attack.bonus >= 0 ? '+' : ''}${attack.bonus}` : '—'}
                           {attack.damage ? ` · ${attack.damage}` : ''}
-                        </p>
+                          {attack.range ? ` · ${attack.range}` : ''}
+                        </span>
                       )}
                     </div>
-                    {attack.notes && <p className="mt-2 text-sm leading-6 text-[hsl(30,14%,58%)]">{attack.notes}</p>}
+                  </div>
+                  {attack.notes && <p className="mt-2 text-[11px] leading-relaxed text-[hsl(30,14%,58%)]">{attack.notes}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderLoreFace() {
+    const isPlayer = subject!.kind === 'player';
+    const character = subject!.kind === 'player' ? subject!.character : null;
+
+    return (
+      <div className="col-start-1 row-start-1 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        <div className="mt-4 space-y-5">
+          {/* Traits / flavor (participants) */}
+          {traits.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Traits & Abilities</p>
+              <div className="mt-3 divide-y divide-[hsla(32,24%,24%,0.36)]">
+                {traits.map((trait) => (
+                  <div key={trait.name} className="py-3 first:pt-0 last:pb-0">
+                    <p className="font-[Cinzel] text-[14px] text-[hsl(35,24%,92%)]">{trait.name}</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-[hsl(30,14%,58%)]">{trait.description}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="rounded-[22px] border border-[hsla(32,24%,24%,0.52)] bg-[hsla(22,18%,10%,0.72)] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Notes & Abilities</p>
-            <textarea
-              defaultValue={notes}
-              onBlur={(event) => onSaveNotes(event.target.value)}
-              rows={10}
-              className={`${inputClass} min-h-[240px] resize-y`}
-              placeholder="Encounter-specific notes, tactics, abilities, or reminders…"
-            />
-          </div>
+          {/* PC: backstory */}
+          {isPlayer && character && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Backstory</p>
+              <p className="mt-2 text-[13px] leading-7 text-[hsl(35,24%,82%)]">
+                {character.backstory?.trim() || <span className="text-[hsl(30,12%,52%)]">No backstory recorded.</span>}
+              </p>
+            </div>
+          )}
+
+          {/* Participant: description/notes */}
+          {!isPlayer && notes && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Description</p>
+              <p className="mt-2 text-[13px] leading-7 text-[hsl(35,24%,82%)]">{notes}</p>
+            </div>
+          )}
+
+          {/* DM Notes textarea (participants only) */}
+          {isEncounterParticipant && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">DM Notes</p>
+              <textarea
+                key={`notes-${participant!.id}`}
+                defaultValue={participant!.notes ?? ''}
+                onBlur={(e) => onSaveNotes(e.target.value)}
+                rows={6}
+                className="w-full rounded-2xl border border-[hsla(32,24%,28%,0.72)] bg-[hsla(26,22%,10%,0.9)] px-3 py-2.5 text-sm text-[hsl(38,26%,86%)] placeholder:text-[hsl(30,12%,42%)] outline-none transition focus:border-[hsla(212,42%,58%,0.42)] focus:bg-[hsla(26,22%,12%,0.94)] min-h-[120px] resize-y"
+                placeholder="Encounter-specific notes, tactics, reminders…"
+              />
+            </div>
+          )}
+
+          {/* Empty state when no lore */}
+          {traits.length === 0 && !notes && !isPlayer && !isEncounterParticipant && (
+            <p className="text-[12px] text-[hsl(30,12%,52%)]">No lore recorded for this entity.</p>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 }
 
 function ParticipantPickerModal({
@@ -1553,29 +1030,24 @@ function ParticipantPickerModal({
   onPickCompanion: (ally: Ally) => void;
 }) {
   const lowered = query.trim().toLowerCase();
-  const enemies = enemyTemplates.filter((template) => matchesQuery([template.name, template.category, template.source, template.tags.join(' ')], lowered));
-  const npcs = npcEntities.filter((entity) => matchesQuery([entity.name, entity.description, entity.tags.join(' ')], lowered));
-  const companions = allies.filter((ally) => matchesQuery([ally.name, ally.role, ally.kind, ally.description], lowered));
+  const enemies = enemyTemplates.filter((t) => matchesQuery([t.name, t.category, t.source, t.tags.join(' ')], lowered));
+  const npcs = npcEntities.filter((e) => matchesQuery([e.name, e.description, e.tags.join(' ')], lowered));
+  const companions = allies.filter((a) => matchesQuery([a.name, a.role, a.kind, a.description], lowered));
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 px-4">
-      <div className={`${panelClass} w-full max-w-3xl overflow-hidden`}>
+      <div className={`${shellPanelClass} w-full max-w-3xl overflow-hidden`}>
         <div className="flex items-center justify-between border-b border-[hsla(32,24%,24%,0.42)] px-5 py-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[hsl(212,24%,66%)]">Add Participant</p>
-            <h3 className="mt-1 font-['IM_Fell_English'] text-3xl text-[hsl(38,40%,90%)]">{startCase(type)}</h3>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">Add Participant</p>
+            <p className="mt-1 font-['Cinzel'] text-[14px] text-[hsl(38,36%,82%)]">{startCase(type)}</p>
           </div>
           <button type="button" onClick={onClose} className={actionButtonClass()}>
             Close
           </button>
         </div>
         <div className="p-5">
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={`Search ${type}s…`}
-            className={inputClass}
-          />
+          <input value={query} onChange={(e) => onQueryChange(e.target.value)} placeholder={`Search ${type}s…`} className={inputClass} />
           <div className="mt-4 max-h-[60vh] overflow-y-auto">
             {type === 'enemy' && (
               <PickerList
@@ -1584,12 +1056,10 @@ function ParticipantPickerModal({
                 renderItem={(item) => (
                   <button key={item._id} type="button" onClick={() => onPickEnemy(item)} className={pickerRowClass()}>
                     <div>
-                      <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">{item.name}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(212,24%,66%)]">
-                        {item.category} · AC {item.ac} · HP {item.hp.average}
-                      </p>
+                      <p className="font-[Cinzel] text-[14px] text-[hsl(35,24%,92%)]">{item.name}</p>
+                      <p className="mt-1 text-[11px] text-[hsl(30,12%,58%)]">{item.category} · AC {item.ac} · HP {item.hp.average}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-[hsl(212,24%,66%)]" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(30,12%,58%)]" />
                   </button>
                 )}
                 emptyLabel="No enemy templates match this search."
@@ -1602,12 +1072,10 @@ function ParticipantPickerModal({
                 renderItem={(item) => (
                   <button key={item._id} type="button" onClick={() => onPickNpc(item)} className={pickerRowClass()}>
                     <div>
-                      <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">{item.name}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(212,24%,66%)]">
-                        {item.type === 'npc_minor' ? 'Minor NPC' : 'NPC'}
-                      </p>
+                      <p className="font-[Cinzel] text-[14px] text-[hsl(35,24%,92%)]">{item.name}</p>
+                      <p className="mt-1 text-[11px] text-[hsl(30,12%,58%)]">{item.type === 'npc_minor' ? 'Minor NPC' : 'NPC'}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-[hsl(212,24%,66%)]" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(30,12%,58%)]" />
                   </button>
                 )}
                 emptyLabel="No campaign NPCs match this search."
@@ -1620,12 +1088,10 @@ function ParticipantPickerModal({
                 renderItem={(item) => (
                   <button key={item._id} type="button" onClick={() => onPickCompanion(item)} className={pickerRowClass()}>
                     <div>
-                      <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">{item.name}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(212,24%,66%)]">
-                        {item.role || item.kind}
-                      </p>
+                      <p className="font-[Cinzel] text-[14px] text-[hsl(35,24%,92%)]">{item.name}</p>
+                      <p className="mt-1 text-[11px] text-[hsl(30,12%,58%)]">{item.role || item.kind}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-[hsl(212,24%,66%)]" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(30,12%,58%)]" />
                   </button>
                 )}
                 emptyLabel="No companions match this search."
@@ -1652,117 +1118,79 @@ function PickerList<T>({
   if (!items.length) {
     return <p className="rounded-[16px] border border-[hsla(32,24%,24%,0.42)] px-4 py-4 text-sm text-[hsl(30,14%,56%)]">{emptyLabel}</p>;
   }
-
   return <div className="space-y-2">{items.map((item) => <div key={getKey(item)}>{renderItem(item)}</div>)}</div>;
-}
-
-function RosterRow({
-  row,
-}: {
-  row: {
-    key: string;
-    name: string;
-    subtitle: string;
-    hpCurrent?: number;
-    hpMax?: number;
-    ac?: number;
-    conditions: string[];
-  };
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-[Cinzel] text-sm text-[hsl(38,34%,86%)]">{row.name}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[hsl(212,24%,66%)]">{row.subtitle}</p>
-        </div>
-        <div className="text-right text-xs text-[hsl(30,12%,58%)]">
-          {formatHp(row.hpCurrent, row.hpMax)}
-        </div>
-      </div>
-      <RosterFooter row={row} />
-    </>
-  );
-}
-
-function RosterFooter({
-  row,
-}: {
-  row: {
-    hpCurrent?: number;
-    hpMax?: number;
-    ac?: number;
-    conditions: string[];
-  };
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(30,12%,58%)]">
-      {row.ac != null && <span>AC {row.ac}</span>}
-      {row.conditions.slice(0, 3).map((condition) => (
-        <span key={condition} className="rounded-full border border-[hsla(212,24%,28%,0.34)] px-2 py-0.5 text-[10px] text-[hsl(212,34%,74%)]">
-          {condition}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function MetaPill({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string }) {
-  return (
-    <div className="rounded-full border border-[hsla(212,24%,28%,0.34)] bg-[hsla(220,18%,12%,0.74)] px-3 py-1.5">
-      <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[hsl(212,24%,66%)]">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </span>
-      <span className="ml-2 font-[Cinzel] text-sm text-[hsl(38,40%,88%)]">{value}</span>
-    </div>
-  );
 }
 
 function StatTile({ icon: Icon, label, value }: { icon: typeof Heart; label: string; value: string }) {
   return (
-    <div className="rounded-[18px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.72)] px-4 py-3">
-      <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[hsl(212,24%,66%)]">
-        <Icon className="h-3.5 w-3.5" />
+    <div className="rounded-xl border border-[hsla(32,26%,26%,0.45)] bg-[linear-gradient(180deg,hsla(26,16%,15%,0.96),hsla(24,14%,11%,0.98))] px-4 py-3">
+      <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-[hsl(30,12%,58%)]">
+        <Icon className="h-3 w-3" />
         {label}
       </p>
-      <p className="mt-2 font-['IM_Fell_English'] text-[24px] leading-none text-[hsl(38,40%,88%)]">{value}</p>
+      <p className="mt-1.5 font-['Cinzel'] text-[18px] leading-none text-[hsl(35,24%,92%)]">{value}</p>
     </div>
   );
 }
 
 function DetailBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-[hsla(212,24%,28%,0.34)] bg-[hsla(220,18%,12%,0.74)] px-3 py-1 text-xs text-[hsl(212,34%,74%)]">
+    <span className="rounded-full border border-[hsla(38,60%,52%,0.28)] bg-[hsla(38,70%,46%,0.12)] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[hsl(38,82%,63%)]">
       {children}
     </span>
   );
 }
 
-function ToggleRow({
-  checked,
-  label,
-  disabled,
-  onChange,
+function TabStrip({
+  active,
+  onSelect,
+  statBlockLabel,
+  onCloseStatBlock,
 }: {
-  checked: boolean;
-  label: string;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
+  active: 'notes' | 'map' | 'stat-block';
+  onSelect: (tab: 'notes' | 'map' | 'stat-block') => void;
+  statBlockLabel?: string;
+  onCloseStatBlock?: () => void;
 }) {
+  const tabs: Array<{ id: 'notes' | 'map' | 'stat-block'; label: string }> = [
+    { id: 'notes', label: 'Prep Notes' },
+    { id: 'map', label: 'Battlemap' },
+    { id: 'stat-block', label: statBlockLabel ?? 'Stat Block' },
+  ];
   return (
-    <label className={`flex items-center gap-3 rounded-[16px] border px-3 py-3 ${disabled ? 'border-[hsla(32,14%,20%,0.42)] opacity-55' : 'border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.5)]'}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-[hsl(42,72%,52%)]"
-      />
-      <span>{label}</span>
-    </label>
+    <div className="flex items-end gap-0.5 px-4 pb-0">
+      {tabs.map((tab) => (
+        <div key={tab.id} className="relative flex items-end">
+          <button
+            type="button"
+            onClick={() => onSelect(tab.id)}
+            className={`max-w-[140px] truncate rounded-t-lg border border-b-0 px-4 py-2 text-[10px] uppercase tracking-[0.14em] transition ${
+              active === tab.id
+                ? 'border-[hsla(32,24%,24%,0.42)] bg-[hsla(26,20%,12%,0.96)] text-[hsl(38,36%,82%)]'
+                : 'border-transparent text-[hsl(30,12%,52%)] hover:text-[hsl(35,20%,72%)]'
+            } ${tab.id === 'stat-block' && onCloseStatBlock ? 'pr-7' : ''}`}
+          >
+            {tab.label}
+          </button>
+          {tab.id === 'stat-block' && onCloseStatBlock && (
+            <button
+              type="button"
+              onClick={onCloseStatBlock}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded text-[hsl(30,12%,52%)] hover:text-[hsl(35,20%,72%)]"
+              aria-label="Close stat block"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
+
+// ── Pure helpers ──────────────────────────────────────────────
 
 function actionButtonClass(accent = false) {
   return `inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${
@@ -1772,65 +1200,49 @@ function actionButtonClass(accent = false) {
   }`;
 }
 
-function dangerButtonClass() {
-  return 'rounded-2xl border border-[hsla(2,52%,42%,0.34)] bg-[hsla(2,42%,12%,0.54)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[hsl(2,62%,78%)]';
-}
-
-function successButtonClass() {
-  return 'rounded-2xl border border-[hsla(145,42%,38%,0.34)] bg-[hsla(145,42%,12%,0.54)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[hsl(145,62%,78%)]';
-}
-
 function pickerRowClass() {
-  return 'flex w-full items-center justify-between rounded-[16px] border border-[hsla(32,24%,24%,0.42)] bg-[hsla(24,18%,10%,0.68)] px-4 py-3 text-left transition hover:border-[hsla(212,24%,34%,0.42)]';
+  return 'flex w-full items-center justify-between rounded-xl border border-[hsla(32,26%,26%,0.45)] bg-[linear-gradient(180deg,hsla(26,16%,15%,0.96),hsla(24,14%,11%,0.98))] px-4 py-3 text-left transition hover:border-[hsla(38,50%,58%,0.4)] hover:bg-[linear-gradient(180deg,hsla(26,20%,16%,0.98),hsla(24,16%,12%,1))]';
 }
 
-function toParticipantRow(participant: EncounterParticipant) {
-  return {
-    key: `participant:${participant.id}`,
-    name: participant.name,
-    subtitle: participant.sourceLabel ?? startCase(participant.entityType),
-    hpCurrent: participant.hpCurrent,
-    hpMax: participant.hpMax,
-    ac: participant.ac,
-    conditions: participant.conditions,
-  };
-}
-
-function getDetailStats(subject: DetailSubject, linkedInitiativeEntry: InitiativeEntry | null) {
+function getDetailStats(subject: DetailSubject) {
   if (subject.kind === 'player') {
     return {
       name: subject.character.name,
       typeLabel: 'Player',
-      sourceLabel: subject.character.class ? `${subject.character.class} ${subject.character.level}` : 'Campaign character',
-      hpCurrent: linkedInitiativeEntry?.currentHp ?? subject.character.hp.current,
-      hpMax: linkedInitiativeEntry?.maxHp ?? subject.character.hp.max,
-      ac: linkedInitiativeEntry?.ac ?? subject.character.ac,
-      initiative: String(linkedInitiativeEntry?.initiativeRoll ?? subject.character.initiativeBonus),
+      sourceLabel: formatCharacterClass(subject.character) || 'Campaign character',
+      hpCurrent: subject.character.hp.current,
+      hpMax: subject.character.hp.max,
+      ac: subject.character.ac,
+      initiative: String(subject.character.initiativeBonus),
       speed: subject.character.speed ? `${subject.character.speed} ft` : undefined,
+      cr: undefined as string | undefined,
+      size: undefined as string | undefined,
+      abilities: subject.character.stats,
     };
   }
-
   return {
     name: subject.participant.name,
     typeLabel: startCase(subject.participant.entityType),
     sourceLabel: subject.participant.sourceLabel ?? 'Encounter participant',
-    hpCurrent: linkedInitiativeEntry?.currentHp ?? subject.participant.hpCurrent,
-    hpMax: linkedInitiativeEntry?.maxHp ?? subject.participant.hpMax,
-    ac: linkedInitiativeEntry?.ac ?? subject.participant.ac,
-    initiative: String(linkedInitiativeEntry?.initiativeRoll ?? subject.participant.initiativeBonus ?? '—'),
+    hpCurrent: subject.participant.hpCurrent,
+    hpMax: subject.participant.hpMax,
+    ac: subject.participant.ac,
+    initiative: String(subject.participant.initiativeBonus ?? '—'),
     speed: subject.participant.speed,
+    cr: subject.participant.cr,
+    size: subject.participant.size,
+    abilities: subject.participant.abilities,
   };
 }
 
-function getDetailConditions(subject: DetailSubject, linkedInitiativeEntry: InitiativeEntry | null) {
+function getDetailConditions(subject: DetailSubject) {
   if (subject.kind === 'player') return subject.character.conditions;
-  if (linkedInitiativeEntry) return (linkedInitiativeEntry.conditions ?? []).map((condition) => condition.name);
   return subject.participant.conditions;
 }
 
-function getDetailNotes(subject: DetailSubject, linkedInitiativeEntry: InitiativeEntry | null) {
+function getDetailNotes(subject: DetailSubject) {
   if (subject.kind === 'player') return subject.character.backstory ?? '';
-  return linkedInitiativeEntry?.notes ?? subject.participant.notes ?? '';
+  return subject.participant.notes ?? '';
 }
 
 function getDetailAttacks(subject: DetailSubject): EncounterParticipantAttack[] {
@@ -1838,9 +1250,14 @@ function getDetailAttacks(subject: DetailSubject): EncounterParticipantAttack[] 
   return [];
 }
 
+function getDetailTraits(subject: DetailSubject): EncounterParticipantTrait[] {
+  if (subject.kind === 'participant') return subject.participant.traits ?? [];
+  return [];
+}
+
 function matchesQuery(values: Array<string | undefined>, query: string) {
   if (!query) return true;
-  return values.some((value) => value?.toLowerCase().includes(query));
+  return values.some((v) => v?.toLowerCase().includes(query));
 }
 
 function formatHp(current?: number, max?: number) {
@@ -1857,13 +1274,12 @@ function formatEnemySpeed(template: EnemyTemplate) {
 }
 
 function startCase(value: string) {
-  return value
-    .replace(/[_-]/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
+function abilityMod(score: number) {
+  const mod = Math.floor((score - 10) / 2);
+  return mod >= 0 ? `+${mod}` : String(mod);
 }
 
 function safeId(prefix: string) {

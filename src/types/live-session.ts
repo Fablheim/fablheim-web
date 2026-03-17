@@ -118,7 +118,7 @@ export interface HopeFearRolledEvent {
 }
 
 export interface InitiativeUpdatedEvent {
-  action: 'entry-added' | 'entry-updated' | 'entry-removed' | 'combat-started' | 'turn-advanced' | 'combat-ended';
+  action: 'entry-added' | 'entry-updated' | 'entry-removed' | 'combat-started' | 'turn-advanced' | 'combat-ended' | 'combat-paused';
   entryId?: string;
   initiative: Initiative;
   stateVersion?: number;
@@ -267,6 +267,7 @@ export interface Initiative {
   currentTurn: number;
   round: number;
   isActive: boolean;
+  combatStatus?: 'active' | 'paused' | 'inactive';
   startedAt?: string;
   lastUpdatedAt: string;
   createdAt: string;

@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Weight, Sparkles, Loader2, ChevronDown, ChevronRight, Package } from 'lucide-react';
+import { Plus, Weight, Sparkles, Loader2, ChevronDown, ChevronRight, Package, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from './CurrencyDisplay';
 import { WealthTierDisplay } from './WealthTierDisplay';
 import { ItemRow } from './ItemRow';
 import { ItemFormModal, type ItemFormData } from './ItemFormModal';
+import { ItemBrowser } from './ItemBrowser';
 import {
   useItems,
   useCreateItem,
@@ -64,6 +65,7 @@ function countAttuned(items: Item[]): number {
 export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
   const { data: items, isLoading: itemsLoading } = useItems(character._id);
@@ -251,7 +253,7 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
 
   return (
     <div className="flex h-full flex-col bg-[hsl(24,18%,9%)]">
-      {renderPanelHeader(openAddModal)}
+      {renderPanelHeader(openAddModal, () => setBrowserOpen(true))}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {hasCurrency && (isWealthTier
           ? <WealthTierDisplay
@@ -289,20 +291,33 @@ export function InventoryPanel({ character, campaignId }: InventoryPanelProps) {
         showBulk={isBulkPf2e}
         showInvestment={isInvestmentPf2e}
       />
+      <ItemBrowser
+        open={browserOpen}
+        onClose={() => setBrowserOpen(false)}
+        campaignId={campaignId}
+        characterId={character._id}
+        scope="character"
+      />
     </div>
   );
 }
 
-function renderPanelHeader(openAddModal: () => void) {
+function renderPanelHeader(openAddModal: () => void, openBrowser: () => void) {
   return (
     <div className="flex items-center justify-between border-b border-[hsla(38,50%,30%,0.15)] px-4 py-3">
       <h2 className="font-[Cinzel] text-sm font-semibold uppercase tracking-wider text-foreground">
         Inventory
       </h2>
-      <Button size="sm" onClick={openAddModal}>
-        <Plus className="mr-1 h-3.5 w-3.5" />
-        Add Item
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={openBrowser}>
+          <BookOpen className="mr-1 h-3.5 w-3.5" />
+          Browse SRD
+        </Button>
+        <Button size="sm" onClick={openAddModal}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Add Item
+        </Button>
+      </div>
     </div>
   );
 }

@@ -61,6 +61,8 @@ export interface Item {
   isContainer: boolean;
   parentItemId?: string;
   containerCapacity: number;
+  sourceType?: string;
+  sourceId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,3 +109,29 @@ export type UpdateItemPayload = Partial<
 >;
 
 export type UpdateCurrencyPayload = Partial<CharacterCurrency>;
+
+export interface SrdItemTemplate {
+  _id: string;
+  name: string;
+  category: string;
+  description: string;
+  weight: number;
+  cost: number;
+  costUnit: string;
+  rarity: string;
+  attunementRequired: boolean;
+  damageFormula?: string;
+  damageType?: string;
+  properties: string[];
+  armorClass?: number;
+  armorType?: string;
+  stealthDisadvantage: boolean;
+  source: 'srd';
+}
+
+export interface CloneSrdItemPayload {
+  templateId: string;
+  campaignId: string;
+  characterId?: string;
+  scope?: 'character' | 'party';
+}

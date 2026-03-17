@@ -151,6 +151,7 @@ export const campaignsApi = {
         handoutIds?: string[];
         downtimeIds?: string[];
         calendarEventIds?: string[];
+        trackerIds?: string[];
       };
     },
   ): Promise<Campaign> => {
@@ -179,6 +180,7 @@ export const campaignsApi = {
         handoutIds?: string[];
         downtimeIds?: string[];
         calendarEventIds?: string[];
+        trackerIds?: string[];
       };
     },
   ): Promise<Campaign> => {
@@ -242,8 +244,17 @@ export const campaignsApi = {
     return data;
   },
 
-  adjustTracker: async (id: string, trackerId: string, delta: number): Promise<Campaign> => {
-    const { data } = await api.patch<Campaign>(`/campaigns/${id}/trackers/${trackerId}/adjust`, { delta });
+  adjustTracker: async (
+    id: string,
+    trackerId: string,
+    delta: number,
+    options?: { reason?: string; sessionNumber?: number },
+  ): Promise<Campaign> => {
+    const { data } = await api.patch<Campaign>(`/campaigns/${id}/trackers/${trackerId}/adjust`, {
+      delta,
+      ...(options?.reason !== undefined && { reason: options.reason }),
+      ...(options?.sessionNumber !== undefined && { sessionNumber: options.sessionNumber }),
+    });
     return data;
   },
 

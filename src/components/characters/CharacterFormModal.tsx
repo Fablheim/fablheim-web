@@ -7,6 +7,7 @@ import { useCreateCharacter, useUpdateCharacter } from '@/hooks/useCharacters';
 import { useUpdateAttacks } from '@/hooks/useCharacterCombat';
 import { useSystemDefinition } from '@/hooks/useSystems';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character, CampaignSystem, CharacterAttack } from '@/types/campaign';
 import type { SystemDefinition, CustomFieldDefinition } from '@/types/system';
 
@@ -371,7 +372,7 @@ export function CharacterFormModal({
     if (character) {
       setName(character.name);
       setRace(character.race || '');
-      setCharClass(character.class || '');
+      setCharClass(formatCharacterClass(character));
       setLevel(character.level);
       setBackstory(character.backstory || '');
       setStats(character.stats || defaultStats);
@@ -456,7 +457,6 @@ export function CharacterFormModal({
     const payload = {
       name,
       race: race || undefined,
-      class: charClass || undefined,
       ...(systemDef?.identity.level ? { level } : {}),
       backstory: backstory || undefined,
       stats: Object.keys(stats).length > 0 ? stats : undefined,

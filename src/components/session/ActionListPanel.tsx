@@ -4,15 +4,15 @@ import { toast } from 'sonner';
 import { useBattleMap } from '@/hooks/useBattleMap';
 import { useCharacters } from '@/hooks/useCharacters';
 import { useEncounters } from '@/hooks/useEncounters';
-import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
+import { useEnemyTemplates } from '@/hooks/useCreatureTemplates';
 import { useRollDice, useRollHopeFear } from '@/hooks/useLiveSession';
 import { getSystemAdapter, getSystemAdapterFromModules } from '@/rules/systems/getSystemAdapter';
 import { pf2eDegreeOfSuccess } from '@/rules/systems/pathfinder2e/adapter';
 import type { DegreeOfSuccess, SystemAction } from '@/rules/systems/types';
-import type { EnemyAttack } from '@/types/enemy-template';
+import type { EnemyAttack } from '@/types/creature-template';
 import type { InitiativeEntry } from '@/types/live-session';
 import { useCampaignModuleEnabled, useCampaignEnabledModules } from '@/hooks/useModuleEnabled';
-import type { EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyTemplate } from '@/types/creature-template';
 
 const DEGREE_STYLES: Record<DegreeOfSuccess, string> = {
   'critical-success': 'text-[hsl(45,90%,55%)]',

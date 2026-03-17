@@ -4,6 +4,7 @@ import type {
   CreateItemPayload,
   UpdateItemPayload,
   UpdateCurrencyPayload,
+  CloneSrdItemPayload,
 } from '@/types/item';
 
 export function useItems(characterId?: string) {
@@ -152,6 +153,25 @@ export function useUpdateCurrency() {
       queryClient.invalidateQueries({
         queryKey: ['currency', variables.characterId],
       });
+    },
+  });
+}
+
+export function useSrdItems() {
+  return useQuery({
+    queryKey: ['items', 'srd'],
+    queryFn: () => itemsApi.getSrdItems(),
+  });
+}
+
+export function useCloneSrdItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CloneSrdItemPayload) => itemsApi.cloneSrdItem(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['party-items'] });
     },
   });
 }

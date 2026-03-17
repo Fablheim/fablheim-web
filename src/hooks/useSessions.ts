@@ -106,6 +106,19 @@ export function useSessionRecap(campaignId: string, sessionId: string, enabled =
   });
 }
 
+export function useDeleteSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ campaignId, sessionId }: { campaignId: string; sessionId: string }) =>
+      sessionsApi.delete(campaignId, sessionId),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['sessions', vars.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+}
+
 export function useRegenerateRecap() {
   const queryClient = useQueryClient();
 

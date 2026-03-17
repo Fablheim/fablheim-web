@@ -1,5 +1,5 @@
 import type { CharacterAttack } from '@/types/campaign';
-import type { EnemyAttack } from '@/types/enemy-template';
+import type { EnemyAttack } from '@/types/creature-template';
 import type {
   DegreeOfSuccess,
   SystemAction,

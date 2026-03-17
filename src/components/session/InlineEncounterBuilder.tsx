@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { SpawnEnemiesModal } from '@/components/enemies/SpawnEnemiesModal';
 import { useSaveAIEncounter, useLoadEncounter } from '@/hooks/useEncounters';
 import type { EncounterDifficulty, EncounterNPC } from '@/types/encounter';
-import type { SpawnedEnemy } from '@/types/enemy-template';
+import type { SpawnedEnemy } from '@/types/creature-template';
 
 // ── Types ────────────────────────────────────────────────────
 

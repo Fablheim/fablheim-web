@@ -109,6 +109,11 @@ function renderNameAndSchool(
   return (
     <span className={`flex-1 truncate text-sm font-medium ${schoolColor}`}>
       {spell.name}
+      {spell.isHomebrew && (
+        <span className="ml-1.5 inline-block rounded-sm bg-violet-900/40 px-1 py-0.5 align-middle text-[9px] font-bold uppercase text-violet-400">
+          Homebrew
+        </span>
+      )}
     </span>
   );
 }

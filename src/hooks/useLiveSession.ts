@@ -194,6 +194,16 @@ export function useEndCombat(campaignId: string) {
   });
 }
 
+export function usePauseCombat(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => liveSessionApi.pauseCombat(campaignId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['initiative', campaignId] });
+    },
+  });
+}
+
 // ── GM Resource Pools ──────────────────────────────────
 
 export function useGmResources(campaignId: string) {

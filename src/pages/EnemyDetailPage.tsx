@@ -19,7 +19,7 @@ import {
   useEnemyTemplates,
   useCreateEnemyTemplate,
   useDeleteEnemyTemplate,
-} from '@/hooks/useEnemyTemplates';
+} from '@/hooks/useCreatureTemplates';
 import {
   CATEGORY_LABELS,
   CATEGORY_COLORS,
@@ -27,7 +27,7 @@ import {
   SYSTEM_COLORS,
   SYSTEM_STATS,
 } from '@/lib/enemy-constants';
-import type { EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyTemplate } from '@/types/creature-template';
 
 interface NavState {
   filters?: { category?: string; scope?: string };

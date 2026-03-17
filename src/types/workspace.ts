@@ -54,6 +54,7 @@ export interface PanelDefinition {
 
 export type PrepSection =
   | 'overview'
+  | 'timeline'
   | 'world'
   | 'players'
   | 'npcs'
@@ -73,6 +74,7 @@ export type PrepSection =
   | 'modules'
   | 'safety-tools'
   | 'handouts'
+  | 'homebrew'
   | 'my-notes';
 
 export type PrepSectionGroupId =

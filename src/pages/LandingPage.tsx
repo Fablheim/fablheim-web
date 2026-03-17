@@ -662,8 +662,8 @@ function RulesPricingAndAi({ onRules, onPricing }: { onRules: () => void; onPric
             <Coins className="h-5 w-5 text-[color:var(--mkt-accent)]" />
             <p className="mt-3 font-[Cinzel] text-xl text-[color:var(--mkt-text)]">Pricing reality</p>
             <p className="text-sm text-[color:var(--mkt-muted)]">Free tier runs the core app without monthly AI credits. Paid tiers add monthly AI credits.</p>
-            <p className="mt-2 text-xs text-[color:var(--mkt-muted)]">Hobbyist {BILLING_CONFIG.tiers.hobbyist.monthlyCredits}, Game Master {BILLING_CONFIG.tiers.pro.monthlyCredits}, Pro {BILLING_CONFIG.tiers.professional.monthlyCredits} credits / month.</p>
-            <p className="mt-2 text-xs text-[color:var(--mkt-muted)]">{BILLING_CONFIG.creditPack.price} pack: {BILLING_CONFIG.creditPack.credits} base credits. Subscriber bonuses: {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}/{BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}/{BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.</p>
+            <p className="mt-2 text-xs text-[color:var(--mkt-muted)]">Hobbyist {BILLING_CONFIG.tiers.hobbyist.monthlyCredits}, Game Master {BILLING_CONFIG.tiers.gamemaster.monthlyCredits}, Pro {BILLING_CONFIG.tiers.pro.monthlyCredits} credits / month.</p>
+            <p className="mt-2 text-xs text-[color:var(--mkt-muted)]">{BILLING_CONFIG.creditPack.price} pack: {BILLING_CONFIG.creditPack.credits} base credits. Subscriber bonuses: {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}/{BILLING_CONFIG.creditPack.bonusCreditsByTier.gamemaster}/{BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}.</p>
           </article>
 
           <article className="mkt-card mkt-card-mounted rounded-lg p-5">

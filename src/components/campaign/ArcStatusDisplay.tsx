@@ -6,6 +6,10 @@ import type { ArcStatus } from '@/types/campaign';
 const ARC_STATUS_CONFIG: Record<ArcStatus, { label: string; color: string; bg: string }> = {
   upcoming: { label: 'Upcoming', color: 'text-muted-foreground', bg: 'bg-muted' },
   active: { label: 'Active', color: 'text-gold', bg: 'bg-gold/15' },
+  advancing: { label: 'Advancing', color: 'text-[hsl(150,50%,55%)]', bg: 'bg-[hsl(150,50%,55%)]/15' },
+  dormant: { label: 'Dormant', color: 'text-muted-foreground', bg: 'bg-muted' },
+  threatened: { label: 'Threatened', color: 'text-[hsl(0,60%,60%)]', bg: 'bg-[hsl(0,60%,60%)]/15' },
+  resolved: { label: 'Resolved', color: 'text-[hsl(150,50%,55%)]', bg: 'bg-forest/15' },
   completed: { label: 'Completed', color: 'text-[hsl(150,50%,55%)]', bg: 'bg-forest/15' },
 };
 

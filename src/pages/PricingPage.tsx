@@ -29,8 +29,8 @@ const tiers = [
   },
   {
     name: 'Game Master',
-    price: `${BILLING_CONFIG.tiers.pro.price}`,
-    credits: `${BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits`,
+    price: `${BILLING_CONFIG.tiers.gamemaster.price}`,
+    credits: `${BILLING_CONFIG.tiers.gamemaster.monthlyCredits} monthly AI credits`,
     notes: 'Subscription credits expire after 90 days.',
     tag: 'Best For Active GMs',
     cardTone:
@@ -39,8 +39,8 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: `${BILLING_CONFIG.tiers.professional.price}`,
-    credits: `${BILLING_CONFIG.tiers.professional.monthlyCredits} monthly AI credits`,
+    price: `${BILLING_CONFIG.tiers.pro.price}`,
+    credits: `${BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits`,
     notes: 'Subscription credits expire after 90 days.',
     tag: 'High Throughput',
     cardTone:
@@ -148,7 +148,7 @@ export default function PricingPage() {
                   Buy {BILLING_CONFIG.creditPack.credits} credits for {BILLING_CONFIG.creditPack.price} without a subscription.
                 </p>
                 <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">
-                  Subscribers get more credits per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.
+                  Subscribers get more credits per pack: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Game Master {BILLING_CONFIG.creditPack.bonusCreditsByTier.gamemaster}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}.
                 </p>
                 <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">
                   If you do not need monthly AI throughput, you can stay on free and buy packs only when needed.

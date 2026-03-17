@@ -3,6 +3,7 @@ import { Shield, Heart, Eye, Sparkle, Flame } from 'lucide-react';
 import { useCharacters, useUpdateCharacter } from '@/hooks/useCharacters';
 import { useInitiative } from '@/hooks/useLiveSession';
 import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character } from '@/types/campaign';
 import type { InitiativeEntry } from '@/types/live-session';
 
@@ -108,7 +109,7 @@ function PartyMemberCard({
         <div className="min-w-0">
           <p className="font-[Cinzel] text-sm font-medium text-foreground truncate">{character.name}</p>
           <p className="text-xs text-muted-foreground font-['IM_Fell_English'] italic truncate">
-            {[character.race, character.class, character.level ? `Lvl ${character.level}` : null]
+            {[character.race, formatCharacterClass(character), character.level ? `Lvl ${character.level}` : null]
               .filter(Boolean)
               .join(' · ')}
           </p>

@@ -1,4 +1,4 @@
-import type { EnemyCategory } from '@/types/enemy-template';
+import type { EnemyCategory } from '@/types/creature-template';
 
 export const CATEGORY_LABELS: Record<EnemyCategory, string> = {
   humanoid: 'Humanoid',

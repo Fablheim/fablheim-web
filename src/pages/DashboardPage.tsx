@@ -8,6 +8,7 @@ import { useMyCampaignMemberships } from '@/hooks/useCampaignMembers';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { Button } from '@/components/ui/Button';
 import { AppEmptyState } from '@/components/app/AppEmptyState';
+import { formatCharacterClass } from '@/lib/character-utils';
 import { WelcomeTour } from '@/components/onboarding/WelcomeTour';
 import { GMChecklist } from '@/components/onboarding/GMChecklist';
 import { LiveSessionAlert } from '@/components/dashboard/LiveSessionAlert';
@@ -174,7 +175,7 @@ export function DashboardPage() {
         <div className="min-w-0">
           <p className="truncate text-[13px] text-[hsl(35,24%,92%)]">{char.name}</p>
           <p className="truncate text-[11px] text-[hsl(30,12%,58%)]">
-            {[char.race, char.class].filter(Boolean).join(' ') || 'Adventurer'}
+            {[char.race, formatCharacterClass(char)].filter(Boolean).join(' ') || 'Adventurer'}
           </p>
         </div>
       </button>

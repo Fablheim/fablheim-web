@@ -1,4 +1,5 @@
 import { useCharacters } from '@/hooks/useCharacters';
+import { formatCharacterClass } from '@/lib/character-utils';
 import { useInitiative } from '@/hooks/useLiveSession';
 
 interface PartyStatusPanelProps {
@@ -55,7 +56,7 @@ export function PartyStatusPanel({ campaignId }: PartyStatusPanelProps) {
     return {
       id: character._id,
       name: character.name,
-      className: character.class ?? '',
+      className: formatCharacterClass(character),
       level: character.level ?? 0,
       hp,
       maxHp,

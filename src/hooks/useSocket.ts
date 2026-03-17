@@ -175,12 +175,22 @@ export function useSessionRoom(campaignId: string | null) {
       }
     }
 
+    function onCreditsLow(data: { balance: number; threshold: number }) {
+      toast.warning(`You have ${data.balance} AI credits remaining`, { duration: 8000 });
+    }
+
+    function onCreditsDepleted() {
+      toast.error("You're out of AI credits", { duration: 10000 });
+    }
+
     socket.on('user-joined', onUserJoined);
     socket.on('user-left', onUserLeft);
     socket.on('sync-response', onSyncResponse);
     socket.on('chat:message', onChatMessage);
     socket.on('error:rate-limit', onRateLimit);
     socket.on('exception', onException);
+    socket.on('credits:low', onCreditsLow);
+    socket.on('credits:depleted', onCreditsDepleted);
 
     return () => {
       socket.emit('leave-session', { campaignId });
@@ -190,6 +200,8 @@ export function useSessionRoom(campaignId: string | null) {
       socket.off('chat:message', onChatMessage);
       socket.off('error:rate-limit', onRateLimit);
       socket.off('exception', onException);
+      socket.off('credits:low', onCreditsLow);
+      socket.off('credits:depleted', onCreditsDepleted);
     };
   }, [socket, connected, campaignId]);
 

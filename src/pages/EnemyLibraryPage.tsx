@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EnemyTemplateFormModal } from '@/components/enemies/EnemyTemplateFormModal';
-import { useEnemyTemplates, useDeleteEnemyTemplate } from '@/hooks/useEnemyTemplates';
+import { useEnemyTemplates, useDeleteEnemyTemplate } from '@/hooks/useCreatureTemplates';
 import {
   CATEGORY_LABELS,
   SYSTEM_LABELS,
@@ -13,7 +13,7 @@ import {
   SIZE_LABELS,
   CR_PRESETS,
 } from '@/lib/enemy-constants';
-import type { EnemyTemplate, EnemyCategory } from '@/types/enemy-template';
+import type { EnemyTemplate, EnemyCategory } from '@/types/creature-template';
 
 /** Parse CR string to a numeric value for filtering ("1/4" → 0.25, "5" → 5) */
 function parseCR(cr?: string): number | null {

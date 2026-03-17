@@ -17,6 +17,12 @@ import { CampaignHealthDeskV2 } from './campaign-health/CampaignHealthDeskV2';
 import { EconomyDeskV2 } from './economy/EconomyDeskV2';
 import { AIToolsDeskV2 } from './ai-tools/AIToolsDeskV2';
 import { ModuleBrowserDeskV2 } from './modules/ModuleBrowserDeskV2';
+import { HomebrewDeskV2 } from './homebrew/HomebrewDeskV2';
+import { SessionNotesView } from './sessions/SessionNotesView';
+import { CampaignTimeline } from './timeline/CampaignTimeline';
+import { InitiativeTracker } from '@/components/session/InitiativeTracker';
+import { MapTab } from '@/components/session/MapTab';
+import { useWorldExplorerContext } from './world/useWorldExplorerContext';
 
 interface CenterStageV2Props {
   campaignId: string;
@@ -44,6 +50,10 @@ const WORLD_TABS = new Set(['world', 'npcs', 'notes', 'relationships']);
  * - narrative: current scene (location + NPCs + quest state)
  * - combat: tactical map
  * - recap: session summary + notes
+ *
+ * FIX 5 (Phase 5): No outer padding or max-width is applied here. This component
+ * is a pure router — each desk/stage component manages its own internal padding.
+ * No responsive padding changes are needed at this level.
  */
 export function CenterStageV2({
   campaignId,
@@ -54,6 +64,13 @@ export function CenterStageV2({
   onTabChange,
   onStartSession,
 }: CenterStageV2Props) {
+  const { requestEntityNavigation } = useWorldExplorerContext();
+
+  function openWorldEntity(entityId: string) {
+    requestEntityNavigation(entityId);
+    onTabChange('world');
+  }
+
   if (appState === 'prep' && activeTab === 'overview') {
     return (
       <OverviewCenterStage
@@ -73,15 +90,21 @@ export function CenterStageV2({
         campaignId={campaignId}
         isDM={isDM}
         activeTab={activeTab}
+        onTabChange={onTabChange}
       />
     );
+  }
+
+  if (appState === 'prep' && activeTab === 'timeline') {
+    return <CampaignTimeline campaignId={campaignId} onTabChange={onTabChange} />;
   }
 
   if (appState === 'prep' && activeTab === 'sessions') {
     return (
       <SessionsCenterStage
         campaignId={campaignId}
-        onOpenWorldEntity={() => onTabChange('world')}
+        onOpenWorldEntity={openWorldEntity}
+        onTabChange={onTabChange}
       />
     );
   }
@@ -91,7 +114,9 @@ export function CenterStageV2({
       <PlayersCenterStage
         campaignId={campaignId}
         isDM={isDM}
-        onOpenWorldEntity={() => onTabChange('world')}
+        onOpenWorldEntity={openWorldEntity}
+        onOpenArcs={() => onTabChange('arcs')}
+        onTabChange={onTabChange}
       />
     );
   }
@@ -109,7 +134,7 @@ export function CenterStageV2({
   }
 
   if (appState === 'prep' && activeTab === 'rules') {
-    return <RulesDeskCenterStage campaignId={campaignId} />;
+    return <RulesDeskCenterStage />;
   }
 
   if (appState === 'prep' && activeTab === 'safety-tools') {
@@ -124,31 +149,100 @@ export function CenterStageV2({
     return <DowntimeDeskV2 campaignId={campaignId} />;
   }
 
+  if (appState === 'prep' && activeTab === 'homebrew') {
+    return <HomebrewDeskV2 />;
+  }
+
   if (appState === 'prep' && activeTab === 'arcs') {
-    return <StoryArcsDeskV2 campaignId={campaignId} />;
+    return <StoryArcsDeskV2 />;
   }
 
   if (appState === 'prep' && activeTab === 'trackers') {
-    return <TrackersDeskV2 campaignId={campaignId} isDM={isDM} />;
+    return <TrackersDeskV2 />;
   }
 
   if (appState === 'prep' && activeTab === 'campaign-health') {
-    return <CampaignHealthDeskV2 campaignId={campaignId} onTabChange={onTabChange} />;
+    return <CampaignHealthDeskV2 />;
   }
 
   if (appState === 'prep' && activeTab === 'economy') {
-    return <EconomyDeskV2 campaignId={campaignId} onTabChange={onTabChange} />;
+    return <EconomyDeskV2 />;
   }
 
   if (appState === 'prep' && activeTab === 'ai-tools') {
-    return <AIToolsDeskV2 campaignId={campaignId} />;
+    return <AIToolsDeskV2 />;
   }
 
   if (appState === 'prep' && activeTab === 'modules') {
-    return <ModuleBrowserDeskV2 campaignId={campaignId} />;
+    return <ModuleBrowserDeskV2 />;
+  }
+
+  // ── Play-mode routing (narrative / combat) ───────────────────
+  if (appState === 'narrative' || appState === 'combat') {
+    // Session notes must check before WORLD_TABS since 'notes' is in both
+    if (activeTab === 'session-notes' || activeTab === 'notes') {
+      return <SessionNotesView campaignId={campaignId} />;
+    }
+    if (WORLD_TABS.has(activeTab)) {
+      return (
+        <WorldCenterStage
+          campaignId={campaignId}
+          isDM={isDM}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+        />
+      );
+    }
+    if (activeTab === 'encounters') {
+      return <EncounterCenterStageV2 campaignId={campaignId} />;
+    }
+    if (activeTab === 'handouts') {
+      return <HandoutsArchiveV2 campaignId={campaignId} isDM={isDM} />;
+    }
+    if (activeTab === 'party') {
+      return (
+        <PlayersCenterStage
+          campaignId={campaignId}
+          isDM={isDM}
+          onOpenWorldEntity={openWorldEntity}
+          onOpenArcs={() => onTabChange('arcs')}
+          onTabChange={onTabChange}
+        />
+      );
+    }
+    if (activeTab === 'ai' || activeTab === 'ai-tools') {
+      return <AIToolsDeskV2 />;
+    }
+    if (activeTab === 'initiative') {
+      return <InitiativeTracker campaignId={campaignId} isDM={isDM} />;
+    }
+    if (activeTab === 'map') {
+      return <MapTab campaignId={campaignId} isDM={isDM} />;
+    }
+    if (activeTab === 'passive') {
+      return renderComingSoon('Passive checks');
+    }
   }
 
   return renderPlaceholder();
+
+  function renderComingSoon(label: string) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <p
+            className="mb-1 text-sm text-[hsl(38,36%,72%)]"
+            style={{ fontFamily: "'Cinzel', serif" }}
+          >
+            {label}
+          </p>
+          <p className="text-xs text-[hsl(30,14%,40%)]">
+            Coming soon.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   function renderPlaceholder() {
     return (
@@ -161,7 +255,7 @@ export function CenterStageV2({
             {STATE_LABELS[appState]}
           </p>
           <p className="text-xs text-[hsl(30,14%,40%)]">
-            Active tab: {activeTab}
+            This section is not yet available.
           </p>
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
   StickyNote,
   CalendarDays,
   Dices,
+  FlaskConical,
   Coffee,
   Heart,
   BarChart3,
@@ -20,6 +21,7 @@ import {
   Blocks,
   ShieldAlert,
   FileText,
+  Clock,
 } from 'lucide-react';
 import type { PrepSection, PrepSectionDef, PrepSectionGroupDef } from '@/types/workspace';
 
@@ -34,6 +36,7 @@ export const PREP_SECTION_GROUPS: PrepSectionGroupDef[] = [
 
 export const PREP_SECTIONS: PrepSectionDef[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard, group: 'campaign' },
+  { id: 'timeline', label: 'Timeline', icon: Clock, group: 'campaign' },
   { id: 'sessions', label: 'Session Plans', icon: BookOpen, group: 'campaign', dmOnly: true },
   { id: 'players', label: 'Players', icon: Users, group: 'campaign' },
   { id: 'handouts', label: 'Handouts', icon: FileText, group: 'campaign', dmOnly: true },
@@ -46,6 +49,7 @@ export const PREP_SECTIONS: PrepSectionDef[] = [
   { id: 'encounters', label: 'Encounters', icon: Swords, group: 'prep', dmOnly: true },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, group: 'prep', dmOnly: true },
   { id: 'random-tables', label: 'Random Tables', icon: Dices, group: 'prep', dmOnly: true },
+  { id: 'homebrew', label: 'Homebrew', icon: FlaskConical, group: 'prep', dmOnly: true },
   { id: 'downtime', label: 'Downtime', icon: Coffee, group: 'prep', dmOnly: true },
   { id: 'arcs', label: 'Story Arcs', icon: Flag, group: 'tracking' },
   { id: 'trackers', label: 'Trackers', icon: Activity, group: 'tracking' },

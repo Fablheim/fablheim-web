@@ -1,6 +1,7 @@
 import { X, Pencil, Trash2, Eye, EyeOff, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSystemDefinition } from '@/hooks/useSystems';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { CharacterListItem } from './CharacterCard';
 import type { SystemDefinition } from '@/types/system';
 
@@ -75,7 +76,7 @@ function PCDetail({
   systemDef?: SystemDefinition;
 }) {
   const char = item.data;
-  const classRace = [char.race, char.class].filter(Boolean).join(' ') || 'Adventurer';
+  const classRace = [char.race, formatCharacterClass(char)].filter(Boolean).join(' ') || 'Adventurer';
 
   // Build stat label lookup from system definition
   const statLabels: Record<string, string> = {};

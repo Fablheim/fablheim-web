@@ -354,13 +354,13 @@ function PricingReality() {
           <article className="mkt-card mkt-card-mounted rounded-xl p-5">
             <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Game Master</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$9.99 / month</p>
-            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.gamemaster.monthlyCredits} monthly AI credits</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Subscription credits expire after 90 days</p>
           </article>
           <article className="mkt-card rounded-xl p-5">
             <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">Pro</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">$19.99 / month</p>
-            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.professional.monthlyCredits} monthly AI credits</p>
+            <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.tiers.pro.monthlyCredits} monthly AI credits</p>
             <p className="mt-2 text-sm text-[color:var(--mkt-muted)]">Subscription credits expire after 90 days</p>
           </article>
         </div>
@@ -371,7 +371,7 @@ function PricingReality() {
             <div>
               <p className="font-[Cinzel] text-lg text-[color:var(--mkt-text)]">One-time credit pack</p>
               <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">{BILLING_CONFIG.creditPack.price} for {BILLING_CONFIG.creditPack.credits} credits, purchasable without a subscription.</p>
-              <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">Subscribers get bonus pack credits: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}, Professional {BILLING_CONFIG.creditPack.bonusCreditsByTier.professional}.</p>
+              <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">Subscribers get bonus pack credits: Hobbyist {BILLING_CONFIG.creditPack.bonusCreditsByTier.hobbyist}, Game Master {BILLING_CONFIG.creditPack.bonusCreditsByTier.gamemaster}, Pro {BILLING_CONFIG.creditPack.bonusCreditsByTier.pro}.</p>
               <p className="mt-1 text-sm text-[color:var(--mkt-muted)]">Current implementation does not publish per-tier memory or storage caps in the pricing UI.</p>
             </div>
           </div>

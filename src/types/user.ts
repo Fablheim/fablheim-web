@@ -5,16 +5,29 @@ export interface User {
   displayName: string;
   avatar: string;
   provider: 'local' | 'google';
-  subscriptionTier: 'free' | 'hobbyist' | 'pro' | 'professional';
+  subscriptionTier: 'wanderer' | 'hobbyist' | 'gamemaster' | 'pro';
   subscriptionStatus: 'active' | 'past_due' | 'cancelled' | 'expired';
   role: 'user' | 'admin';
   ageVerified: boolean;
   ageVerifiedAt?: string;
+  emailVerified: boolean;
   aiUsage: {
     enabled: boolean;
     tier: 'none' | 'starter' | 'pro' | 'ultimate';
     callsThisMonth: number;
   };
+  timezone: string;
+  preferences: {
+    theme: string;
+    emailNotifications: {
+      sessionReminders: boolean;
+      campaignInvites: boolean;
+      creditLow: boolean;
+    };
+    diceAnimation: boolean;
+    diceSounds: boolean;
+  };
+  lastLogin?: string;
 }
 
 export interface AuthResponse {

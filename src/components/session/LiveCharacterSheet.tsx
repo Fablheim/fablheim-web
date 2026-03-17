@@ -17,6 +17,7 @@ import { HPTracker } from '@/components/characters/HPTracker';
 import { CombatStats } from '@/components/characters/CombatStats';
 import { SpellSlots } from '@/components/characters/SpellSlots';
 import { useCampaignModuleEnabled } from '@/hooks/useModuleEnabled';
+import { formatCharacterClass } from '@/lib/character-utils';
 import type { Character, AbilityRollResult, CharacterAttack } from '@/types/campaign';
 
 interface LiveCharacterSheetProps {
@@ -151,7 +152,7 @@ function CharacterSheetContent({
               {char.name}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {[char.race, char.class, char.level ? `Level ${char.level}` : null]
+              {[char.race, formatCharacterClass(char), char.level ? `Level ${char.level}` : null]
                 .filter(Boolean)
                 .join(' \u2022 ')}
             </p>

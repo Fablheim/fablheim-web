@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SpawnEnemiesModal } from '@/components/enemies/SpawnEnemiesModal';
 import { AddWorldNPCModal } from '@/components/encounters/AddWorldNPCModal';
 import type { Encounter, EncounterNPC } from '@/types/encounter';
-import type { SpawnedEnemy } from '@/types/enemy-template';
+import type { SpawnedEnemy } from '@/types/creature-template';
 
 interface EncounterNPCListProps {
   campaignId: string;

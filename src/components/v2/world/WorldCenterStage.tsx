@@ -33,9 +33,10 @@ interface WorldCenterStageProps {
   campaignId: string;
   isDM: boolean;
   activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export function WorldCenterStage({ campaignId, isDM, activeTab = 'world' }: WorldCenterStageProps) {
+export function WorldCenterStage({ campaignId, isDM, activeTab = 'world', onTabChange }: WorldCenterStageProps) {
   const [viewStack, setViewStack] = useState<WorldView[]>([{ kind: 'home' }]);
   const [createDraft, setCreateDraft] = useState<WorldCreateDraft | null>(null);
   const {
@@ -107,7 +108,7 @@ export function WorldCenterStage({ campaignId, isDM, activeTab = 'world' }: Worl
   }, [pendingCreateDraft, requestWorldCreate]);
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
       <WorldCommandPalette campaignId={campaignId} nav={nav} />
       {renderView()}
       <WorldCreatePanel
@@ -156,6 +157,7 @@ export function WorldCenterStage({ campaignId, isDM, activeTab = 'world' }: Worl
             isDM={isDM}
             entityId={view.entityId}
             nav={nav}
+            onTabChange={onTabChange}
           />
         );
       case 'unassigned':

@@ -4,6 +4,7 @@ import type {
   PopulatedCharacterSpell,
   LearnSpellPayload,
   SpellQuery,
+  CreateSpellPayload,
 } from '@/types/spell';
 
 export const spellsApi = {
@@ -57,5 +58,33 @@ export const spellsApi = {
       { notes },
     );
     return data;
+  },
+
+  // ── Campaign Homebrew Spells ─────────────────────────────────
+
+  createCampaignSpell: async (
+    campaignId: string,
+    payload: CreateSpellPayload,
+  ): Promise<Spell> => {
+    const { data } = await api.post<Spell>(
+      `/spells/campaign/${campaignId}`,
+      payload,
+    );
+    return data;
+  },
+
+  updateCampaignSpell: async (
+    spellId: string,
+    payload: Partial<CreateSpellPayload>,
+  ): Promise<Spell> => {
+    const { data } = await api.patch<Spell>(
+      `/spells/campaign/${spellId}`,
+      payload,
+    );
+    return data;
+  },
+
+  deleteCampaignSpell: async (spellId: string): Promise<void> => {
+    await api.delete(`/spells/campaign/${spellId}`);
   },
 };

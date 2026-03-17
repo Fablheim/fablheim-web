@@ -140,6 +140,13 @@ export const liveSessionApi = {
     return data;
   },
 
+  pauseCombat: async (campaignId: string): Promise<Initiative> => {
+    const { data } = await api.post<Initiative>(
+      `/campaigns/${campaignId}/session/initiative/pause`,
+    );
+    return data;
+  },
+
   // ── GM Resource Pools ────────────────────────────────────
   getGmResources: async (campaignId: string): Promise<GmResource[]> => {
     const { data } = await api.get<GmResource[]>(

@@ -8,7 +8,7 @@ import { useEncounters } from '@/hooks/useEncounters';
 import { useNotebook, useCreateNote } from '@/hooks/useNotebook';
 import { useCharacters, useUpdateCharacter } from '@/hooks/useCharacters';
 import { useBattleMap } from '@/hooks/useBattleMap';
-import { useEnemyTemplates } from '@/hooks/useEnemyTemplates';
+import { useEnemyTemplates } from '@/hooks/useCreatureTemplates';
 import { useInitiative, useRollDice, useUpdateInitiativeEntry } from '@/hooks/useLiveSession';
 import { AIToolsTab } from '@/components/session/AIToolsTab';
 import { HouseRulesPanel } from '@/components/session/HouseRulesPanel';
@@ -25,7 +25,7 @@ import { PassiveChecksTab } from '@/components/session/PassiveChecksTab';
 import { HandoutsTab } from '@/components/session/HandoutsTab';
 import type { WorldEntityType } from '@/types/campaign';
 import type { InitiativeEntry } from '@/types/live-session';
-import type { EnemyAttack, EnemyTemplate } from '@/types/enemy-template';
+import type { EnemyAttack, EnemyTemplate } from '@/types/creature-template';
 import type { CharacterAttack } from '@/types/campaign';
 import {
   type ActionBudgetState,

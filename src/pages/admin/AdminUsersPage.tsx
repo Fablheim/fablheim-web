@@ -8,10 +8,10 @@ import { GrantCreditsModal } from '@/components/admin/GrantCreditsModal';
 
 const TIER_OPTIONS = [
   { value: '', label: 'All Tiers' },
-  { value: 'free', label: 'Free' },
+  { value: 'wanderer', label: 'Wanderer' },
   { value: 'hobbyist', label: 'Hobbyist' },
-  { value: 'pro', label: 'Game Master' },
-  { value: 'professional', label: 'Pro' },
+  { value: 'gamemaster', label: 'Game Master' },
+  { value: 'pro', label: 'Pro' },
 ];
 
 const ROLE_OPTIONS = [
@@ -21,10 +21,10 @@ const ROLE_OPTIONS = [
 ];
 
 const TIER_LABELS: Record<string, string> = {
-  free: 'Free',
+  wanderer: 'Wanderer',
   hobbyist: 'Hobbyist',
-  pro: 'Game Master',
-  professional: 'Pro',
+  gamemaster: 'Game Master',
+  pro: 'Pro',
 };
 
 export function AdminUsersPage() {
